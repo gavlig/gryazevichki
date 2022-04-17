@@ -1,0 +1,12 @@
+{
+    "configurations": [
+    {
+        "type": "lldb",
+        "request": "launch",
+        "name": "Launch",
+        "program": "${workspaceFolder}/target/debug/gryazevichki",
+        "args": [],
+        "cwd": "${workspaceFolder}"
+    }
+    ],
+}

@@ -1,0 +1,2 @@
+1. Implement proper cylinder visualization instead of capsule for bevy_rapier3d when we switch to bevy 0.7 from 0.6
+(waiting because i dont want to maintain a version of bevy 0.6 locally)
