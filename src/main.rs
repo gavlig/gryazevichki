@@ -76,12 +76,12 @@ pub fn setup_physics(mut commands: Commands) {
 		spawn_cubes(&mut commands);
 	}
 
-	// wheels
+	// wheels 1.13
 	let half_height: f32 = 1.13 / 2.0;
 	let radius: f32 = 0.84;
 
 	let x = -1.414;
-	let y = 0.85;//half_height + 10.0;
+	let y = 1.85; // 0.85
 	let z = 1.468;
 	let mut pos = Vec3::new(x, y, z);
 	spawn_wheel(&pos, half_height, radius, &mut commands);
@@ -99,8 +99,17 @@ pub fn setup_physics(mut commands: Commands) {
 }
 
 fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, commands: &mut Commands) {
+	let mut component = RigidBodyPositionComponent::default();
+	component.position.translation = Vec3::new(pos_in.x, pos_in.y, pos_in.z).into();
+
+	//let axis = Unit::new_normalize(Vector3::new(1.0, 2.0, 3.0));
+	//let angle = 1.2;
+	//let rot = UnitQuaternion::from_axis_angle(&axis, angle);
+	let rot = nalgebra::UnitQuaternion::from_axis_angle(&nalgebra::Vector3::z_axis(), std::f32::consts::FRAC_PI_2);
+	component.position.rotation = rot;//UnitQuaternion::new(); //.append_axisangle_linearized(&nalgebra::Vector3::new(0.0, 0.0, 90.0));
+
 	let rigid_body = RigidBodyBundle {
-		position: Vec3::new(pos_in.x, pos_in.y, pos_in.z).into(),
+		position: component,
 		..RigidBodyBundle::default()
 	};
 
