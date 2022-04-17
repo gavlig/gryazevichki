@@ -46,7 +46,7 @@ fn setup_graphics(mut commands: Commands) {
 
 	commands.spawn_bundle(PerspectiveCameraBundle {
 		transform: Transform::from_matrix(Mat4::face_toward(
-			Vec3::new(-30.0, 30.0, 30.0),
+			Vec3::new(-30.0, 30.0, 15.0),
 			Vec3::new(0.0, 10.0, 0.0),
 			Vec3::new(0.0, 1.0, 0.0),
 		)),
@@ -72,7 +72,7 @@ pub fn setup_physics(mut commands: Commands) {
 		.insert(ColliderDebugRender::default())
 		.insert(ColliderPositionSync::Discrete);
 
-	if true {
+	if false {
 		spawn_cubes(&mut commands);
 	}
 
@@ -81,7 +81,7 @@ pub fn setup_physics(mut commands: Commands) {
 	let radius: f32 = 0.84;
 
 	let x = -1.414;
-	let y = 1.85; // 0.85
+	let y = 0.85; // 0.85
 	let z = 1.468;
 	let mut pos = Vec3::new(x, y, z);
 	spawn_wheel(&pos, half_height, radius, &mut commands);
@@ -96,6 +96,11 @@ pub fn setup_physics(mut commands: Commands) {
 	pos.x = -1.35;
 	pos.z = -1.89;
 	spawn_wheel(&pos, half_height, radius, &mut commands);
+
+	pos.x = 0.0;
+	pos.y = 1.791;
+	pos.z = -0.271;
+	spawn_box(&pos, &Vec3::new(0.791, 0.939, 2.599), &mut commands);
 }
 
 fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, commands: &mut Commands) {
@@ -122,6 +127,28 @@ fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, commands: &mut Comm
 		.spawn()
 		.insert_bundle(rigid_body)
 		.insert_bundle(wheel_collider)
+		.insert(ColliderDebugRender::default())
+		.insert(ColliderPositionSync::Discrete);
+}
+
+fn spawn_box(pos_in: &Vec3, size: &Vec3, commands: &mut Commands) {
+	let mut component = RigidBodyPositionComponent::default();
+	component.position.translation = Vec3::new(pos_in.x, pos_in.y, pos_in.z).into();
+
+	let rigid_body = RigidBodyBundle {
+		position: component,
+		..RigidBodyBundle::default()
+	};
+
+	let box_collider = ColliderBundle {
+		shape: ColliderShape::cuboid(size.x, size.y, size.z).into(),
+		..ColliderBundle::default()
+	};
+
+	commands
+		.spawn()
+		.insert_bundle(rigid_body)
+		.insert_bundle(box_collider)
 		.insert(ColliderDebugRender::default())
 		.insert(ColliderPositionSync::Discrete);
 }
