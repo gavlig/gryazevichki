@@ -292,6 +292,7 @@ fn cursor_grab_system(
 fn toggle_button_system(
 	btn: Res<Input<MouseButton>>,
 	key: Res<Input<KeyCode>>,
+	mut exit: EventWriter<AppExit>,
 	mut query: Query<&mut FlyCamera>,
 ) {
 	for mut options in query.iter_mut() {
@@ -300,7 +301,11 @@ fn toggle_button_system(
 		}
 
 		if key.just_pressed(KeyCode::Escape) {
+			if options.enabled {
 			options.enabled = false;
+			} else {
+				exit.send(AppExit);
+			}
 		}
 	}
 }
