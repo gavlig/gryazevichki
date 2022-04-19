@@ -18,9 +18,19 @@ fn main() {
 //		.add_plugin(EditorPlugin)
 		.add_startup_system(setup_graphics.system())
 		.add_startup_system(setup_physics.system())
+		.add_startup_system(setup_grab_system)
 		.add_system(cursor_grab_system)
 		.add_system(toggle_button_system)
 		.run();
+}
+
+fn setup_grab_system(
+	mut windows: ResMut<Windows>,
+) {
+	let window = windows.get_primary_mut().unwrap();
+
+	window.set_cursor_lock_mode(true);
+	window.set_cursor_visibility(false);
 }
 
 fn setup_graphics(mut commands: Commands) {
@@ -51,11 +61,10 @@ fn setup_graphics(mut commands: Commands) {
 	});
 
 	commands.spawn_bundle(PerspectiveCameraBundle {
-		transform: Transform::from_matrix(Mat4::face_toward(
-			Vec3::new(-5.0, 10.0, 5.0),
-			Vec3::new(0.0, 0.0, 0.0),
-			Vec3::new(0.0, 1.0, 0.0),
-		)),
+		transform: Transform {
+			translation: Vec3::new(0., 1., 10.),
+			..Default::default()
+		},
 		..Default::default()
 	})
 	.insert(FlyCamera::default());
