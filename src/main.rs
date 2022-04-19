@@ -21,6 +21,7 @@ fn main() {
 		.add_startup_system(setup_grab_system)
 		.add_system(cursor_grab_system)
 		.add_system(toggle_button_system)
+		.add_system(camera_collision_system)
 		.run();
 }
 
@@ -60,6 +61,13 @@ fn setup_graphics(mut commands: Commands) {
 		..Default::default()
 	});
 
+	// camera
+
+	let camera_collider = ColliderBundle {
+		shape: ColliderShape::ball(1.0).into(),
+		..ColliderBundle::default()
+	};
+
 	commands.spawn_bundle(PerspectiveCameraBundle {
 		transform: Transform {
 			translation: Vec3::new(0., 1., 10.),
@@ -67,11 +75,8 @@ fn setup_graphics(mut commands: Commands) {
 		},
 		..Default::default()
 	})
+	.insert_bundle(camera_collider)
 	.insert(FlyCamera::default());
-
-//	commands.spawn()
-//		.insert_bundle(PerspectiveCameraBundle::new_3d())
-//		.insert(FlyCamera::default());
 }
 
 pub fn setup_physics(mut commands: Commands) {
@@ -138,34 +143,29 @@ pub fn setup_physics(mut commands: Commands) {
 	//
 	//
 
-	radius = 0.5;
-	half_height = 0.5;
-
-	pos.x = 0.0;
-	pos.y = 1.0;
-	pos.z = 0.0;
-	let wheel0 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	radius = 0.4;
+	half_height = 0.4;
 
 	pos.x = 0.0;
 	pos.y = 2.0;
 	pos.z = 0.0;
 	let wheel1 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Static, &mut commands);
 
-	anchor = point![0.,1.5,0.];
+	pos.x = 0.0;
+	pos.y = 1.0;
+	pos.z = 0.0;
+	let wheel2 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-	create_6dof_joint(wheel0, wheel1, locked_axes, anchor, &mut commands);
+	let anchor1 = point![0.0,0.0,0.0];
+	let anchor2 = point![0.0,1.0,0.0];
+
+	create_6dof_joint(wheel1, wheel2, locked_axes, anchor1, anchor2, &mut commands);
 }
 
-fn create_6dof_joint(child: Entity, parent: Entity, locked_axes: JointAxesMask, anchor: nalgebra::Point3<Real>, commands: &mut Commands) {//, origin: Point3<f32>, num: usize) {
-	let mut joint_6dof = SphericalJoint::new().local_anchor2(anchor); // JointAxesMask::FREE_FIXED_AXES
-//	joint_6dof.locked_axes
-//	joint_6dof.set_local_anchor2(anchor);
-//	joint_
-//	let prism = PrismaticJoint::new(axis)
-//		.local_anchor2(Point3::new(0.0, 0.0, -shift))
-//		.limit_axis([-2.0, 2.0]);
+fn create_6dof_joint(entity1: Entity, entity2: Entity, locked_axes: JointAxesMask, anchor1: nalgebra::Point3<Real>, anchor2: nalgebra::Point3<Real>, commands: &mut Commands) {//, origin: Point3<f32>, num: usize) {
+	let mut joint_6dof = SphericalJoint::new().local_anchor1(anchor1).local_anchor2(anchor2); // JointAxesMask::FREE_FIXED_AXES
 
-	commands.spawn_bundle((JointBuilderComponent::new(joint_6dof, parent, child),));
+	commands.spawn_bundle((JointBuilderComponent::new(joint_6dof, entity1, entity2),));
 }
 
 fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, body_type: RigidBodyType,commands: &mut Commands) -> Entity {
@@ -186,7 +186,8 @@ fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, body_type: RigidBod
 
 	let wheel_collider = ColliderBundle {
 		shape: ColliderShape::cylinder(half_height, radius).into(),
-//		shape: ColliderShape::ball(1.0).into(),
+//		shape: ColliderShape::ball(radius).into(),
+//		shape: ColliderShape::cuboid(half_height, half_height, half_height).into(),
 		..ColliderBundle::default()
 	};
 
@@ -301,5 +302,15 @@ fn toggle_button_system(
 		if key.just_pressed(KeyCode::Escape) {
 			options.enabled = false;
 		}
+	}
+}
+
+fn camera_collision_system(
+	time: Res<Time>,
+	keyboard_input: Res<Input<KeyCode>>,
+	mut query: Query<(&mut FlyCamera, &mut Transform, &mut ColliderPositionComponent)>,
+) {
+	for (mut options, mut transform, mut collider_position) in query.iter_mut() {
+		collider_position.translation = transform.translation.into();
 	}
 }
