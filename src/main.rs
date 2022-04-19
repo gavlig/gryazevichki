@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
+//use bevy_editor_pls::prelude::*;
 
 fn main() {
 	App::new()
@@ -12,8 +14,12 @@ fn main() {
 		.add_plugins(DefaultPlugins)
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin(RapierRenderPlugin)
+		.add_plugin(FlyCameraPlugin)
+//		.add_plugin(EditorPlugin)
 		.add_startup_system(setup_graphics.system())
 		.add_startup_system(setup_physics.system())
+		.add_system(cursor_grab_system)
+		.add_system(toggle_button_system)
 		.run();
 }
 
@@ -46,12 +52,17 @@ fn setup_graphics(mut commands: Commands) {
 
 	commands.spawn_bundle(PerspectiveCameraBundle {
 		transform: Transform::from_matrix(Mat4::face_toward(
-			Vec3::new(-30.0, 30.0, 15.0),
-			Vec3::new(0.0, 10.0, 0.0),
+			Vec3::new(-5.0, 10.0, 5.0),
+			Vec3::new(0.0, 0.0, 0.0),
 			Vec3::new(0.0, 1.0, 0.0),
 		)),
 		..Default::default()
-	});
+	})
+	.insert(FlyCamera::default());
+
+//	commands.spawn()
+//		.insert_bundle(PerspectiveCameraBundle::new_3d())
+//		.insert(FlyCamera::default());
 }
 
 pub fn setup_physics(mut commands: Commands) {
@@ -77,33 +88,78 @@ pub fn setup_physics(mut commands: Commands) {
 	}
 
 	// wheels 1.13
-	let half_height: f32 = 1.13 / 2.0;
-	let radius: f32 = 0.84;
+	let mut half_height: f32 = 1.13 / 2.0;
+	let mut radius: f32 = 0.84;
 
 	let x = -1.414;
 	let y = 0.85; // 0.85
 	let z = 1.468;
 	let mut pos = Vec3::new(x, y, z);
-	spawn_wheel(&pos, half_height, radius, &mut commands);
+//	let rf_wheel = spawn_wheel(&pos, half_height, radius, &mut commands);
 
 	pos.x = 1.141;	
-	spawn_wheel(&pos, half_height, radius, &mut commands);
+//	let lf_wheel = spawn_wheel(&pos, half_height, radius, &mut commands);
 
 	pos.x = 1.35;
 	pos.z = -1.89;
-	spawn_wheel(&pos, half_height, radius, &mut commands);
+//	let lr_wheel = spawn_wheel(&pos, half_height, radius, &mut commands);
 
 	pos.x = -1.35;
 	pos.z = -1.89;
-	spawn_wheel(&pos, half_height, radius, &mut commands);
+//	let rr_wheel = spawn_wheel(&pos, half_height, radius, &mut commands);
 
 	pos.x = 0.0;
 	pos.y = 1.791;
 	pos.z = -0.271;
-	spawn_box(&pos, &Vec3::new(0.791, 0.939, 2.599), &mut commands);
+	let half_size = Vec3::new(0.55, 0.939, 2.599); // original x half size is 0.791
+//	let body = spawn_box(&pos, &half_size, &mut commands);
+
+	let locked_axes = JointAxesMask::ANG_X;
+	let limited_axes = JointAxesMask::X
+			| JointAxesMask::Y
+			| JointAxesMask::Z
+			| JointAxesMask::ANG_Y
+			| JointAxesMask::ANG_Z;
+
+	let mut anchor = point![-0.864, 0.85, 1.468];
+
+//	create_6dof_joint(rf_wheel, body, locked_axes, anchor, &mut commands)
+
+	//
+	//
+	//
+
+	radius = 0.5;
+	half_height = 0.5;
+
+	pos.x = 0.0;
+	pos.y = 1.0;
+	pos.z = 0.0;
+	let wheel0 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+
+	pos.x = 0.0;
+	pos.y = 2.0;
+	pos.z = 0.0;
+	let wheel1 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Static, &mut commands);
+
+	anchor = point![0.,1.5,0.];
+
+	create_6dof_joint(wheel0, wheel1, locked_axes, anchor, &mut commands);
 }
 
-fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, commands: &mut Commands) {
+fn create_6dof_joint(child: Entity, parent: Entity, locked_axes: JointAxesMask, anchor: nalgebra::Point3<Real>, commands: &mut Commands) {//, origin: Point3<f32>, num: usize) {
+	let mut joint_6dof = SphericalJoint::new().local_anchor2(anchor); // JointAxesMask::FREE_FIXED_AXES
+//	joint_6dof.locked_axes
+//	joint_6dof.set_local_anchor2(anchor);
+//	joint_
+//	let prism = PrismaticJoint::new(axis)
+//		.local_anchor2(Point3::new(0.0, 0.0, -shift))
+//		.limit_axis([-2.0, 2.0]);
+
+	commands.spawn_bundle((JointBuilderComponent::new(joint_6dof, parent, child),));
+}
+
+fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, body_type: RigidBodyType,commands: &mut Commands) -> Entity {
 	let mut component = RigidBodyPositionComponent::default();
 	component.position.translation = Vec3::new(pos_in.x, pos_in.y, pos_in.z).into();
 
@@ -111,15 +167,17 @@ fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, commands: &mut Comm
 	//let angle = 1.2;
 	//let rot = UnitQuaternion::from_axis_angle(&axis, angle);
 	let rot = nalgebra::UnitQuaternion::from_axis_angle(&nalgebra::Vector3::z_axis(), std::f32::consts::FRAC_PI_2);
-	component.position.rotation = rot;//UnitQuaternion::new(); //.append_axisangle_linearized(&nalgebra::Vector3::new(0.0, 0.0, 90.0));
+//	component.position.rotation = rot;
 
 	let rigid_body = RigidBodyBundle {
 		position: component,
+		body_type: RigidBodyTypeComponent(body_type),
 		..RigidBodyBundle::default()
 	};
 
 	let wheel_collider = ColliderBundle {
 		shape: ColliderShape::cylinder(half_height, radius).into(),
+//		shape: ColliderShape::ball(1.0).into(),
 		..ColliderBundle::default()
 	};
 
@@ -128,10 +186,11 @@ fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, commands: &mut Comm
 		.insert_bundle(rigid_body)
 		.insert_bundle(wheel_collider)
 		.insert(ColliderDebugRender::default())
-		.insert(ColliderPositionSync::Discrete);
+		.insert(ColliderPositionSync::Discrete)
+		.id()
 }
 
-fn spawn_box(pos_in: &Vec3, size: &Vec3, commands: &mut Commands) {
+fn spawn_box(pos_in: &Vec3, half_size: &Vec3, commands: &mut Commands) -> Entity {
 	let mut component = RigidBodyPositionComponent::default();
 	component.position.translation = Vec3::new(pos_in.x, pos_in.y, pos_in.z).into();
 
@@ -141,7 +200,8 @@ fn spawn_box(pos_in: &Vec3, size: &Vec3, commands: &mut Commands) {
 	};
 
 	let box_collider = ColliderBundle {
-		shape: ColliderShape::cuboid(size.x, size.y, size.z).into(),
+		shape: ColliderShape::cuboid(half_size.x, half_size.y, half_size.z).into(),
+//		shape: ColliderShape::ball(half_size.x).into(),
 		..ColliderBundle::default()
 	};
 
@@ -150,7 +210,8 @@ fn spawn_box(pos_in: &Vec3, size: &Vec3, commands: &mut Commands) {
 		.insert_bundle(rigid_body)
 		.insert_bundle(box_collider)
 		.insert(ColliderDebugRender::default())
-		.insert(ColliderPositionSync::Discrete);
+		.insert(ColliderPositionSync::Discrete)
+		.id()
 }
 
 fn spawn_cubes(commands: &mut Commands) {
@@ -198,4 +259,38 @@ fn spawn_cubes(commands: &mut Commands) {
  
 		 offset -= 0.05 * rad * (num as f32 - 1.0);
 	 }
+}
+
+fn cursor_grab_system(
+	mut windows: ResMut<Windows>,
+	btn: Res<Input<MouseButton>>,
+	key: Res<Input<KeyCode>>,
+) {
+	let window = windows.get_primary_mut().unwrap();
+
+	if btn.just_pressed(MouseButton::Left) {
+		window.set_cursor_lock_mode(true);
+		window.set_cursor_visibility(false);
+	}
+
+	if key.just_pressed(KeyCode::Escape) {
+		window.set_cursor_lock_mode(false);
+		window.set_cursor_visibility(true);
+	}
+}
+
+fn toggle_button_system(
+	btn: Res<Input<MouseButton>>,
+	key: Res<Input<KeyCode>>,
+	mut query: Query<&mut FlyCamera>,
+) {
+	for mut options in query.iter_mut() {
+		if btn.just_pressed(MouseButton::Left) {
+			options.enabled = true;
+		}
+
+		if key.just_pressed(KeyCode::Escape) {
+			options.enabled = false;
+		}
+	}
 }

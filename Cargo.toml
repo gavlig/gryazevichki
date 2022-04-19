@@ -3,19 +3,27 @@ name = "gryazevichki"
 version = "0.1.0"
 edition = "2021"
 
-# Enable only a small amount of optimization in debug mode
+# 1 Enable only a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1
 
-# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+# 3 Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
-opt-level = 3
+opt-level = 1
 
 [dependencies]
 
-bevy = { version = "0.6.1", features = ["dynamic"] }
 rand = "0.8.0"
-bevy_rapier3d = { version = "*", features = [ "simd-stable", "parallel", "render" ] }
+bevy = { version = "0.6.1" } #, features = ["dynamic"] }
+bevy_rapier3d = { version = "0.12.1", features = [ "simd-stable", "render" ] } # "parallel"
+#rapier3d = "*"
+
+bevy_fly_camera = { path = "../bevy_fly_camera" } # "0.8.0"
+
+#bevy_editor_pls_core = { path = "../bevy_editor_pls/crates/bevy_editor_pls_core" }
+#bevy_editor_pls = { path = "../bevy_editor_pls/crates/bevy_editor_pls" }
+#bevy_editor_pls_default_windows = { path = "../bevy_editor_pls/crates/bevy_editor_pls_default_windows" }
 
 [patch.crates-io]
 bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d/" }
+rapier3d = { path = "../rapier/crates/rapier3d" }
