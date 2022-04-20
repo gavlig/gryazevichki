@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 //use bevy_editor_pls::prelude::*;
+use bevy::app::AppExit;
 
 fn main() {
 	App::new()
