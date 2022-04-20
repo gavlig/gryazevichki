@@ -158,11 +158,17 @@ pub fn setup_physics(mut commands: Commands) {
 	radius = 0.4;
 	half_height = 0.4;
 
+	//pos.x = 0.0;
+	//pos.y = 2.0;
+	//pos.z = 0.0;
 	pos.x = 0.0;
 	pos.y = 2.0;
 	pos.z = 0.0;
 	let wheel1 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Static, &mut commands);
 
+	//pos.x = 1.0;
+	//pos.y = 2.0;
+	//pos.z = 0.0;
 	pos.x = 0.0;
 	pos.y = 2.0;
 	pos.z = 1.0;
@@ -188,7 +194,7 @@ fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, body_type: RigidBod
 	//let angle = 1.2;
 	//let rot = UnitQuaternion::from_axis_angle(&axis, angle);
 	let rot = nalgebra::UnitQuaternion::from_axis_angle(&nalgebra::Vector3::z_axis(), std::f32::consts::FRAC_PI_2);
-//	component.position.rotation = rot;
+	//component.position.rotation = rot;
 
 	let rigid_body = RigidBodyBundle {
 		position: component,
@@ -199,7 +205,7 @@ fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, body_type: RigidBod
 	let wheel_collider = ColliderBundle {
 //		shape: ColliderShape::cylinder(half_height, radius).into(),
 //		shape: ColliderShape::ball(radius).into(),
-shape: ColliderShape::cuboid(half_height, half_height, half_height).into(),
+		shape: ColliderShape::cuboid(half_height, half_height, half_height).into(),
 		flags: (ActiveEvents::INTERSECTION_EVENTS | ActiveEvents::CONTACT_EVENTS).into(),
 		..ColliderBundle::default()
 	};
@@ -340,7 +346,7 @@ fn toggle_button_system(
 
 		if key.just_pressed(KeyCode::Escape) {
 			if options.enabled {
-			options.enabled = false;
+				options.enabled = false;
 			} else {
 				exit.send(AppExit);
 			}
