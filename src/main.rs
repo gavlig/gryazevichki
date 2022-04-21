@@ -4,6 +4,8 @@ use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 //use bevy_editor_pls::prelude::*;
 use bevy::app::AppExit;
 
+use bevy::render::mesh::shape as render_shape;
+
 fn main() {
 	App::new()
 		.insert_resource(ClearColor(Color::rgb(
@@ -23,6 +25,7 @@ fn main() {
 		.add_system(cursor_grab_system)
 		.add_system(toggle_button_system)
 		.add_system(camera_collision_system)
+		.add_system_to_stage(CoreStage::PostUpdate, display_events_system)
 		.run();
 }
 
@@ -35,7 +38,11 @@ fn setup_grab_system(
 	window.set_cursor_visibility(false);
 }
 
-fn setup_graphics(mut commands: Commands) {
+fn setup_graphics(
+	mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+	mut commands: Commands,
+) {
 	const HALF_SIZE: f32 = 100.0;
 
 	commands.spawn_bundle(DirectionalLightBundle {
@@ -61,6 +68,10 @@ fn setup_graphics(mut commands: Commands) {
 		},
 		..Default::default()
 	});
+
+	// axis
+
+	spawn_axis(meshes, materials, &mut commands);
 
 	// camera
 
@@ -153,18 +164,18 @@ pub fn setup_physics(mut commands: Commands) {
 	let wheel1 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Static, &mut commands);
 
 	pos.x = 0.0;
-	pos.y = 1.0;
-	pos.z = 0.0;
+	pos.y = 2.0;
+	pos.z = 1.0;
 	let wheel2 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
 	let anchor1 = point![0.0,0.0,0.0];
-	let anchor2 = point![0.0,1.0,0.0];
+	let anchor2 = point![0.0,0.0,-1.0];
 
 	create_6dof_joint(wheel1, wheel2, locked_axes, anchor1, anchor2, &mut commands);
 }
 
 fn create_6dof_joint(entity1: Entity, entity2: Entity, locked_axes: JointAxesMask, anchor1: nalgebra::Point3<Real>, anchor2: nalgebra::Point3<Real>, commands: &mut Commands) {//, origin: Point3<f32>, num: usize) {
-	let mut joint_6dof = SphericalJoint::new().local_anchor1(anchor1).local_anchor2(anchor2); // JointAxesMask::FREE_FIXED_AXES
+	let mut joint_6dof = RevoluteJoint::new(Vector::z_axis()).local_anchor1(anchor1).local_anchor2(anchor2); // JointAxesMask::FREE_FIXED_AXES
 
 	commands.spawn_bundle((JointBuilderComponent::new(joint_6dof, entity1, entity2),));
 }
@@ -186,9 +197,10 @@ fn spawn_wheel(pos_in: &Vec3, half_height: f32, radius: f32, body_type: RigidBod
 	};
 
 	let wheel_collider = ColliderBundle {
-		shape: ColliderShape::cylinder(half_height, radius).into(),
+//		shape: ColliderShape::cylinder(half_height, radius).into(),
 //		shape: ColliderShape::ball(radius).into(),
-//		shape: ColliderShape::cuboid(half_height, half_height, half_height).into(),
+shape: ColliderShape::cuboid(half_height, half_height, half_height).into(),
+		flags: (ActiveEvents::INTERSECTION_EVENTS | ActiveEvents::CONTACT_EVENTS).into(),
 		..ColliderBundle::default()
 	};
 
@@ -272,6 +284,31 @@ fn spawn_cubes(commands: &mut Commands) {
 	 }
 }
 
+fn spawn_axis(
+	mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+	commands: &mut Commands
+) {
+	commands.spawn_bundle(PbrBundle {
+        mesh: meshes.add(Mesh::from(render_shape::Box::new(1.0, 0.1, 0.1))),
+        material: materials.add(Color::rgb(0.8, 0.1, 0.1).into()),
+		transform: Transform::from_xyz(0.5, 0.0 + 0.05, 0.0),
+        ..Default::default()
+    });
+	commands.spawn_bundle(PbrBundle {
+        mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 1.0, 0.1))),
+        material: materials.add(Color::rgb(0.1, 0.8, 0.1).into()),
+		transform: Transform::from_xyz(0.0, 0.5 + 0.05, 0.0),
+        ..Default::default()
+    });
+	commands.spawn_bundle(PbrBundle {
+        mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 0.1, 1.0))),
+        material: materials.add(Color::rgb(0.1, 0.1, 0.8).into()),
+		transform: Transform::from_xyz(0.0, 0.0 + 0.05, 0.5),
+        ..Default::default()
+    });
+}
+
 fn cursor_grab_system(
 	mut windows: ResMut<Windows>,
 	btn: Res<Input<MouseButton>>,
@@ -319,4 +356,17 @@ fn camera_collision_system(
 	for (mut options, mut transform, mut collider_position) in query.iter_mut() {
 		collider_position.translation = transform.translation.into();
 	}
+}
+
+fn display_events_system(
+    mut intersection_events: EventReader<IntersectionEvent>,
+    mut contact_events: EventReader<ContactEvent>,
+) {
+    for intersection_event in intersection_events.iter() {
+        println!("Received intersection event: {:?}", intersection_event);
+    }
+
+    for contact_event in contact_events.iter() {
+        println!("Received contact event: {:?}", contact_event);
+    }
 }
