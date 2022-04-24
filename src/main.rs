@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::{prelude::*, physics::JointHandleComponent};
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 //use bevy_editor_pls::prelude::*;
 use bevy::app::AppExit;
@@ -415,20 +415,39 @@ fn toggle_button_system(
 fn accelerate_system(
 		key		: Res<Input<KeyCode>>,
 	mut	game	: ResMut<Game>,
+	mut joints	: ResMut<ImpulseJointSet>,
+		query	: Query<&mut JointHandleComponent>,
 	mut commands: Commands,
 ) {
 	if key.just_pressed(KeyCode::W) {
-		match game.rr_joint {
-			Some(j) => commands.entity(j).despawn(),
-			_ => (),
-		};
+		let body 		= match game.body 		{ Some(e) => e, _ => return	};
+		let rr_joint_e 	= match game.rr_joint 	{ Some(e) => e, _ => return	};
+		let lr_joint_e 	= match game.lr_joint 	{ Some(e) => e, _ => return	};
 
-		match game.lr_joint {
-			Some(j) => commands.entity(j).despawn(),
-			_ => (),
-		};
-		game.rr_joint = None;
-		game.lr_joint = None;
+		let lr_joint_comp = query.get(lr_joint_e).unwrap();
+		let rr_joint_comp = query.get(rr_joint_e).unwrap();
+		{
+			let mut lr_joint = joints.get_mut(lr_joint_comp.handle()).unwrap();
+			lr_joint.data = lr_joint.data.motor_velocity(JointAxis::AngX, 10., 1.);
+		}
+		{
+			let mut rr_joint = joints.get_mut(rr_joint_comp.handle()).unwrap();
+			rr_joint.data = rr_joint.data.motor_velocity(JointAxis::AngX, 10., 1.);
+		}
+	} else if key.just_released(KeyCode::W) {
+		let rr_joint_e 	= match game.rr_joint 	{ Some(e) => e, _ => return	};
+		let lr_joint_e 	= match game.lr_joint 	{ Some(e) => e, _ => return	};
+
+		let lr_joint_comp = query.get(lr_joint_e).unwrap();
+		let rr_joint_comp = query.get(rr_joint_e).unwrap();
+		{
+			let mut lr_joint = joints.get_mut(lr_joint_comp.handle()).unwrap();
+			lr_joint.data = lr_joint.data.motor_velocity(JointAxis::AngX, 0., 1.);
+		}
+		{
+			let mut rr_joint = joints.get_mut(rr_joint_comp.handle()).unwrap();
+			rr_joint.data = rr_joint.data.motor_velocity(JointAxis::AngX, 0., 1.);
+		}
 	}
 }
 
