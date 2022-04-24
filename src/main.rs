@@ -118,69 +118,45 @@ pub fn setup_physics(mut commands: Commands) {
 	let mut half_height: f32 = 0.5;
 	let mut radius: f32 = 0.80;
 
-//	pos.x = 1.141;	
-//	let lf_wheel = spawn_wheel(&pos, half_height, radius, &mut commands);
-
-//	pos.x = 1.35;
-//	pos.z = -1.89;
-//	let lr_wheel = spawn_wheel(&pos, half_height, radius, &mut commands);
-
-//	pos.x = -1.35;
-//	pos.z = -1.89;
-//	let rr_wheel = spawn_wheel(&pos, half_height, radius, &mut commands);
-
-	let pos = Vec3::new(0.0, 3.5, 0.0);
+	let pos = Vec3::new(0.0, 5.5, 0.0);
 	let half_size = Vec3::new(0.5, 0.5, 1.0);
-	let body = spawn_box(&pos, &half_size, RigidBodyType::Static, &mut commands);
+	let body = spawn_box(&pos, &half_size, RigidBodyType::Dynamic, &mut commands);
 
 	{
 		let rf_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-		let anchor1 = point![1.6,-0.8,-1.4];
+		let anchor1 = point![1.6,-0.8,1.4];
 		let anchor2 = point![0.0,0.0,0.0];
-		//let anchor2 = point![-1.6,0.8,1.4];
 
 		create_6dof_joint(body, rf_wheel, anchor1, anchor2, &mut commands)
 	}
 
-	{
+	if false {
 		let lf_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-		let anchor1 = point![-1.6,-0.8,-1.4];
+		let anchor1 = point![-1.6,-0.8,1.4];
 		let anchor2 = point![0.0,0.0,0.0];
-		//let anchor2 = point![-1.6,0.8,1.4];
 
 		create_6dof_joint(body, lf_wheel, anchor1, anchor2, &mut commands)
 	}
 
-	//
-	//
-	//
+	if false {
+		let rr_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-	//radius = 0.4;
-	//half_height = 0.4;
+		let anchor1 = point![1.6,-0.8,-1.4];
+		let anchor2 = point![0.0,0.0,0.0];
 
-	//pos.x = 0.0;
-	//pos.y = 2.0;
-	//pos.z = 0.0;
-	//pos.x = 0.0;
-	//pos.y = 2.0;
-	//pos.z = 0.0;
-	//let wheel1 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Static, &mut commands);
+		create_6dof_joint(body, rr_wheel, anchor1, anchor2, &mut commands)
+	}
 
-	//pos.x = 1.0;
-	//pos.y = 2.0;
-	//pos.z = 0.0;
-	//pos.x = 0.0;
-	//pos.y = 2.0;
-	//pos.z = 1.0;
-	//let wheel2 = spawn_wheel(&pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	if false {
+		let lr_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-	//let anchor1 = point![0.0,0.0,0.0];
-	//let anchor2 = point![-1.0,0.0,0.0];
-	//let anchor2 = point![0.0,0.0,-1.0];
+		let anchor1 = point![-1.6,-0.8,-1.4];
+		let anchor2 = point![0.0,0.0,0.0];
 
-	//create_6dof_joint(wheel1, wheel2, locked_axes, anchor1, anchor2, &mut commands);
+		create_6dof_joint(body, lr_wheel, anchor1, anchor2, &mut commands)
+	}
 }
 
 fn create_6dof_joint(entity1: Entity, entity2: Entity, anchor1: nalgebra::Point3<Real>, anchor2: nalgebra::Point3<Real>, commands: &mut Commands) {
