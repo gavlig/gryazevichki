@@ -42,6 +42,7 @@ fn main() {
 		.add_system(cursor_grab_system)
 		.add_system(toggle_button_system)
 		.add_system(camera_collision_system)
+		.add_system(accelerate_system)
 		.add_system_to_stage(CoreStage::PostUpdate, display_events_system)
 		.run();
 }
@@ -408,6 +409,26 @@ fn toggle_button_system(
 				exit.send(AppExit);
 			}
 		}
+	}
+}
+
+fn accelerate_system(
+		key		: Res<Input<KeyCode>>,
+	mut	game	: ResMut<Game>,
+	mut commands: Commands,
+) {
+	if key.just_pressed(KeyCode::W) {
+		match game.rr_joint {
+			Some(j) => commands.entity(j).despawn(),
+			_ => (),
+		};
+
+		match game.lr_joint {
+			Some(j) => commands.entity(j).despawn(),
+			_ => (),
+		};
+		game.rr_joint = None;
+		game.lr_joint = None;
 	}
 }
 
