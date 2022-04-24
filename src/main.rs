@@ -7,6 +7,21 @@ use nalgebra as nalg;
 
 use bevy::render::mesh::shape as render_shape;
 
+#[derive(Default)]
+pub struct Game {
+	  body 		: Option<Entity>
+
+	, rf_wheel	: Option<Entity>
+	, lf_wheel	: Option<Entity>
+	, rr_wheel	: Option<Entity>
+	, lr_wheel	: Option<Entity>
+
+	, rf_joint	: Option<Entity>
+	, lf_joint	: Option<Entity>
+	, rr_joint	: Option<Entity>
+	, lr_joint	: Option<Entity>
+}
+
 fn main() {
 	App::new()
 		.insert_resource(ClearColor(Color::rgb(
@@ -15,6 +30,7 @@ fn main() {
 			0xFF as f32 / 255.0,
 		)))
 		.insert_resource(Msaa::default())
+		.init_resource::<Game>()
 		.add_plugins(DefaultPlugins)
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin(RapierRenderPlugin)
@@ -95,7 +111,11 @@ fn setup_graphics(
 	println!("camera Entity ID {:?}", camera);
 }
 
-pub fn setup_physics(mut configuration: ResMut<RapierConfiguration>, mut commands: Commands) {
+pub fn setup_physics(
+	mut configuration	: ResMut<RapierConfiguration>,
+	mut game			: ResMut<Game>,
+	mut commands		: Commands
+) {
 	configuration.timestep_mode = TimestepMode::VariableTimestep;
 
 	// Ground
@@ -120,13 +140,14 @@ pub fn setup_physics(mut configuration: ResMut<RapierConfiguration>, mut command
 		spawn_cubes(&mut commands);
 	}
 
-	// wheels 1.13
+	// wheels and body 1.13
 	let half_height: f32 = 0.5;
 	let radius: f32 = 0.80;
 
 	let body_pos = Vec3::new(0.0, 5.5, 0.0);
 	let half_size = Vec3::new(0.5, 0.5, 1.0);
-	let body = spawn_box(body_pos, half_size, RigidBodyType::Static, &mut commands);
+	let body = spawn_box(body_pos, half_size, RigidBodyType::Dynamic, &mut commands);
+	game.body = Some(body);
 	println!("body Entity ID {:?}", body);
 
 	{
@@ -136,39 +157,53 @@ pub fn setup_physics(mut configuration: ResMut<RapierConfiguration>, mut command
 		let wheel_pos = body_pos + anchor1;
 
 		let rf_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		game.rf_wheel = Some(rf_wheel);
 		println!("rf_wheel Entity ID {:?}", rf_wheel);
 
-		create_6dof_joint(body, rf_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands)
+		let rf_joint = create_6dof_joint(body, rf_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+		game.rf_joint = Some(rf_joint);
 	}
 
-	if false {
-		let pos = Vec3::new(-1.6, 0.8, -1.4);
-		let lf_wheel = spawn_wheel(pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	if true {
+		let anchor1 = Vec3::new(-1.6, -0.8, 1.4);
+		let anchor2 = Vec3::ZERO;
 
-		let anchor1 = point![-1.6, -0.8, 1.4];
-		let anchor2 = point![0.0, 0.0, 0.0];
+		let wheel_pos = body_pos + anchor1;
 
-		create_6dof_joint(body, lf_wheel, anchor1, anchor2, &mut commands)
+		let lf_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		game.lf_wheel = Some(lf_wheel);
+		println!("lf_wheel Entity ID {:?}", lf_wheel);
+
+		let lf_joint = create_6dof_joint(body, lf_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+		game.lf_joint = Some(lf_joint);
 	}
 
-	if false {
-		let pos = Vec3::new(-1.6, 0.8, -1.4);
-		let rr_wheel = spawn_wheel(pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	if true {
+		let anchor1 = Vec3::new(1.6, -0.8, -1.4);
+		let anchor2 = Vec3::ZERO;
 
-		let anchor1 = point![1.6, -0.8, -1.4];
-		let anchor2 = point![0.0, 0.0, 0.0];
+		let wheel_pos = body_pos + anchor1;
 
-		create_6dof_joint(body, rr_wheel, anchor1, anchor2, &mut commands)
+		let rr_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		game.rr_wheel = Some(rr_wheel);
+		println!("rr_wheel Entity ID {:?}", rr_wheel);
+
+		let rr_joint = create_6dof_joint(body, rr_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+		game.rr_joint = Some(rr_joint);
 	}
 
-	if false {
-		let pos = Vec3::new(-1.6, 0.8, -1.4);
-		let lr_wheel = spawn_wheel(pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	if true {
+		let anchor1 = Vec3::new(-1.6, -0.8, -1.4);
+		let anchor2 = Vec3::ZERO;
 
-		let anchor1 = point![-1.6, -0.8, -1.4];
-		let anchor2 = point![0.0, 0.0, 0.0];
+		let wheel_pos = body_pos + anchor1;
 
-		create_6dof_joint(body, lr_wheel, anchor1, anchor2, &mut commands)
+		let lr_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		game.lr_wheel = Some(lr_wheel);
+		println!("lr_wheel Entity ID {:?}", lr_wheel);
+
+		let lr_joint = create_6dof_joint(body, lr_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+		game.lr_joint = Some(lr_joint);
 	}
 }
 
@@ -178,15 +213,16 @@ fn create_6dof_joint(
 	anchor1: nalgebra::Point3<Real>,
 	anchor2: nalgebra::Point3<Real>,
 	commands: &mut Commands,
-) {
+) -> Entity {
 	let mut joint_6dof = RevoluteJoint::new(Vector::x_axis())
 		.local_anchor1(anchor1)
 		.local_anchor2(anchor2);
-	joint_6dof = joint_6dof.motor_velocity(1., 0.1);
+	//joint_6dof = joint_6dof.motor_velocity(1., 0.1);
 
 	commands
 		.spawn()
-		.insert(JointBuilderComponent::new(joint_6dof, entity1, entity2));
+		.insert(JointBuilderComponent::new(joint_6dof, entity1, entity2))
+		.id()
 }
 
 fn spawn_wheel(
