@@ -269,6 +269,27 @@ fn spawn_wheel(
 		.id()
 }
 
+fn spawn_attached_wheel(
+		body		: Entity,
+		body_pos	: Vec3,
+		offset		: Vec3,
+//		half_height	: f32,
+//		radius		: f32, 
+	mut	commands	: &mut Commands
+) -> (Entity, Entity) {
+	let half_height = 0.5;
+	let radius 		= 0.8;
+
+	let anchor1		= offset;
+	let anchor2 	= Vec3::ZERO;
+	let wheel_pos 	= body_pos + anchor1;
+
+	let wheel 	= spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	let joint 	= create_6dof_joint(body, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+
+	(wheel, joint)
+}
+
 fn spawn_box(
 	pos_in: Vec3,
 	half_size: Vec3,
