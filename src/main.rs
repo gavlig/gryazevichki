@@ -92,10 +92,10 @@ fn setup_graphics(
 	.insert(FlyCamera::default());
 }
 
-pub fn setup_physics(mut commands: Commands) {
-	/*
-	 * Ground
-	 */
+pub fn setup_physics(mut configuration: ResMut<RapierConfiguration>, mut commands: Commands) {
+	configuration.timestep_mode = TimestepMode::VariableTimestep;
+
+	// Ground
 	let ground_size = 200.1;
 	let ground_height = 0.1;
 
@@ -120,12 +120,12 @@ pub fn setup_physics(mut commands: Commands) {
 
 	let pos = Vec3::new(0.0, 5.5, 0.0);
 	let half_size = Vec3::new(0.5, 0.5, 1.0);
-	let body = spawn_box(&pos, &half_size, RigidBodyType::Dynamic, &mut commands);
+	let body = spawn_box(&pos, &half_size, RigidBodyType::Static, &mut commands);
 
 	{
 		let rf_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-		let anchor1 = point![1.6,-0.8,1.4];
+		let anchor1 = point![5.,-0.8,1.4];
 		let anchor2 = point![0.0,0.0,0.0];
 
 		create_6dof_joint(body, rf_wheel, anchor1, anchor2, &mut commands)
