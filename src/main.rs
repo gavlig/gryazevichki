@@ -81,7 +81,8 @@ fn setup_graphics(
 		..ColliderBundle::default()
 	};
 
-	commands.spawn_bundle(PerspectiveCameraBundle {
+    let camera = commands
+        .spawn_bundle(PerspectiveCameraBundle {
 		transform: Transform {
 			translation: Vec3::new(0., 1., 10.),
 			..Default::default()
@@ -89,7 +90,9 @@ fn setup_graphics(
 		..Default::default()
 	})
 	.insert_bundle(camera_collider)
-	.insert(FlyCamera::default());
+        .insert(FlyCamera::default())
+		.id();
+	println!("camera Entity ID {:?}", camera);
 }
 
 pub fn setup_physics(mut configuration: ResMut<RapierConfiguration>, mut commands: Commands) {
@@ -99,100 +102,123 @@ pub fn setup_physics(mut configuration: ResMut<RapierConfiguration>, mut command
 	let ground_size = 200.1;
 	let ground_height = 0.1;
 
-	let ground = ColliderBundle {
+	let ground_bundle = ColliderBundle {
 		shape: ColliderShape::cuboid(ground_size, ground_height, ground_size).into(),
 		position: Vec3::new(0.0, -ground_height, 0.0).into(),
 		..ColliderBundle::default()
 	};
 
-	commands
-		.spawn_bundle(ground)
+	let ground = commands
+		.spawn_bundle(ground_bundle)
 		.insert(ColliderDebugRender::default())
-		.insert(ColliderPositionSync::Discrete);
+		.insert(ColliderPositionSync::Discrete)
+		.id();
+
+	println!("ground Entity ID {:?}", ground);
 
 	if false {
 		spawn_cubes(&mut commands);
 	}
 
 	// wheels 1.13
-	let mut half_height: f32 = 0.5;
-	let mut radius: f32 = 0.80;
+	let half_height: f32 = 0.5;
+	let radius: f32 = 0.80;
 
-	let pos = Vec3::new(0.0, 5.5, 0.0);
+	let body_pos = Vec3::new(0.0, 5.5, 0.0);
 	let half_size = Vec3::new(0.5, 0.5, 1.0);
-	let body = spawn_box(&pos, &half_size, RigidBodyType::Static, &mut commands);
+	let body = spawn_box(body_pos, half_size, RigidBodyType::Static, &mut commands);
+	println!("body Entity ID {:?}", body);
 
 	{
-		let rf_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		let anchor1 = Vec3::new(1.6, -0.8, 1.4);
+		let anchor2 = Vec3::ZERO;
 
-		let anchor1 = point![5.,-0.8,1.4];
-		let anchor2 = point![0.0,0.0,0.0];
+		let wheel_pos = body_pos + anchor1;
 
-		create_6dof_joint(body, rf_wheel, anchor1, anchor2, &mut commands)
+		let rf_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		println!("rf_wheel Entity ID {:?}", rf_wheel);
+
+		create_6dof_joint(body, rf_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands)
 	}
 
 	if false {
-		let lf_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		let pos = Vec3::new(-1.6, 0.8, -1.4);
+		let lf_wheel = spawn_wheel(pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-		let anchor1 = point![-1.6,-0.8,1.4];
-		let anchor2 = point![0.0,0.0,0.0];
+		let anchor1 = point![-1.6, -0.8, 1.4];
+		let anchor2 = point![0.0, 0.0, 0.0];
 
 		create_6dof_joint(body, lf_wheel, anchor1, anchor2, &mut commands)
 	}
 
 	if false {
-		let rr_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		let pos = Vec3::new(-1.6, 0.8, -1.4);
+		let rr_wheel = spawn_wheel(pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-		let anchor1 = point![1.6,-0.8,-1.4];
-		let anchor2 = point![0.0,0.0,0.0];
+		let anchor1 = point![1.6, -0.8, -1.4];
+		let anchor2 = point![0.0, 0.0, 0.0];
 
 		create_6dof_joint(body, rr_wheel, anchor1, anchor2, &mut commands)
 	}
 
 	if false {
-		let lr_wheel = spawn_wheel(half_height, radius, RigidBodyType::Dynamic, &mut commands);
+		let pos = Vec3::new(-1.6, 0.8, -1.4);
+		let lr_wheel = spawn_wheel(pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
-		let anchor1 = point![-1.6,-0.8,-1.4];
-		let anchor2 = point![0.0,0.0,0.0];
+		let anchor1 = point![-1.6, -0.8, -1.4];
+		let anchor2 = point![0.0, 0.0, 0.0];
 
 		create_6dof_joint(body, lr_wheel, anchor1, anchor2, &mut commands)
 	}
 }
 
-fn create_6dof_joint(entity1: Entity, entity2: Entity, anchor1: nalgebra::Point3<Real>, anchor2: nalgebra::Point3<Real>, commands: &mut Commands) {
-	let mut joint_6dof = RevoluteJoint::new(Vector::x_axis()).local_anchor1(anchor1).local_anchor2(anchor2);
+fn create_6dof_joint(
+	entity1: Entity,
+	entity2: Entity,
+	anchor1: nalgebra::Point3<Real>,
+	anchor2: nalgebra::Point3<Real>,
+	commands: &mut Commands,
+) {
+	let mut joint_6dof = RevoluteJoint::new(Vector::x_axis())
+		.local_anchor1(anchor1)
+		.local_anchor2(anchor2);
 	joint_6dof = joint_6dof.motor_velocity(1., 0.1);
 
-	commands.spawn().insert(JointBuilderComponent::new(joint_6dof, entity1, entity2));
+	commands
+		.spawn()
+		.insert(JointBuilderComponent::new(joint_6dof, entity1, entity2));
 }
 
-fn spawn_wheel(/* pos_in: &Vec3, */ half_height: f32, radius: f32, body_type: RigidBodyType, commands: &mut Commands) -> Entity {
-//	let mut component = RigidBodyPositionComponent::default();
-//	component.position.translation = pos_in.clone().into();// Vec3::new(pos_in.x, pos_in.y, pos_in.z).into();
-
-	//let axis = Unit::new_normalize(Vector3::new(1.0, 2.0, 3.0));
-	//let angle = 1.2;
-	//let rot = UnitQuaternion::from_axis_angle(&axis, angle);
-	let rot = nalgebra::UnitQuaternion::from_axis_angle(&nalgebra::Vector3::z_axis(), std::f32::consts::FRAC_PI_2);
-//	component.position.rotation = rot;
+fn spawn_wheel(
+	pos_in: Vec3,
+	half_height: f32,
+	radius: f32,
+	body_type: RigidBodyType,
+	commands: &mut Commands,
+) -> Entity {
+	let mut pos_comp = RigidBodyPositionComponent::default();
+	pos_comp.position.translation = pos_in.clone().into();
 
 	let rigid_body = RigidBodyBundle {
-//		position: component,
+		position: pos_comp,
 		body_type: RigidBodyTypeComponent(body_type),
 		..RigidBodyBundle::default()
 	};
 
-	let collider_position = nalg::Isometry3 {
-		rotation: rot,
+	// by default cylinder spawns with its flat surface on the ground and we want the round part
+	let wheel_rotation = nalgebra::UnitQuaternion::from_axis_angle(
+		&nalgebra::Vector3::z_axis(),
+		std::f32::consts::FRAC_PI_2,
+	);
+
+	let rotated_position = nalg::Isometry3 {
+		rotation: wheel_rotation,
 		..Default::default()
 	};
 
 	let wheel_collider = ColliderBundle {
 		shape: ColliderShape::cylinder(half_height, radius).into(),
-		position: collider_position.into(),
-//		shape: ColliderShape::ball(radius).into(),
-//		shape: ColliderShape::cuboid(half_height, half_height, half_height).into(),
-
+		position: rotated_position.into(),
 		flags: (ActiveEvents::INTERSECTION_EVENTS | ActiveEvents::CONTACT_EVENTS).into(),
 		..ColliderBundle::default()
 	};
@@ -206,9 +232,14 @@ fn spawn_wheel(/* pos_in: &Vec3, */ half_height: f32, radius: f32, body_type: Ri
 		.id()
 }
 
-fn spawn_box(pos_in: &Vec3, half_size: &Vec3, body_type: RigidBodyType, commands: &mut Commands) -> Entity {
+fn spawn_box(
+	pos_in: Vec3,
+	half_size: Vec3,
+	body_type: RigidBodyType,
+	commands: &mut Commands,
+) -> Entity {
 	let mut component = RigidBodyPositionComponent::default();
-	component.position.translation = Vec3::new(pos_in.x, pos_in.y, pos_in.z).into();
+	component.position.translation = pos_in.clone().into();
 
 	let rigid_body = RigidBodyBundle {
 		position: component,
@@ -218,7 +249,6 @@ fn spawn_box(pos_in: &Vec3, half_size: &Vec3, body_type: RigidBodyType, commands
 
 	let box_collider = ColliderBundle {
 		shape: ColliderShape::cuboid(half_size.x, half_size.y, half_size.z).into(),
-//		shape: ColliderShape::ball(half_size.x).into(),
 		..ColliderBundle::default()
 	};
 
@@ -281,20 +311,23 @@ fn spawn_cubes(commands: &mut Commands) {
 fn spawn_axis(
 	mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-	commands: &mut Commands
+	commands: &mut Commands,
 ) {
+	// X
 	commands.spawn_bundle(PbrBundle {
         mesh: meshes.add(Mesh::from(render_shape::Box::new(1.0, 0.1, 0.1))),
         material: materials.add(Color::rgb(0.8, 0.1, 0.1).into()),
 		transform: Transform::from_xyz(0.5, 0.0 + 0.05, 0.0),
         ..Default::default()
     });
+	// Y
 	commands.spawn_bundle(PbrBundle {
         mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 1.0, 0.1))),
         material: materials.add(Color::rgb(0.1, 0.8, 0.1).into()),
 		transform: Transform::from_xyz(0.0, 0.5 + 0.05, 0.0),
         ..Default::default()
     });
+	// Z
 	commands.spawn_bundle(PbrBundle {
         mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 0.1, 1.0))),
         material: materials.add(Color::rgb(0.1, 0.1, 0.8).into()),
@@ -343,11 +376,13 @@ fn toggle_button_system(
 }
 
 fn camera_collision_system(
-	time: Res<Time>,
-	keyboard_input: Res<Input<KeyCode>>,
-	mut query: Query<(&mut FlyCamera, &mut Transform, &mut ColliderPositionComponent)>,
+	mut query: Query<(
+		&	 FlyCamera,
+		&	 Transform,
+		&mut ColliderPositionComponent,
+	)>,
 ) {
-	for (mut options, mut transform, mut collider_position) in query.iter_mut() {
+	for (_options, transform, mut collider_position) in query.iter_mut() {
 		collider_position.translation = transform.translation.into();
 	}
 }
@@ -357,10 +392,69 @@ fn display_events_system(
     mut contact_events: EventReader<ContactEvent>,
 ) {
     for intersection_event in intersection_events.iter() {
-        println!("Received intersection event: {:?}", intersection_event);
+		println!("Received intersection event: collider1 {:?} collider2 {:?}", intersection_event.collider1.entity(), intersection_event.collider2.entity());
     }
 
     for contact_event in contact_events.iter() {
-        println!("Received contact event: {:?}", contact_event);
+		match contact_event {
+			ContactEvent::Started(collider1, collider2) => println!("Received contact START event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
+			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
+		}
+	}
+}
+
+// contact info + modification. I'd rather add more info to event
+// see contact filtering for bevy adaptation
+/* struct OneWayPlatformHook {
+	platform1: ColliderHandle,
+	platform2: ColliderHandle,
+} 
+impl PhysicsHooks<RigidBodySet, ColliderSet> for OneWayPlatformHook {
+	fn modify_solver_contacts(
+		&self,
+		context: &mut ContactModificationContext<RigidBodySet, ColliderSet>,
+	) {
+		// The allowed normal for the first platform is its local +y axis, and the
+		// allowed normal for the second platform is its local -y axis.
+		//
+		// Now we have to be careful because the `manifold.local_n1` normal points
+		// toward the outside of the shape of `context.co1`. So we need to flip the
+		// allowed normal direction if the platform is in `context.collider_handle2`.
+		//
+		// Therefore:
+		// - If context.collider_handle1 == self.platform1 then the allowed normal is +y.
+		// - If context.collider_handle2 == self.platform1 then the allowed normal is -y.
+		// - If context.collider_handle1 == self.platform2 then its allowed normal +y needs to be flipped to -y.
+		// - If context.collider_handle2 == self.platform2 then the allowed normal -y needs to be flipped to +y.
+		let mut allowed_local_n1 = Vector::zeros();
+
+		if context.collider1 == self.platform1 {
+			allowed_local_n1 = Vector::y();
+		} else if context.collider2 == self.platform1 {
+			// Flip the allowed direction.
+			allowed_local_n1 = -Vector::y();
+		}
+
+		if context.collider1 == self.platform2 {
+			allowed_local_n1 = -Vector::y();
+		} else if context.collider2 == self.platform2 {
+			// Flip the allowed direction.
+			allowed_local_n1 = Vector::y();
+		}
+
+		// Call the helper function that simulates one-way platforms.
+		context.update_as_oneway_platform(&allowed_local_n1, 0.1);
+
+		// Set the surface velocity of the accepted contacts.
+		let tangent_velocity =
+			if context.collider1 == self.platform1 || context.collider2 == self.platform2 {
+				-12.0
+			} else {
+				12.0
+			};
+
+		for contact in context.solver_contacts.iter_mut() {
+			contact.tangent_velocity.x = tangent_velocity;
     }
 }
+} */
