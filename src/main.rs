@@ -47,18 +47,16 @@ fn main() {
 		.run();
 }
 
-fn setup_grab_system(
-	mut windows: ResMut<Windows>,
-) {
+fn setup_grab_system(mut windows: ResMut<Windows>) {
 	let window = windows.get_primary_mut().unwrap();
 
-	window.set_cursor_lock_mode(true);
-	window.set_cursor_visibility(false);
+	//window.set_cursor_lock_mode(true);
+	//window.set_cursor_visibility(false);
 }
 
 fn setup_graphics(
 	mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+	mut materials: ResMut<Assets<StandardMaterial>>,
 	mut commands: Commands,
 ) {
 	const HALF_SIZE: f32 = 100.0;
@@ -98,8 +96,8 @@ fn setup_graphics(
 		..ColliderBundle::default()
 	};
 
-    let camera = commands
-        .spawn_bundle(PerspectiveCameraBundle {
+	let camera = commands
+		.spawn_bundle(PerspectiveCameraBundle {
 		transform: Transform {
 			translation: Vec3::new(0., 1., 10.),
 			..Default::default()
@@ -107,7 +105,7 @@ fn setup_graphics(
 		..Default::default()
 	})
 	.insert_bundle(camera_collider)
-        .insert(FlyCamera::default())
+		.insert(FlyCamera::default())
 		.id();
 	println!("camera Entity ID {:?}", camera);
 }
@@ -368,30 +366,30 @@ fn spawn_cubes(commands: &mut Commands) {
 
 fn spawn_axis(
 	mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+	mut materials: ResMut<Assets<StandardMaterial>>,
 	commands: &mut Commands,
 ) {
 	// X
 	commands.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(render_shape::Box::new(1.0, 0.1, 0.1))),
-        material: materials.add(Color::rgb(0.8, 0.1, 0.1).into()),
+		mesh: meshes.add(Mesh::from(render_shape::Box::new(1.0, 0.1, 0.1))),
+		material: materials.add(Color::rgb(0.8, 0.1, 0.1).into()),
 		transform: Transform::from_xyz(0.5, 0.0 + 0.05, 0.0),
-        ..Default::default()
-    });
+		..Default::default()
+	});
 	// Y
 	commands.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 1.0, 0.1))),
-        material: materials.add(Color::rgb(0.1, 0.8, 0.1).into()),
+		mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 1.0, 0.1))),
+		material: materials.add(Color::rgb(0.1, 0.8, 0.1).into()),
 		transform: Transform::from_xyz(0.0, 0.5 + 0.05, 0.0),
-        ..Default::default()
-    });
+		..Default::default()
+	});
 	// Z
 	commands.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 0.1, 1.0))),
-        material: materials.add(Color::rgb(0.1, 0.1, 0.8).into()),
+		mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 0.1, 1.0))),
+		material: materials.add(Color::rgb(0.1, 0.1, 0.8).into()),
 		transform: Transform::from_xyz(0.0, 0.0 + 0.05, 0.5),
-        ..Default::default()
-    });
+		..Default::default()
+	});
 }
 
 fn cursor_grab_system(
@@ -485,14 +483,16 @@ fn camera_collision_system(
 }
 
 fn display_events_system(
-    mut intersection_events: EventReader<IntersectionEvent>,
-    mut contact_events: EventReader<ContactEvent>,
+	mut intersection_events: EventReader<IntersectionEvent>,
+	mut contact_events: EventReader<ContactEvent>,
 ) {
-    for intersection_event in intersection_events.iter() {
-		println!("Received intersection event: collider1 {:?} collider2 {:?}", intersection_event.collider1.entity(), intersection_event.collider2.entity());
-    }
+	if true {return}
 
-    for contact_event in contact_events.iter() {
+	for intersection_event in intersection_events.iter() {
+		println!("Received intersection event: collider1 {:?} collider2 {:?}", intersection_event.collider1.entity(), intersection_event.collider2.entity());
+	}
+
+	for contact_event in contact_events.iter() {
 		match contact_event {
 			ContactEvent::Started(collider1, collider2) => println!("Received contact START event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
 			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
@@ -552,6 +552,6 @@ impl PhysicsHooks<RigidBodySet, ColliderSet> for OneWayPlatformHook {
 
 		for contact in context.solver_contacts.iter_mut() {
 			contact.tangent_velocity.x = tangent_velocity;
-    }
+	}
 }
 } */
