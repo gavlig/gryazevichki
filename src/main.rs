@@ -52,8 +52,8 @@ fn main() {
 fn setup_grab_system(mut windows: ResMut<Windows>) {
 	let window = windows.get_primary_mut().unwrap();
 
-	//window.set_cursor_lock_mode(true);
-	//window.set_cursor_visibility(false);
+	window.set_cursor_lock_mode(true);
+	window.set_cursor_visibility(false);
 }
 
 fn setup_graphics_system(
@@ -154,51 +154,31 @@ pub fn setup_physics_system(
 	println!("body Entity ID {:?}", body);
 
 	{
-		let anchor1 = Vec3::new(1.6, -0.8, 1.4);
-		let anchor2 = Vec3::ZERO;
-
-		let wheel_pos = body_pos + anchor1;
-
-		let rf_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
-		game.rf_wheel = Some(rf_wheel);
+		let offset = Vec3::new(1.6, -0.8, 1.4);
+		let (rf_wheel, rf_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		(game.rf_wheel, game.rf_joint) = (Some(rf_wheel), Some(rf_joint));
 		println!("rf_wheel Entity ID {:?}", rf_wheel);
-
-		let rf_joint = create_6dof_joint(body, rf_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
-		game.rf_joint = Some(rf_joint);
 	}
 
 	if true {
-		let anchor1 = Vec3::new(-1.6, -0.8, 1.4);
-		let anchor2 = Vec3::ZERO;
-
-		let wheel_pos = body_pos + anchor1;
-
-		let lf_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
-		game.lf_wheel = Some(lf_wheel);
+		let offset = Vec3::new(-1.6, -0.8, 1.4);
+		let (lf_wheel, lf_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		(game.lf_wheel, game.lf_joint) = (Some(lf_wheel), Some(lf_joint));
 		println!("lf_wheel Entity ID {:?}", lf_wheel);
-
-		let lf_joint = create_6dof_joint(body, lf_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
-		game.lf_joint = Some(lf_joint);
 	}
 
 	if true {
-		let anchor1 = Vec3::new(1.6, -0.8, -1.4);
-		let anchor2 = Vec3::ZERO;
-
-		let wheel_pos = body_pos + anchor1;
-
-		let rr_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
-		game.rr_wheel = Some(rr_wheel);
+		let offset = Vec3::new(1.6, -0.8, -1.4);
+		let (rr_wheel, rr_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		(game.rr_wheel, game.rr_joint) = (Some(rr_wheel), Some(rr_joint));
 		println!("rr_wheel Entity ID {:?}", rr_wheel);
-
-		let rr_joint = create_6dof_joint(body, rr_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
-		game.rr_joint = Some(rr_joint);
 	}
 
 	if true {
 		let offset = Vec3::new(-1.6, -0.8, -1.4);
 		let (lr_wheel, lr_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
 		(game.lr_wheel, game.lr_joint) = (Some(lr_wheel), Some(lr_joint));
+		println!("lr_wheel Entity ID {:?}", lr_wheel);
 	}
 }
 
@@ -213,21 +193,21 @@ fn setup_camera_system(
 	}
 }
 
-fn create_6dof_joint(
+fn create_wheel_joint(
 	entity1: Entity,
 	entity2: Entity,
 	anchor1: nalgebra::Point3<Real>,
 	anchor2: nalgebra::Point3<Real>,
 	commands: &mut Commands,
 ) -> Entity {
-	let mut joint_6dof = RevoluteJoint::new(Vector::x_axis())
+	let mut wheel_joint = WheelJoint::new(Vector::x_axis())
 		.local_anchor1(anchor1)
-		.local_anchor2(anchor2);
-	//joint_6dof = joint_6dof.motor_velocity(1., 0.1);
+		.local_anchor2(anchor2)
+		.limit_axis(JointAxis::AngZ, [0.0, 0.0]);
 
 	commands
 		.spawn()
-		.insert(JointBuilderComponent::new(joint_6dof, entity1, entity2))
+		.insert(JointBuilderComponent::new(wheel_joint, entity1, entity2))
 		.id()
 }
 
@@ -290,7 +270,7 @@ fn spawn_attached_wheel(
 	let wheel_pos 	= body_pos + anchor1;
 
 	let wheel 		= spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
-	let joint 		= create_6dof_joint(body, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+	let joint 		= create_wheel_joint(body, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
 
 	(wheel, joint)
 }
@@ -425,7 +405,7 @@ fn toggle_button_system(
 	mut query	: Query<&mut FlyCamera>,
 ) {
 	for mut camera in query.iter_mut() {
-		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
+		if (key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space)) || btn.just_pressed(MouseButton::Left) {
 			let toggle = !camera.enabled_follow;
 			camera.enabled_follow = toggle;
 			camera.enabled_movement = !toggle;
