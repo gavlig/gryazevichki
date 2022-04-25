@@ -9,7 +9,8 @@ use bevy::render::mesh::shape as render_shape;
 
 #[derive(Default)]
 pub struct Game {
-	  body 		: Option<Entity>
+	  camera	: Option<Entity>
+	, body 		: Option<Entity>
 
 	, rf_wheel	: Option<Entity>
 	, lf_wheel	: Option<Entity>
@@ -36,9 +37,10 @@ fn main() {
 		.add_plugin(RapierRenderPlugin)
 		.add_plugin(FlyCameraPlugin)
 //		.add_plugin(EditorPlugin)
-		.add_startup_system(setup_graphics.system())
-		.add_startup_system(setup_physics.system())
+		.add_startup_system(setup_graphics_system)
+		.add_startup_system(setup_physics_system)
 		.add_startup_system(setup_grab_system)
+		.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
 		.add_system(cursor_grab_system)
 		.add_system(toggle_button_system)
 		.add_system(camera_collision_system)
@@ -54,9 +56,10 @@ fn setup_grab_system(mut windows: ResMut<Windows>) {
 	//window.set_cursor_visibility(false);
 }
 
-fn setup_graphics(
+fn setup_graphics_system(
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
+	mut game: ResMut<Game>,
 	mut commands: Commands,
 ) {
 	const HALF_SIZE: f32 = 100.0;
@@ -107,10 +110,11 @@ fn setup_graphics(
 	.insert_bundle(camera_collider)
 		.insert(FlyCamera::default())
 		.id();
+	game.camera = Some(camera);
 	println!("camera Entity ID {:?}", camera);
 }
 
-pub fn setup_physics(
+pub fn setup_physics_system(
 	mut configuration	: ResMut<RapierConfiguration>,
 	mut game			: ResMut<Game>,
 	mut commands		: Commands
@@ -195,6 +199,17 @@ pub fn setup_physics(
 		let offset = Vec3::new(-1.6, -0.8, -1.4);
 		let (lr_wheel, lr_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
 		(game.lr_wheel, game.lr_joint) = (Some(lr_wheel), Some(lr_joint));
+	}
+}
+
+fn setup_camera_system(
+	mut game			: ResMut<Game>,
+	mut query			: Query<&mut FlyCamera>
+) {
+	// initialize camera with target to look at
+	if game.camera.is_some() && game.body.is_some() {
+		let mut camera = query.get_mut(game.camera.unwrap()).unwrap();
+		camera.target = Some(game.body.unwrap());
 	}
 }
 
@@ -410,24 +425,22 @@ fn toggle_button_system(
 	mut query	: Query<&mut FlyCamera>,
 ) {
 	for mut camera in query.iter_mut() {
-		if btn.just_pressed(MouseButton::Left) {
-			camera.enabled_view = true;
-		}
+		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
+			let toggle = !camera.enabled_follow;
+			camera.enabled_follow = toggle;
+			camera.enabled_movement = !toggle;
+			camera.enabled_view = !toggle;
 
-		if key.just_pressed(KeyCode::Escape) {
-			if camera.enabled_view {
-				camera.enabled_view = false;
-			} else {
-				exit.send(AppExit);
+			if toggle {
+				camera.target = game.body;
 			}
 		}
 
-		if key.just_pressed(KeyCode::Space) && key.pressed(KeyCode::LControl) {
-			camera.enabled_movement = !camera.enabled_movement;
-			camera.enabled_view = camera.enabled_movement;
-
-			if !camera.enabled_movement {
-				camera.target = game.body;
+		if key.just_pressed(KeyCode::Escape) {
+			if camera.enabled_follow {
+				camera.enabled_follow = false;
+			} else {
+				exit.send(AppExit);
 			}
 		}
 	}
