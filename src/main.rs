@@ -405,19 +405,29 @@ fn cursor_grab_system(
 fn toggle_button_system(
 		btn		: Res<Input<MouseButton>>,
 		key		: Res<Input<KeyCode>>,
+		game	: Res<Game>,
 	mut exit	: EventWriter<AppExit>,
 	mut query	: Query<&mut FlyCamera>,
 ) {
 	for mut camera in query.iter_mut() {
 		if btn.just_pressed(MouseButton::Left) {
-			camera.enabled = true;
+			camera.enabled_view = true;
 		}
 
 		if key.just_pressed(KeyCode::Escape) {
-			if camera.enabled {
-				camera.enabled = false;
+			if camera.enabled_view {
+				camera.enabled_view = false;
 			} else {
 				exit.send(AppExit);
+			}
+		}
+
+		if key.just_pressed(KeyCode::Space) && key.pressed(KeyCode::LControl) {
+			camera.enabled_movement = !camera.enabled_movement;
+			camera.enabled_view = camera.enabled_movement;
+
+			if !camera.enabled_movement {
+				camera.target = game.body;
 			}
 		}
 	}
