@@ -192,17 +192,9 @@ pub fn setup_physics(
 	}
 
 	if true {
-		let anchor1 = Vec3::new(-1.6, -0.8, -1.4);
-		let anchor2 = Vec3::ZERO;
-
-		let wheel_pos = body_pos + anchor1;
-
-		let lr_wheel = spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
-		game.lr_wheel = Some(lr_wheel);
-		println!("lr_wheel Entity ID {:?}", lr_wheel);
-
-		let lr_joint = create_6dof_joint(body, lr_wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
-		game.lr_joint = Some(lr_joint);
+		let offset = Vec3::new(-1.6, -0.8, -1.4);
+		let (lr_wheel, lr_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		(game.lr_wheel, game.lr_joint) = (Some(lr_wheel), Some(lr_joint));
 	}
 }
 
@@ -282,8 +274,8 @@ fn spawn_attached_wheel(
 	let anchor2 	= Vec3::ZERO;
 	let wheel_pos 	= body_pos + anchor1;
 
-	let wheel 	= spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
-	let joint 	= create_6dof_joint(body, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+	let wheel 		= spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	let joint 		= create_6dof_joint(body, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
 
 	(wheel, joint)
 }
