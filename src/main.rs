@@ -446,37 +446,55 @@ fn toggle_button_system(
 	}
 }
 
+fn motor_velocity(velocity: f32, factor: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
+	let 	joint_comp	= query.get(joint_e).unwrap();
+	let mut joint		= joints.get_mut(joint_comp.handle()).unwrap();
+			joint.data	= joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
+}
+
+fn motor_steer(angle: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
+	let 	joint_comp 	= query.get(joint_e).unwrap();
+
+	let 	stiffness 	= 0.2;
+	let 	damping 	= 1.0;
+	let mut joint 		= joints.get_mut(joint_comp.handle()).unwrap();
+			joint.data 	= joint.data.motor_velocity(JointAxis::AngX, 10., 0.1);//motor_position(JointAxis::AngY, angle.to_radians(), stiffness, damping);
+}
+
 fn accelerate_system(
 		key		: Res<Input<KeyCode>>,
-	mut	game	: ResMut<Game>,
-	mut joints	: ResMut<ImpulseJointSet>,
-		query	: Query<&mut JointHandleComponent>,
+		game	: ResMut<Game>,
+	mut	joints	: ResMut<ImpulseJointSet>,
+	mut	query	: Query<&mut JointHandleComponent>,
 	mut commands: Commands,
 ) {
-	let motor_velocity = |velocity: f32, factor: f32, game: ResMut<Game>, mut joints: ResMut<ImpulseJointSet>| {
-		let rr_joint_e 	= match game.rr_joint 	{ Some(e) => e, _ => return	};
-		let lr_joint_e 	= match game.lr_joint 	{ Some(e) => e, _ => return	};
-
-		let lr_joint_comp = query.get(lr_joint_e).unwrap();
-		let rr_joint_comp = query.get(rr_joint_e).unwrap();
-		{
-			let mut lr_joint = joints.get_mut(lr_joint_comp.handle()).unwrap();
-			lr_joint.data = lr_joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
-		}
-		{
-			let mut rr_joint = joints.get_mut(rr_joint_comp.handle()).unwrap();
-			rr_joint.data = rr_joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
-		}
-	};
+	let rf_joint = game.rf_joint.unwrap();
+	let lf_joint = game.lf_joint.unwrap();
+	let rr_joint = game.rr_joint.unwrap();
+	let lr_joint = game.lr_joint.unwrap();
 
 	if key.just_pressed(KeyCode::W) {
-		motor_velocity(10.0, 0.1, game, joints);
+		motor_velocity(10.0, 0.3, rr_joint, &mut joints, &mut query);
+		motor_velocity(10.0, 0.3, lr_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::W) {
-		motor_velocity(0.0, 1.0, game, joints);
-	} else if key.just_pressed(KeyCode::S) {
-		motor_velocity(-10.0, 0.5, game, joints);
+		motor_velocity(0.0, 0.7, rr_joint, &mut joints, &mut query);
+		motor_velocity(0.0, 0.7, lr_joint, &mut joints, &mut query);
+	}
+	
+	 if key.just_pressed(KeyCode::S) {
+		motor_velocity(-10.0, 0.3, rr_joint, &mut joints, &mut query);
+		motor_velocity(-10.0, 0.3, lr_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::S) {
-		motor_velocity(0.0, 0.5, game, joints);
+		motor_velocity(0.0, 0.7, rr_joint, &mut joints, &mut query);
+		motor_velocity(0.0, 0.7, lr_joint, &mut joints, &mut query);
+	}
+ 
+	if key.just_pressed(KeyCode::D) {
+		motor_steer(30.0, rf_joint, &mut joints, &mut query);
+		motor_steer(30.0, lf_joint, &mut joints, &mut query);
+	} else if key.just_released(KeyCode::D) {
+		motor_steer(0.0, rf_joint, &mut joints, &mut query);
+		motor_steer(0.0, lf_joint, &mut joints, &mut query);
 	}
 }
 
