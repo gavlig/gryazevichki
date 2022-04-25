@@ -14,6 +14,9 @@ opt-level = 1
 [profile.dev.package.rapier3d]
 opt-level = 0
 
+[profile.dev.package.bevy_fly_camera]
+opt-level = 0
+
 [dependencies]
 
 rand = "0.8.0"
