@@ -438,35 +438,30 @@ fn accelerate_system(
 		query	: Query<&mut JointHandleComponent>,
 	mut commands: Commands,
 ) {
+	let motor_velocity = |velocity: f32, factor: f32, game: ResMut<Game>, mut joints: ResMut<ImpulseJointSet>| {
+		let rr_joint_e 	= match game.rr_joint 	{ Some(e) => e, _ => return	};
+		let lr_joint_e 	= match game.lr_joint 	{ Some(e) => e, _ => return	};
+
+		let lr_joint_comp = query.get(lr_joint_e).unwrap();
+		let rr_joint_comp = query.get(rr_joint_e).unwrap();
+		{
+			let mut lr_joint = joints.get_mut(lr_joint_comp.handle()).unwrap();
+			lr_joint.data = lr_joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
+		}
+		{
+			let mut rr_joint = joints.get_mut(rr_joint_comp.handle()).unwrap();
+			rr_joint.data = rr_joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
+		}
+	};
+
 	if key.just_pressed(KeyCode::W) {
-		let body 		= match game.body 		{ Some(e) => e, _ => return	};
-		let rr_joint_e 	= match game.rr_joint 	{ Some(e) => e, _ => return	};
-		let lr_joint_e 	= match game.lr_joint 	{ Some(e) => e, _ => return	};
-
-		let lr_joint_comp = query.get(lr_joint_e).unwrap();
-		let rr_joint_comp = query.get(rr_joint_e).unwrap();
-		{
-			let mut lr_joint = joints.get_mut(lr_joint_comp.handle()).unwrap();
-			lr_joint.data = lr_joint.data.motor_velocity(JointAxis::AngX, 10., 1.);
-		}
-		{
-			let mut rr_joint = joints.get_mut(rr_joint_comp.handle()).unwrap();
-			rr_joint.data = rr_joint.data.motor_velocity(JointAxis::AngX, 10., 1.);
-		}
+		motor_velocity(10.0, 0.1, game, joints);
 	} else if key.just_released(KeyCode::W) {
-		let rr_joint_e 	= match game.rr_joint 	{ Some(e) => e, _ => return	};
-		let lr_joint_e 	= match game.lr_joint 	{ Some(e) => e, _ => return	};
-
-		let lr_joint_comp = query.get(lr_joint_e).unwrap();
-		let rr_joint_comp = query.get(rr_joint_e).unwrap();
-		{
-			let mut lr_joint = joints.get_mut(lr_joint_comp.handle()).unwrap();
-			lr_joint.data = lr_joint.data.motor_velocity(JointAxis::AngX, 0., 1.);
-		}
-		{
-			let mut rr_joint = joints.get_mut(rr_joint_comp.handle()).unwrap();
-			rr_joint.data = rr_joint.data.motor_velocity(JointAxis::AngX, 0., 1.);
-		}
+		motor_velocity(0.0, 1.0, game, joints);
+	} else if key.just_pressed(KeyCode::S) {
+		motor_velocity(-10.0, 0.5, game, joints);
+	} else if key.just_released(KeyCode::S) {
+		motor_velocity(0.0, 0.5, game, joints);
 	}
 }
 
