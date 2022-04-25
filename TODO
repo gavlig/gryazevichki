@@ -11,3 +11,5 @@
 10. try models?
 11. bug: wheels collision doesnt correspond to visual!
 12. suspension
+13. ui for different parameters tweaking (see rapier all_examples3)
+14. research how to release cursor when hitting breakpoint
