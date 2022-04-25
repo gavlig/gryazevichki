@@ -429,7 +429,7 @@ fn toggle_button_system(
 fn motor_velocity(velocity: f32, factor: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
 	let 	joint_comp	= query.get(joint_e).unwrap();
 	let mut joint		= joints.get_mut(joint_comp.handle()).unwrap();
-			joint.data	= joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
+			joint.data	= joint.data.motor_velocity(JointAxis::AngX, velocity, factor).unlimit_axis(JointAxis::AngX);
 }
 
 fn motor_steer(angle: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
@@ -437,8 +437,18 @@ fn motor_steer(angle: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>
 
 	let 	stiffness 	= 0.2;
 	let 	damping 	= 1.0;
+	let		angle_rad	= angle.to_radians();
 	let mut joint 		= joints.get_mut(joint_comp.handle()).unwrap();
-			joint.data 	= joint.data.motor_velocity(JointAxis::AngX, 10., 0.1);//motor_position(JointAxis::AngY, angle.to_radians(), stiffness, damping);
+			joint.data 	= joint.data.motor_position(JointAxis::AngZ, angle_rad, stiffness, damping)
+							.unlimit_axis(JointAxis::AngZ)
+							.limit_axis(JointAxis::AngX, [0.0, 0.0]);
+
+//	println!("motor steer {} limit axes {:?}", angle, joint.data.limit_axes);
+//	if angle.abs() > 0.0001 {
+//			joint.data 	= joint.data.unlimit_axis(JointAxis::AngZ);
+//	} else {
+//			joint.data 	= joint.data.limit_axis(JointAxis::AngZ, [-0.0001, 0.0001]);
+//	}
 }
 
 fn accelerate_system(
@@ -469,10 +479,19 @@ fn accelerate_system(
 		motor_velocity(0.0, 0.7, lr_joint, &mut joints, &mut query);
 	}
  
+	let steer_angle = 20.0;
 	if key.just_pressed(KeyCode::D) {
-		motor_steer(30.0, rf_joint, &mut joints, &mut query);
-		motor_steer(30.0, lf_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, rf_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, lf_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::D) {
+		motor_steer(0.0, rf_joint, &mut joints, &mut query);
+		motor_steer(0.0, lf_joint, &mut joints, &mut query);
+	}
+
+ 	if key.just_pressed(KeyCode::A) {
+		motor_steer(-steer_angle, rf_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, lf_joint, &mut joints, &mut query);
+	} else if key.just_released(KeyCode::A) {
 		motor_steer(0.0, rf_joint, &mut joints, &mut query);
 		motor_steer(0.0, lf_joint, &mut joints, &mut query);
 	}
