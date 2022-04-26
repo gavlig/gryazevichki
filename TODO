@@ -3,7 +3,7 @@
 2. give camera a dynamic collision that corrects camera's position when bumping
 3. (done!) following camera
 4. (done!)steering: try using two joints with two body instead of just one wheel
-4.1. try newest rapier again to fix steering
+4.1. (wip)stabilize steering
 5. more terrain for test: angles, bumps
 6. friction tests
 7. center of mass tests
