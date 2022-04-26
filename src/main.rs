@@ -585,57 +585,39 @@ fn display_events_system(
 }
 
 // contact info + modification. I'd rather add more info to event
-// see contact filtering for bevy adaptation
-/* struct OneWayPlatformHook {
-	platform1: ColliderHandle,
-	platform2: ColliderHandle,
+/* fn display_contact_info(narrow_phase: Res<NarrowPhase>) {
+    let entity1 = ...; // The first entity with a collider bundle attached.
+    let entity2 = ...; // The second entity with a collider bundle attached.
+    
+    /* Find the contact pair, if it exists, between two colliders. */
+    if let Some(contact_pair) = narrow_phase.contact_pair(entity1.handle(), entity2.handle()) {
+        // The contact pair exists meaning that the broad-phase identified a potential contact.
+        if contact_pair.has_any_active_contact {
+            // The contact pair has active contacts, meaning that it
+            // contains contacts for which contact forces were computed.
 } 
-impl PhysicsHooks<RigidBodySet, ColliderSet> for OneWayPlatformHook {
-	fn modify_solver_contacts(
-		&self,
-		context: &mut ContactModificationContext<RigidBodySet, ColliderSet>,
-	) {
-		// The allowed normal for the first platform is its local +y axis, and the
-		// allowed normal for the second platform is its local -y axis.
-		//
-		// Now we have to be careful because the `manifold.local_n1` normal points
-		// toward the outside of the shape of `context.co1`. So we need to flip the
-		// allowed normal direction if the platform is in `context.collider_handle2`.
-		//
-		// Therefore:
-		// - If context.collider_handle1 == self.platform1 then the allowed normal is +y.
-		// - If context.collider_handle2 == self.platform1 then the allowed normal is -y.
-		// - If context.collider_handle1 == self.platform2 then its allowed normal +y needs to be flipped to -y.
-		// - If context.collider_handle2 == self.platform2 then the allowed normal -y needs to be flipped to +y.
-		let mut allowed_local_n1 = Vector::zeros();
 
-		if context.collider1 == self.platform1 {
-			allowed_local_n1 = Vector::y();
-		} else if context.collider2 == self.platform1 {
-			// Flip the allowed direction.
-			allowed_local_n1 = -Vector::y();
+        // We may also read the contact manifolds to access the contact geometry.
+        for manifold in &contact_pair.manifolds {
+            println!("Local-space contact normal: {}", manifold.local_n1);
+            println!("Local-space contact normal: {}", manifold.local_n2);
+            println!("World-space contact normal: {}", manifold.data.normal);
+
+            // Read the geometric contacts.
+            for contact_point in &manifold.points {
+                // Keep in mind that all the geometric contact data are expressed in the local-space of the colliders.
+                println!("Found local contact point 1: {:?}", contact_point.local_p1);
+                println!("Found contact distance: {:?}", contact_point.dist); // Negative if there is a penetration.
+                println!("Found contact impulse: {}", contact_point.data.impulse);
+                println!("Found friction impulse: {}", contact_point.data.tangent_impulse);
 		}
 
-		if context.collider1 == self.platform2 {
-			allowed_local_n1 = -Vector::y();
-		} else if context.collider2 == self.platform2 {
-			// Flip the allowed direction.
-			allowed_local_n1 = Vector::y();
+            // Read the solver contacts.
+            for solver_contact in &manifold.data.solver_contacts {
+                // Keep in mind that all the solver contact data are expressed in world-space.
+                println!("Found solver contact point: {:?}", solver_contact.point);
+                println!("Found solver contact distance: {:?}", solver_contact.dist); // Negative if there is a penetration.
 		}
-
-		// Call the helper function that simulates one-way platforms.
-		context.update_as_oneway_platform(&allowed_local_n1, 0.1);
-
-		// Set the surface velocity of the accepted contacts.
-		let tangent_velocity =
-			if context.collider1 == self.platform1 || context.collider2 == self.platform2 {
-				-12.0
-			} else {
-				12.0
-			};
-
-		for contact in context.solver_contacts.iter_mut() {
-			contact.tangent_velocity.x = tangent_velocity;
 	}
 }
 } */
