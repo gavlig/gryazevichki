@@ -369,7 +369,7 @@ fn spawn_axle_joint(
 	let axle_joint = RevoluteJoint::new(Vector::y_axis())
 		.local_anchor1(anchor1)
 		.local_anchor2(anchor2)
-		.motor_position(0.0, 1.0, 0.2); // by default we want axle joint to stay fixed 
+		.motor_position(0.0, 10.0, 3.0); // by default we want axle joint to stay fixed 
 
 	commands
 		.spawn()
@@ -605,8 +605,8 @@ fn accelerate_system(
 	}
  
 	let steer_angle = 20.0;
-	let stiffness = 0.5;
-	let damping = 0.5;
+	let stiffness = 5.0;
+	let damping = 3.0;
 	if key.just_pressed(KeyCode::D) {
 		motor_steer(-steer_angle, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
 		motor_steer(-steer_angle, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
@@ -699,32 +699,30 @@ fn update_ui(
 			let label = format!("{} - mass: {}", name_comp.name, mass);
 			ui.label(label);
 
-//			ui.add(
-//				Slider::new(&mut mass, 1.0 ..= 10_00.0)
-//					.text(label),
-//			);
+			ui.add(
+				Slider::new(&mut mass, 1.0 ..= 10_00.0)
+					.text("Mass"),
+			);
 
-//			if mass > 0.0 {
-//				mass_props.local_mprops.inv_mass = 1.0 / mass;
-//			} 
+			if mass > 0.0 {
+				mass_props_rbody.local_mprops.inv_mass = 1.0 / mass;
+			} 
 
-			//let density = match mass_props_coll {
-			//	ColliderMassProps::Density(d) => Some(d),
-			//	ColliderMassProps::MassProperties(_) => None,
-			//};
-			//let label = format!("{} - mass: {}", name_comp.name, );
-			//ui.add(
-			//	Slider::new(&mut mass, 1.0 ..= 1000.0)
-			//		.text(label),
-			//);
+			/* let mut density = mass_props_coll.density_mut();
+			if ui.add(
+				Slider::new(&mut density, 1.0 ..= 1000.0)
+					.text("Density"),
+			).changed() {
+				mass_props_coll.set_density(10.);//Mut(ColliderMassProps::Density(density));
+			} */
 
 			match tag {
 				Tag::FrontWheel | Tag::RearWheel => {
-					let mut shape = coll_shape.make_mut();
+					let 	shape = coll_shape.make_mut();
 					let mut cylinder = shape.as_cylinder_mut().unwrap();
 
 					ui.collapsing(format!("{} Wheel", name_comp.name), |ui| {
-						ui.vertical(|ui| {
+					ui.vertical(|ui| {
 
 					
 					let label = format!("{} wheel half height", cylinder.half_height);
@@ -739,8 +737,8 @@ fn update_ui(
 							.text(label),
 					);
 
-						});
-					});
+					}); // ui.vertical
+					}); // ui.collapsing
 
 					match tag {
 						Tag::FrontWheel if front_wh_hh_changed =>  cylinder.half_height = front_wheels_half_height,
