@@ -558,16 +558,16 @@ fn accelerate_system(
  
 	let steer_angle = 20.0;
 	if key.just_pressed(KeyCode::D) {
-		motor_steer(steer_angle, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(steer_angle, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, lf_axle_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::D) {
 		motor_steer(0.0, rf_axle_joint, &mut joints, &mut query);
 		motor_steer(0.0, lf_axle_joint, &mut joints, &mut query);
 	}
 
  	if key.just_pressed(KeyCode::A) {
-		motor_steer(-steer_angle, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(-steer_angle, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, lf_axle_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::A) {
 		motor_steer(0.0, rf_axle_joint, &mut joints, &mut query);
 		motor_steer(0.0, lf_axle_joint, &mut joints, &mut query);
