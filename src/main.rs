@@ -193,22 +193,37 @@ fn setup_camera_system(
 	}
 }
 
-fn create_wheel_joint(
-	entity1: Entity,
-	entity2: Entity,
-	anchor1: nalgebra::Point3<Real>,
-	anchor2: nalgebra::Point3<Real>,
-	commands: &mut Commands,
-) -> Entity {
-	let mut wheel_joint = WheelJoint::new(Vector::x_axis())
-		.local_anchor1(anchor1)
-		.local_anchor2(anchor2)
-		.limit_axis(JointAxis::AngZ, [0.0, 0.0]);
+fn spawn_attached_wheel(
+	body			: Entity,
+	body_pos		: Vec3,
+	main_offset		: Vec3,
+//		half_height	: f32,
+//		radius		: f32, 
+	mut	commands	: &mut Commands
+) -> (Entity, Entity) {
+	let half_height = 0.5;
+	let radius 		= 0.8;
 
-	commands
-		.spawn()
-		.insert(JointBuilderComponent::new(wheel_joint, entity1, entity2))
-		.id()
+	let x_sign		= main_offset.x * (1.0 / main_offset.x.abs());
+	let wheel_offset= Vec3::X * 0.2 * x_sign; // 0.2 offset by x axis
+
+	let axle_size	= Vec3::new(0.1, 0.25, 0.1);
+	let axle_pos	= body_pos + main_offset;
+	let axle		= spawn_wheel_axle(axle_pos, axle_size, RigidBodyType::Dynamic, &mut commands);
+
+	let anchor1		= main_offset;
+	let anchor2 	= Vec3::ZERO;
+	let joint 		= spawn_axle_joint(body, axle, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+
+	/* let wheel_pos 	= axle_pos + wheel_offset;
+	let wheel 		= spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	
+
+	let anchor1		= main_offset;
+	let anchor2 	= Vec3::ZERO;
+	let joint 		= spawn_wheel_joint(body, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands); */
+
+	(axle, joint)
 }
 
 fn spawn_wheel(
@@ -254,25 +269,67 @@ fn spawn_wheel(
 		.id()
 }
 
-fn spawn_attached_wheel(
-		body		: Entity,
-		body_pos	: Vec3,
-		offset		: Vec3,
-//		half_height	: f32,
-//		radius		: f32, 
-	mut	commands	: &mut Commands
-) -> (Entity, Entity) {
-	let half_height = 0.5;
-	let radius 		= 0.8;
+fn spawn_wheel_axle(
+	pos_in: Vec3,
+	half_size: Vec3,
+	body_type: RigidBodyType,
+	commands: &mut Commands,
+) -> Entity {
+	let mut pos_comp = RigidBodyPositionComponent::default();
+	pos_comp.position.translation = pos_in.clone().into();
 
-	let anchor1		= offset;
-	let anchor2 	= Vec3::ZERO;
-	let wheel_pos 	= body_pos + anchor1;
+	let rigid_body = RigidBodyBundle {
+		position: pos_comp,
+		body_type: RigidBodyTypeComponent(body_type),
+		..RigidBodyBundle::default()
+	};
 
-	let wheel 		= spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
-	let joint 		= create_wheel_joint(body, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+	let axle_collider = ColliderBundle {
+		shape: ColliderShape::cuboid(half_size.x, half_size.y, half_size.z).into(),
+		..ColliderBundle::default()
+	};
 
-	(wheel, joint)
+	commands
+		.spawn()
+		.insert_bundle(rigid_body)
+		.insert_bundle(axle_collider)
+		.insert(ColliderDebugRender::default())
+		.insert(ColliderPositionSync::Discrete)
+		.id()
+}
+
+fn spawn_axle_joint(
+	entity1: Entity,
+	entity2: Entity,
+	anchor1: nalgebra::Point3<Real>,
+	anchor2: nalgebra::Point3<Real>,
+	commands: &mut Commands,
+) -> Entity {
+	let mut axle_joint = RevoluteJoint::new(Vector::y_axis())
+		.local_anchor1(anchor1)
+		.local_anchor2(anchor2);
+
+	commands
+		.spawn()
+		.insert(JointBuilderComponent::new(axle_joint, entity1, entity2))
+		.id()
+}
+
+fn spawn_wheel_joint(
+	entity1: Entity,
+	entity2: Entity,
+	anchor1: nalgebra::Point3<Real>,
+	anchor2: nalgebra::Point3<Real>,
+	commands: &mut Commands,
+) -> Entity {
+	let mut wheel_joint = RevoluteJoint::new(Vector::x_axis())
+		.local_anchor1(anchor1)
+		.local_anchor2(anchor2);
+
+	commands
+		.spawn()
+		.insert(JointBuilderComponent::new(wheel_joint, entity1, entity2))
+		.id()
 }
 
 fn spawn_box(
@@ -435,13 +492,13 @@ fn motor_velocity(velocity: f32, factor: f32, joint_e: Entity, joints: &mut ResM
 fn motor_steer(angle: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
 	let 	joint_comp 	= query.get(joint_e).unwrap();
 
-	let 	stiffness 	= 0.2;
-	let 	damping 	= 1.0;
+	let 	stiffness 	= 0.8;
+	let 	damping 	= 0.2;
 	let		angle_rad	= angle.to_radians();
 	let mut joint 		= joints.get_mut(joint_comp.handle()).unwrap();
-			joint.data 	= joint.data.motor_position(JointAxis::AngZ, angle_rad, stiffness, damping)
-							.unlimit_axis(JointAxis::AngZ)
-							.limit_axis(JointAxis::AngX, [0.0, 0.0]);
+			joint.data 	= joint.data.motor_position(JointAxis::AngX, angle_rad, stiffness, damping)
+							;//.unlimit_axis(JointAxis::AngZ)
+							//.limit_axis(JointAxis::AngX, [0.0, 0.0]);
 
 //	println!("motor steer {} limit axes {:?}", angle, joint.data.limit_axes);
 //	if angle.abs() > 0.0001 {
