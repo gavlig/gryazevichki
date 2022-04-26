@@ -146,43 +146,46 @@ pub fn setup_physics_system(
 
 	println!("ground Entity ID {:?}", ground);
 
-	if false {
+	if true {
 		spawn_cubes(&mut commands);
 	}
 
 	// wheels and body 1.13
-	let half_height: f32 = 0.5;
-	let radius: f32 = 0.80;
 
 	let body_pos = Vec3::new(0.0, 5.5, 0.0);
-	let half_size = Vec3::new(0.5, 0.5, 1.0);
-	let body = spawn_body(body_pos, half_size, RigidBodyType::Dynamic, &mut commands);
+	let body_half_size = Vec3::new(0.5, 0.5, 1.0);
+	let body = spawn_body(body_pos, body_half_size, RigidBodyType::Dynamic, &mut commands);
 	game.body = Some(body);
 	println!("body Entity ID {:?}", body);
 
+	// offsets for wheel placement relative to body center
+	let x_off = 0.8;
+	let y_off = 0.8;
+	let z_off = 1.4;
+
 	{
-		let offset = Vec3::new(1.6, -0.8, 1.4);
+		let offset = Vec3::new(x_off, -y_off, z_off);
 		let (rf_axle_joint, rf_wheel_joint, rf_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
 		(game.rf_axle_joint, game.rf_wheel_joint, game.rf_wheel) = (Some(rf_axle_joint), Some(rf_wheel_joint), Some(rf_wheel));
 		println!("rf_wheel Entity ID {:?}", rf_wheel);
 	}
 
 	if true {
-		let offset = Vec3::new(-1.6, -0.8, 1.4);
+		let offset = Vec3::new(-x_off, -y_off, z_off);
 		let (lf_axle_joint, lf_wheel_joint, lf_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
 		(game.lf_axle_joint, game.lf_wheel_joint, game.lf_wheel) = (Some(lf_axle_joint), Some(lf_wheel_joint), Some(lf_wheel));
 		println!("lf_wheel Entity ID {:?}", lf_wheel);
 	}
 
 	if true {
-		let offset = Vec3::new(1.6, -0.8, -1.4);
+		let offset = Vec3::new(x_off, -y_off, -z_off);
 		let (rr_axle_joint, rr_wheel_joint, rr_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
 		(game.rr_axle_joint, game.rr_wheel_joint, game.rr_wheel) = (Some(rr_axle_joint), Some(rr_wheel_joint), Some(rr_wheel));
 		println!("rr_wheel Entity ID {:?}", rr_wheel);
 	}
 
 	if true {
-		let offset = Vec3::new(-1.6, -0.8, -1.4);
+		let offset = Vec3::new(-x_off, -y_off, -z_off);
 		let (lr_axle_joint, lr_wheel_joint, lr_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
 		(game.lr_axle_joint, game.lr_wheel_joint, game.lr_wheel) = (Some(lr_axle_joint), Some(lr_wheel_joint), Some(lr_wheel));
 		println!("lr_wheel Entity ID {:?}", lr_wheel);
@@ -504,11 +507,9 @@ fn motor_velocity(velocity: f32, factor: f32, joint_e: Entity, joints: &mut ResM
 			joint.data	= joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
 }
 
-fn motor_steer(angle: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
+fn motor_steer(angle: f32, stiffness: f32, damping: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
 	let 	joint_comp 	= query.get(joint_e).unwrap();
 
-	let 	stiffness 	= 0.8;
-	let 	damping 	= 0.2;
 	let		angle_rad	= angle.to_radians();
 	let mut joint 		= joints.get_mut(joint_comp.handle()).unwrap();
 			joint.data 	= joint.data.motor_position(JointAxis::AngX, angle_rad, stiffness, damping)
@@ -557,20 +558,22 @@ fn accelerate_system(
 	}
  
 	let steer_angle = 20.0;
+	let stiffness = 0.5;
+	let damping = 0.5;
 	if key.just_pressed(KeyCode::D) {
-		motor_steer(-steer_angle, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(-steer_angle, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::D) {
-		motor_steer(0.0, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(0.0, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
 	}
 
  	if key.just_pressed(KeyCode::A) {
-		motor_steer(steer_angle, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(steer_angle, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::A) {
-		motor_steer(0.0, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(0.0, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
 	}
 }
 
