@@ -1,13 +1,32 @@
 use bevy::prelude::*;
 use bevy_rapier3d::{prelude::*, physics::JointHandleComponent};
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
-//use bevy_editor_pls::prelude::*;
 use bevy::app::AppExit;
 
 use nalgebra as nalg;
 use nalg::vector;
 
 use bevy::render::mesh::shape as render_shape;
+
+#[derive(Component)]
+pub struct NameComponent {
+    name			: String
+}
+
+#[derive(Component)]
+pub struct WheelTag;
+#[derive(Component)]
+pub struct AxleTag;
+#[derive(Component)]
+pub struct BodyTag;
+
+#[derive(Component)]
+pub enum Tag {
+	FrontWheel,
+	RearWheel,
+	Axle,
+	Body
+}
 
 #[derive(Default)]
 pub struct Game {
@@ -43,7 +62,7 @@ fn main() {
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin(RapierRenderPlugin)
 		.add_plugin(FlyCameraPlugin)
-//		.add_plugin(EditorPlugin)
+		.add_plugin(bevy_egui::EguiPlugin)
 		.add_startup_system(setup_graphics_system)
 		.add_startup_system(setup_physics_system)
 		.add_startup_system(setup_grab_system)
@@ -52,6 +71,7 @@ fn main() {
 		.add_system(toggle_button_system)
 		.add_system(camera_collision_system)
 		.add_system(accelerate_system)
+		.add_system(update_ui)
 		.add_system_to_stage(CoreStage::PostUpdate, display_events_system)
 		.run();
 }
@@ -64,8 +84,8 @@ fn setup_grab_system(mut windows: ResMut<Windows>) {
 }
 
 fn setup_graphics_system(
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
+		meshes: ResMut<Assets<Mesh>>,
+		materials: ResMut<Assets<StandardMaterial>>,
 	mut game: ResMut<Game>,
 	mut commands: Commands,
 ) {
@@ -99,8 +119,13 @@ fn setup_graphics_system(
 
 	spawn_world_axis(meshes, materials, &mut commands);
 
-	// camera
+	spawn_camera(&mut game, &mut commands);
+}
 
+fn spawn_camera(
+	game				: &mut ResMut<Game>,
+	commands			: &mut Commands
+) {
 	let camera_collider = ColliderBundle {
 		shape: ColliderShape::ball(1.0).into(),
 		..ColliderBundle::default()
@@ -128,30 +153,52 @@ pub fn setup_physics_system(
 ) {
 	configuration.timestep_mode = TimestepMode::VariableTimestep;
 
-	// Ground
-	let ground_size = 200.1;
-	let ground_height = 0.1;
+	spawn_ground		(&mut game, &mut commands);
 
-	let ground_bundle = ColliderBundle {
-		shape: ColliderShape::cuboid(ground_size, ground_height, ground_size).into(),
-		position: Vec3::new(0.0, -ground_height, 0.0).into(),
+	if true {
+		spawn_cubes		(&mut commands);
+	}
+
+	spawn_vehicle		(&mut game, &mut commands);
+}
+
+fn setup_camera_system(
+		 game			: ResMut<Game>,
+	mut query			: Query<&mut FlyCamera>
+) {
+	// initialize camera with target to look at
+	if game.camera.is_some() && game.body.is_some() {
+		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
+		camera.target 	= Some(game.body.unwrap());
+	}
+}
+
+fn spawn_ground(
+	game				: &mut ResMut<Game>,
+	commands			: &mut Commands
+) {
+	let ground_size 	= 200.1;
+	let ground_height 	= 0.1;
+
+	let ground_bundle 	= ColliderBundle {
+		shape			: ColliderShape::cuboid(ground_size, ground_height, ground_size).into(),
+		position		: Vec3::new(0.0, -ground_height, 0.0).into(),
 		..ColliderBundle::default()
 	};
 
-	let ground = commands
-		.spawn_bundle(ground_bundle)
-		.insert(ColliderDebugRender::default())
-		.insert(ColliderPositionSync::Discrete)
-		.id();
+	let ground 			= commands
+		.spawn_bundle	(ground_bundle)
+		.insert			(ColliderDebugRender::default())
+		.insert			(ColliderPositionSync::Discrete)
+		.id				();
 
-	println!("ground Entity ID {:?}", ground);
+	println!			("ground Entity ID {:?}", ground);
+}
 
-	if true {
-		spawn_cubes(&mut commands);
-	}
-
-	// wheels and body 1.13
-
+fn spawn_vehicle(
+		game			: &mut ResMut<Game>,
+	mut commands		: &mut Commands
+) {
 	let body_pos = Vec3::new(0.0, 5.5, 0.0);
 	let body_half_size = Vec3::new(0.5, 0.5, 1.0);
 	let body = spawn_body(body_pos, body_half_size, RigidBodyType::Dynamic, &mut commands);
@@ -165,45 +212,36 @@ pub fn setup_physics_system(
 
 	{
 		let offset = Vec3::new(x_off, -y_off, z_off);
-		let (rf_axle_joint, rf_wheel_joint, rf_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		let (rf_axle_joint, rf_wheel_joint, rf_wheel) = spawn_attached_wheel("RF".to_string(), Tag::FrontWheel, body, body_pos, offset, &mut commands);
 		(game.rf_axle_joint, game.rf_wheel_joint, game.rf_wheel) = (Some(rf_axle_joint), Some(rf_wheel_joint), Some(rf_wheel));
 		println!("rf_wheel Entity ID {:?}", rf_wheel);
 	}
 
 	if true {
 		let offset = Vec3::new(-x_off, -y_off, z_off);
-		let (lf_axle_joint, lf_wheel_joint, lf_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		let (lf_axle_joint, lf_wheel_joint, lf_wheel) = spawn_attached_wheel("LF".to_string(), Tag::FrontWheel, body, body_pos, offset, &mut commands);
 		(game.lf_axle_joint, game.lf_wheel_joint, game.lf_wheel) = (Some(lf_axle_joint), Some(lf_wheel_joint), Some(lf_wheel));
 		println!("lf_wheel Entity ID {:?}", lf_wheel);
 	}
 
 	if true {
 		let offset = Vec3::new(x_off, -y_off, -z_off);
-		let (rr_axle_joint, rr_wheel_joint, rr_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		let (rr_axle_joint, rr_wheel_joint, rr_wheel) = spawn_attached_wheel("RR".to_string(), Tag::RearWheel, body, body_pos, offset, &mut commands);
 		(game.rr_axle_joint, game.rr_wheel_joint, game.rr_wheel) = (Some(rr_axle_joint), Some(rr_wheel_joint), Some(rr_wheel));
 		println!("rr_wheel Entity ID {:?}", rr_wheel);
 	}
 
 	if true {
 		let offset = Vec3::new(-x_off, -y_off, -z_off);
-		let (lr_axle_joint, lr_wheel_joint, lr_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		let (lr_axle_joint, lr_wheel_joint, lr_wheel) = spawn_attached_wheel("LR".to_string(), Tag::RearWheel, body, body_pos, offset, &mut commands);
 		(game.lr_axle_joint, game.lr_wheel_joint, game.lr_wheel) = (Some(lr_axle_joint), Some(lr_wheel_joint), Some(lr_wheel));
 		println!("lr_wheel Entity ID {:?}", lr_wheel);
 	}
 }
 
-fn setup_camera_system(
-	mut game			: ResMut<Game>,
-	mut query			: Query<&mut FlyCamera>
-) {
-	// initialize camera with target to look at
-	if game.camera.is_some() && game.body.is_some() {
-		let mut camera = query.get_mut(game.camera.unwrap()).unwrap();
-		camera.target = Some(game.body.unwrap());
-	}
-}
-
 fn spawn_attached_wheel(
+	prefix			: String,
+	tag				: Tag,
 	body			: Entity,
 	body_pos		: Vec3,
 	main_offset		: Vec3,
@@ -219,14 +257,14 @@ fn spawn_attached_wheel(
 
 	let axle_size	= Vec3::new(0.1, 0.2, 0.1);
 	let axle_pos	= body_pos + main_offset;
-	let axle		= spawn_wheel_axle(axle_pos, axle_size, RigidBodyType::Dynamic, &mut commands);
+	let axle		= spawn_wheel_axle(&prefix, axle_pos, axle_size, RigidBodyType::Dynamic, &mut commands);
 
 	let mut anchor1	= main_offset;
 	let mut anchor2 = Vec3::ZERO;
 	let axle_joint 	= spawn_axle_joint(body, axle, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
 
 	let wheel_pos 	= axle_pos + wheel_offset;
-	let wheel 		= spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	let wheel 		= spawn_wheel(&prefix, tag, wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
 
 	anchor1			= wheel_offset;
 	anchor2 		= Vec3::ZERO;
@@ -236,10 +274,11 @@ fn spawn_attached_wheel(
 }
 
 fn spawn_wheel_axle(
-	pos_in: Vec3,
-	half_size: Vec3,
-	body_type: RigidBodyType,
-	commands: &mut Commands,
+	prefix			: &String,
+	pos_in			: Vec3,
+	half_size		: Vec3,
+	body_type		: RigidBodyType,
+	commands		: &mut Commands,
 ) -> Entity {
 	let mut pos_comp = RigidBodyPositionComponent::default();
 	pos_comp.position.translation = pos_in.clone().into();
@@ -268,10 +307,14 @@ fn spawn_wheel_axle(
 		.insert_bundle(axle_collider)
 		.insert(ColliderDebugRender::default())
 		.insert(ColliderPositionSync::Discrete)
+		.insert(NameComponent{ name: format!("{} Axle", prefix) })
+		.insert(Tag::Axle)
 		.id()
 }
 
 fn spawn_wheel(
+	prefix: &String,
+	tag: Tag,
 	pos_in: Vec3,
 	half_height: f32,
 	radius: f32,
@@ -311,6 +354,8 @@ fn spawn_wheel(
 		.insert_bundle(wheel_collider)
 		.insert(ColliderDebugRender::default())
 		.insert(ColliderPositionSync::Discrete)
+		.insert(NameComponent{ name: format!("{} Wheel", prefix) })
+		.insert(tag)
 		.id()
 }
 
@@ -376,6 +421,8 @@ fn spawn_body(
 		.insert_bundle(box_collider)
 		.insert(ColliderDebugRender::default())
 		.insert(ColliderPositionSync::Discrete)
+		.insert(NameComponent{ name: "Body".to_string() })
+		.insert(Tag::Body)
 		.id()
 }
 
@@ -461,7 +508,8 @@ fn cursor_grab_system(
 ) {
 	let window = windows.get_primary_mut().unwrap();
 
-	if btn.just_pressed(MouseButton::Left) {
+	//if btn.just_pressed(MouseButton::Left) {
+	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Return) {
 		window.set_cursor_lock_mode(true);
 		window.set_cursor_visibility(false);
 	}
@@ -529,7 +577,6 @@ fn accelerate_system(
 		game	: ResMut<Game>,
 	mut	joints	: ResMut<ImpulseJointSet>,
 	mut	query	: Query<&mut JointHandleComponent>,
-	mut commands: Commands,
 ) {
 	let rf_axle_joint = game.rf_axle_joint.unwrap();
 	let lf_axle_joint = game.lf_axle_joint.unwrap();
@@ -605,6 +652,112 @@ fn display_events_system(
 			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
 		}
 	}
+}
+
+use bevy_egui::egui::{Slider, WidgetText};
+use bevy_egui::{egui, EguiContext};
+
+fn update_ui(
+	mut ui_context	: ResMut<EguiContext>,
+	mut	query		: Query<(
+		&mut ColliderMassPropsComponent,
+		&mut RigidBodyMassPropsComponent,
+		&mut ColliderShapeComponent,
+		&NameComponent,
+		&Tag
+	)>
+) {
+	egui::Window::new("Parameters").show(ui_context.ctx_mut(), |ui| {
+		let mut front_wheels_half_height = 0.5;
+		let front_wh_hh_changed = ui.add(
+			Slider::new(&mut front_wheels_half_height, 0.05 ..= 2.0)
+				.text("Front wheels half height"),
+		).changed();
+
+		let mut rear_wheels_half_height = 0.5;
+		let rear_wh_hh_changed = ui.add(
+			Slider::new(&mut rear_wheels_half_height, 0.05 ..= 2.0)
+				.text("Rear wheels half height"),
+		).changed();
+
+		let mut front_wheels_radius = 0.8;
+		let front_wh_r_changed = ui.add(
+			Slider::new(&mut front_wheels_radius, 0.05 ..= 2.0)
+				.text("Front wheels radius"),
+		).changed();
+
+		let mut rear_wheels_radius = 0.8;
+		let rear_wh_r_changed = ui.add(
+			Slider::new(&mut rear_wheels_radius, 0.05 ..= 2.0)
+				.text("Rear wheels radius"),
+		).changed();
+
+		for (mut mass_props_coll, mut mass_props_rbody, mut coll_shape, name_comp, tag) in query.iter_mut() {
+			let inv_mass = mass_props_rbody.local_mprops.inv_mass;
+			let mut mass = if inv_mass > 0.0 { 1.0 / inv_mass } else { 0.0 };
+			
+			let label = format!("{} - mass: {}", name_comp.name, mass);
+			ui.label(label);
+
+//			ui.add(
+//				Slider::new(&mut mass, 1.0 ..= 10_00.0)
+//					.text(label),
+//			);
+
+//			if mass > 0.0 {
+//				mass_props.local_mprops.inv_mass = 1.0 / mass;
+//			} 
+
+			//let density = match mass_props_coll {
+			//	ColliderMassProps::Density(d) => Some(d),
+			//	ColliderMassProps::MassProperties(_) => None,
+			//};
+			//let label = format!("{} - mass: {}", name_comp.name, );
+			//ui.add(
+			//	Slider::new(&mut mass, 1.0 ..= 1000.0)
+			//		.text(label),
+			//);
+
+			match tag {
+				Tag::FrontWheel | Tag::RearWheel => {
+					let mut shape = coll_shape.make_mut();
+					let mut cylinder = shape.as_cylinder_mut().unwrap();
+
+					ui.collapsing(format!("{} Wheel", name_comp.name), |ui| {
+						ui.vertical(|ui| {
+
+					
+					let label = format!("{} wheel half height", cylinder.half_height);
+					ui.add(
+						Slider::new(&mut cylinder.half_height, 0.05 ..= 10.0)
+							.text(label),
+					);
+
+					let label = format!("{} wheel radius", cylinder.radius);
+					ui.add(
+						Slider::new(&mut cylinder.radius, 0.05 ..= 10.0)
+							.text(label),
+					);
+
+						});
+					});
+
+					match tag {
+						Tag::FrontWheel if front_wh_hh_changed =>  cylinder.half_height = front_wheels_half_height,
+						Tag::RearWheel if rear_wh_hh_changed =>  cylinder.half_height = rear_wheels_half_height,
+						_ => (),
+					}
+
+					match tag {
+						Tag::FrontWheel if front_wh_r_changed =>  cylinder.radius = front_wheels_radius,
+						Tag::RearWheel if rear_wh_r_changed =>  cylinder.radius = rear_wheels_radius,
+						_ => (),
+					}
+				},
+				_ => (),
+			}
+		}
+	});
 }
 
 // contact info + modification. I'd rather add more info to event
