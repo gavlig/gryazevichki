@@ -14,3 +14,4 @@
 12. suspension
 13. ui for different parameters tweaking (see rapier all_examples3)
 14. research how to release cursor when hitting breakpoint
+15. bug: joints with wheels fall asleep too fast and we cant wake them up with motor
