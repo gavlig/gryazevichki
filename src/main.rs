@@ -3,24 +3,31 @@ use bevy_rapier3d::{prelude::*, physics::JointHandleComponent};
 use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
 //use bevy_editor_pls::prelude::*;
 use bevy::app::AppExit;
+
 use nalgebra as nalg;
+use nalg::vector;
 
 use bevy::render::mesh::shape as render_shape;
 
 #[derive(Default)]
 pub struct Game {
-	  camera	: Option<Entity>
-	, body 		: Option<Entity>
+	  camera		: Option<Entity>
+	, body 			: Option<Entity>
 
-	, rf_wheel	: Option<Entity>
-	, lf_wheel	: Option<Entity>
-	, rr_wheel	: Option<Entity>
-	, lr_wheel	: Option<Entity>
+	, rf_axle_joint	: Option<Entity>
+	, lf_axle_joint	: Option<Entity>
+	, rr_axle_joint	: Option<Entity>
+	, lr_axle_joint	: Option<Entity>
 
-	, rf_joint	: Option<Entity>
-	, lf_joint	: Option<Entity>
-	, rr_joint	: Option<Entity>
-	, lr_joint	: Option<Entity>
+	, rf_wheel_joint: Option<Entity>
+	, lf_wheel_joint: Option<Entity>
+	, rr_wheel_joint: Option<Entity>
+	, lr_wheel_joint: Option<Entity>
+
+	, rf_wheel		: Option<Entity>
+	, lf_wheel		: Option<Entity>
+	, rr_wheel		: Option<Entity>
+	, lr_wheel		: Option<Entity>
 }
 
 fn main() {
@@ -88,9 +95,9 @@ fn setup_graphics_system(
 		..Default::default()
 	});
 
-	// axis
+	//
 
-	spawn_axis(meshes, materials, &mut commands);
+	spawn_world_axis(meshes, materials, &mut commands);
 
 	// camera
 
@@ -149,35 +156,35 @@ pub fn setup_physics_system(
 
 	let body_pos = Vec3::new(0.0, 5.5, 0.0);
 	let half_size = Vec3::new(0.5, 0.5, 1.0);
-	let body = spawn_box(body_pos, half_size, RigidBodyType::Dynamic, &mut commands);
+	let body = spawn_body(body_pos, half_size, RigidBodyType::Dynamic, &mut commands);
 	game.body = Some(body);
 	println!("body Entity ID {:?}", body);
 
 	{
 		let offset = Vec3::new(1.6, -0.8, 1.4);
-		let (rf_wheel, rf_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
-		(game.rf_wheel, game.rf_joint) = (Some(rf_wheel), Some(rf_joint));
+		let (rf_axle_joint, rf_wheel_joint, rf_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		(game.rf_axle_joint, game.rf_wheel_joint, game.rf_wheel) = (Some(rf_axle_joint), Some(rf_wheel_joint), Some(rf_wheel));
 		println!("rf_wheel Entity ID {:?}", rf_wheel);
 	}
 
 	if true {
 		let offset = Vec3::new(-1.6, -0.8, 1.4);
-		let (lf_wheel, lf_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
-		(game.lf_wheel, game.lf_joint) = (Some(lf_wheel), Some(lf_joint));
+		let (lf_axle_joint, lf_wheel_joint, lf_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		(game.lf_axle_joint, game.lf_wheel_joint, game.lf_wheel) = (Some(lf_axle_joint), Some(lf_wheel_joint), Some(lf_wheel));
 		println!("lf_wheel Entity ID {:?}", lf_wheel);
 	}
 
 	if true {
 		let offset = Vec3::new(1.6, -0.8, -1.4);
-		let (rr_wheel, rr_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
-		(game.rr_wheel, game.rr_joint) = (Some(rr_wheel), Some(rr_joint));
+		let (rr_axle_joint, rr_wheel_joint, rr_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		(game.rr_axle_joint, game.rr_wheel_joint, game.rr_wheel) = (Some(rr_axle_joint), Some(rr_wheel_joint), Some(rr_wheel));
 		println!("rr_wheel Entity ID {:?}", rr_wheel);
 	}
 
 	if true {
 		let offset = Vec3::new(-1.6, -0.8, -1.4);
-		let (lr_wheel, lr_joint) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
-		(game.lr_wheel, game.lr_joint) = (Some(lr_wheel), Some(lr_joint));
+		let (lr_axle_joint, lr_wheel_joint, lr_wheel) = spawn_attached_wheel(body, body_pos, offset, &mut commands);
+		(game.lr_axle_joint, game.lr_wheel_joint, game.lr_wheel) = (Some(lr_axle_joint), Some(lr_wheel_joint), Some(lr_wheel));
 		println!("lr_wheel Entity ID {:?}", lr_wheel);
 	}
 }
@@ -200,30 +207,65 @@ fn spawn_attached_wheel(
 //		half_height	: f32,
 //		radius		: f32, 
 	mut	commands	: &mut Commands
-) -> (Entity, Entity) {
+) -> (Entity, Entity, Entity) {
 	let half_height = 0.5;
 	let radius 		= 0.8;
 
 	let x_sign		= main_offset.x * (1.0 / main_offset.x.abs());
-	let wheel_offset= Vec3::X * 0.2 * x_sign; // 0.2 offset by x axis
+	let wheel_offset= Vec3::X * 0.8 * x_sign; // 0.2 offset by x axis
 
-	let axle_size	= Vec3::new(0.1, 0.25, 0.1);
+	let axle_size	= Vec3::new(0.1, 0.2, 0.1);
 	let axle_pos	= body_pos + main_offset;
 	let axle		= spawn_wheel_axle(axle_pos, axle_size, RigidBodyType::Dynamic, &mut commands);
 
-	let anchor1		= main_offset;
-	let anchor2 	= Vec3::ZERO;
-	let joint 		= spawn_axle_joint(body, axle, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
+	let mut anchor1	= main_offset;
+	let mut anchor2 = Vec3::ZERO;
+	let axle_joint 	= spawn_axle_joint(body, axle, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
 
-	/* let wheel_pos 	= axle_pos + wheel_offset;
+	let wheel_pos 	= axle_pos + wheel_offset;
 	let wheel 		= spawn_wheel(wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
-	
 
-	let anchor1		= main_offset;
-	let anchor2 	= Vec3::ZERO;
-	let joint 		= spawn_wheel_joint(body, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands); */
+	anchor1			= wheel_offset;
+	anchor2 		= Vec3::ZERO;
+	let wheel_joint = spawn_wheel_joint(axle, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
 
-	(axle, joint)
+	(axle_joint, wheel_joint, wheel)
+}
+
+fn spawn_wheel_axle(
+	pos_in: Vec3,
+	half_size: Vec3,
+	body_type: RigidBodyType,
+	commands: &mut Commands,
+) -> Entity {
+	let mut pos_comp = RigidBodyPositionComponent::default();
+	pos_comp.position.translation = pos_in.clone().into();
+
+	let rigid_body = RigidBodyBundle {
+		position: pos_comp,
+		body_type: RigidBodyTypeComponent(body_type),
+		..RigidBodyBundle::default()
+	};
+
+	let translated_position = nalg::Isometry3 {
+		translation: vector![0.0, 0.3, 0.0].into(),
+		..Default::default()
+	};
+
+	let axle_collider = ColliderBundle {
+		shape: ColliderShape::cuboid(half_size.x, half_size.y, half_size.z).into(),
+		position: translated_position.into(),
+		mass_properties: ColliderMassProps::Density(1000.0).into(),
+		..ColliderBundle::default()
+	};
+
+	commands
+		.spawn()
+		.insert_bundle(rigid_body)
+		.insert_bundle(axle_collider)
+		.insert(ColliderDebugRender::default())
+		.insert(ColliderPositionSync::Discrete)
+		.id()
 }
 
 fn spawn_wheel(
@@ -269,35 +311,6 @@ fn spawn_wheel(
 		.id()
 }
 
-fn spawn_wheel_axle(
-	pos_in: Vec3,
-	half_size: Vec3,
-	body_type: RigidBodyType,
-	commands: &mut Commands,
-) -> Entity {
-	let mut pos_comp = RigidBodyPositionComponent::default();
-	pos_comp.position.translation = pos_in.clone().into();
-
-	let rigid_body = RigidBodyBundle {
-		position: pos_comp,
-		body_type: RigidBodyTypeComponent(body_type),
-		..RigidBodyBundle::default()
-	};
-
-	let axle_collider = ColliderBundle {
-		shape: ColliderShape::cuboid(half_size.x, half_size.y, half_size.z).into(),
-		..ColliderBundle::default()
-	};
-
-	commands
-		.spawn()
-		.insert_bundle(rigid_body)
-		.insert_bundle(axle_collider)
-		.insert(ColliderDebugRender::default())
-		.insert(ColliderPositionSync::Discrete)
-		.id()
-}
-
 fn spawn_axle_joint(
 	entity1: Entity,
 	entity2: Entity,
@@ -305,9 +318,10 @@ fn spawn_axle_joint(
 	anchor2: nalgebra::Point3<Real>,
 	commands: &mut Commands,
 ) -> Entity {
-	let mut axle_joint = RevoluteJoint::new(Vector::y_axis())
+	let axle_joint = RevoluteJoint::new(Vector::y_axis())
 		.local_anchor1(anchor1)
-		.local_anchor2(anchor2);
+		.local_anchor2(anchor2)
+		.motor_position(0.0, 1.0, 0.2); // by default we want axle joint to stay fixed 
 
 	commands
 		.spawn()
@@ -322,7 +336,7 @@ fn spawn_wheel_joint(
 	anchor2: nalgebra::Point3<Real>,
 	commands: &mut Commands,
 ) -> Entity {
-	let mut wheel_joint = RevoluteJoint::new(Vector::x_axis())
+	let wheel_joint = RevoluteJoint::new(Vector::x_axis())
 		.local_anchor1(anchor1)
 		.local_anchor2(anchor2);
 
@@ -332,7 +346,7 @@ fn spawn_wheel_joint(
 		.id()
 }
 
-fn spawn_box(
+fn spawn_body(
 	pos_in: Vec3,
 	half_size: Vec3,
 	body_type: RigidBodyType,
@@ -349,6 +363,7 @@ fn spawn_box(
 
 	let box_collider = ColliderBundle {
 		shape: ColliderShape::cuboid(half_size.x, half_size.y, half_size.z).into(),
+		mass_properties: ColliderMassProps::Density(10.0).into(), // joints like it when there is an hierarchy of masses and we want body to be the heaviest
 		..ColliderBundle::default()
 	};
 
@@ -408,7 +423,7 @@ fn spawn_cubes(commands: &mut Commands) {
 	 }
 }
 
-fn spawn_axis(
+fn spawn_world_axis(
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	commands: &mut Commands,
@@ -486,7 +501,7 @@ fn toggle_button_system(
 fn motor_velocity(velocity: f32, factor: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
 	let 	joint_comp	= query.get(joint_e).unwrap();
 	let mut joint		= joints.get_mut(joint_comp.handle()).unwrap();
-			joint.data	= joint.data.motor_velocity(JointAxis::AngX, velocity, factor).unlimit_axis(JointAxis::AngX);
+			joint.data	= joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
 }
 
 fn motor_steer(angle: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
@@ -515,42 +530,47 @@ fn accelerate_system(
 	mut	query	: Query<&mut JointHandleComponent>,
 	mut commands: Commands,
 ) {
-	let rf_joint = game.rf_joint.unwrap();
-	let lf_joint = game.lf_joint.unwrap();
-	let rr_joint = game.rr_joint.unwrap();
-	let lr_joint = game.lr_joint.unwrap();
+	let rf_axle_joint = game.rf_axle_joint.unwrap();
+	let lf_axle_joint = game.lf_axle_joint.unwrap();
+	let rr_axle_joint = game.rr_axle_joint.unwrap();
+	let lr_axle_joint = game.lr_axle_joint.unwrap();
+
+	let rf_wheel_joint = game.rf_wheel_joint.unwrap();
+	let lf_wheel_joint = game.lf_wheel_joint.unwrap();
+	let rr_wheel_joint = game.rr_wheel_joint.unwrap();
+	let lr_wheel_joint = game.lr_wheel_joint.unwrap();
 
 	if key.just_pressed(KeyCode::W) {
-		motor_velocity(10.0, 0.3, rr_joint, &mut joints, &mut query);
-		motor_velocity(10.0, 0.3, lr_joint, &mut joints, &mut query);
+		motor_velocity(10.0, 0.7, rr_wheel_joint, &mut joints, &mut query);
+		motor_velocity(10.0, 0.7, lr_wheel_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::W) {
-		motor_velocity(0.0, 0.7, rr_joint, &mut joints, &mut query);
-		motor_velocity(0.0, 0.7, lr_joint, &mut joints, &mut query);
+		motor_velocity(0.0, 0.7, rr_wheel_joint, &mut joints, &mut query);
+		motor_velocity(0.0, 0.7, lr_wheel_joint, &mut joints, &mut query);
 	}
 	
 	 if key.just_pressed(KeyCode::S) {
-		motor_velocity(-10.0, 0.3, rr_joint, &mut joints, &mut query);
-		motor_velocity(-10.0, 0.3, lr_joint, &mut joints, &mut query);
+		motor_velocity(-10.0, 0.3, rr_wheel_joint, &mut joints, &mut query);
+		motor_velocity(-10.0, 0.3, lr_wheel_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::S) {
-		motor_velocity(0.0, 0.7, rr_joint, &mut joints, &mut query);
-		motor_velocity(0.0, 0.7, lr_joint, &mut joints, &mut query);
+		motor_velocity(0.0, 0.7, rr_wheel_joint, &mut joints, &mut query);
+		motor_velocity(0.0, 0.7, lr_wheel_joint, &mut joints, &mut query);
 	}
  
 	let steer_angle = 20.0;
 	if key.just_pressed(KeyCode::D) {
-		motor_steer(steer_angle, rf_joint, &mut joints, &mut query);
-		motor_steer(steer_angle, lf_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, lf_axle_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::D) {
-		motor_steer(0.0, rf_joint, &mut joints, &mut query);
-		motor_steer(0.0, lf_joint, &mut joints, &mut query);
+		motor_steer(0.0, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, lf_axle_joint, &mut joints, &mut query);
 	}
 
  	if key.just_pressed(KeyCode::A) {
-		motor_steer(-steer_angle, rf_joint, &mut joints, &mut query);
-		motor_steer(-steer_angle, lf_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, lf_axle_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::A) {
-		motor_steer(0.0, rf_joint, &mut joints, &mut query);
-		motor_steer(0.0, lf_joint, &mut joints, &mut query);
+		motor_steer(0.0, rf_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, lf_axle_joint, &mut joints, &mut query);
 	}
 }
 
@@ -595,7 +615,7 @@ fn display_events_system(
         if contact_pair.has_any_active_contact {
             // The contact pair has active contacts, meaning that it
             // contains contacts for which contact forces were computed.
-} 
+        }
 
         // We may also read the contact manifolds to access the contact geometry.
         for manifold in &contact_pair.manifolds {
@@ -610,14 +630,14 @@ fn display_events_system(
                 println!("Found contact distance: {:?}", contact_point.dist); // Negative if there is a penetration.
                 println!("Found contact impulse: {}", contact_point.data.impulse);
                 println!("Found friction impulse: {}", contact_point.data.tangent_impulse);
-		}
+            }
 
             // Read the solver contacts.
             for solver_contact in &manifold.data.solver_contacts {
                 // Keep in mind that all the solver contact data are expressed in world-space.
                 println!("Found solver contact point: {:?}", solver_contact.point);
                 println!("Found solver contact distance: {:?}", solver_contact.dist); // Negative if there is a penetration.
-		}
-	}
-}
+            }
+        }
+    }
 } */
