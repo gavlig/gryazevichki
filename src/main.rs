@@ -155,7 +155,7 @@ pub fn setup_physics_system(
 
 	spawn_ground		(&mut game, &mut commands);
 
-	if true {
+	if false {
 		spawn_cubes		(&mut commands);
 	}
 
@@ -427,9 +427,6 @@ fn spawn_body(
 }
 
 fn spawn_cubes(commands: &mut Commands) {
-	/*
-	 * Create the cubes
-	 */
 	 let num = 8;
 	 let rad = 1.0;
  
@@ -528,7 +525,7 @@ fn toggle_button_system(
 	mut query	: Query<&mut FlyCamera>,
 ) {
 	for mut camera in query.iter_mut() {
-		if (key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space)) || btn.just_pressed(MouseButton::Left) {
+		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
 			let toggle = !camera.enabled_follow;
 			camera.enabled_follow = toggle;
 			camera.enabled_movement = !toggle;
@@ -561,8 +558,6 @@ fn motor_steer(angle: f32, stiffness: f32, damping: f32, joint_e: Entity, joints
 	let		angle_rad	= angle.to_radians();
 	let mut joint 		= joints.get_mut(joint_comp.handle()).unwrap();
 			joint.data 	= joint.data.motor_position(JointAxis::AngX, angle_rad, stiffness, damping)
-							;//.unlimit_axis(JointAxis::AngZ)
-							//.limit_axis(JointAxis::AngX, [0.0, 0.0]);
 
 //	println!("motor steer {} limit axes {:?}", angle, joint.data.limit_axes);
 //	if angle.abs() > 0.0001 {
