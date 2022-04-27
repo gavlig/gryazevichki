@@ -49,6 +49,24 @@ pub struct Game {
 	, lr_wheel		: Option<Entity>
 }
 
+pub struct VehicleConfig {
+	  front_hh		: f32
+	, front_r		: f32
+	, rear_hh		: f32
+	, rear_r		: f32
+}
+
+impl Default for VehicleConfig {
+    fn default() -> Self {
+        Self {
+            front_hh: 0.3,
+            front_r: 0.5,
+            rear_hh: 0.3,
+			rear_r: 0.5, 
+        }
+    }
+}
+
 fn main() {
 	App::new()
 		.insert_resource(ClearColor(Color::rgb(
@@ -58,6 +76,7 @@ fn main() {
 		)))
 		.insert_resource(Msaa::default())
 		.init_resource::<Game>()
+		.insert_resource(VehicleConfig::default())
 		.add_plugins(DefaultPlugins)
 		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin(RapierRenderPlugin)
@@ -257,7 +276,7 @@ fn spawn_attached_wheel(
 
 	let axle_size	= Vec3::new(0.1, 0.2, 0.1);
 	let axle_pos	= body_pos + main_offset;
-	let axle		= spawn_wheel_axle(&prefix, axle_pos, axle_size, RigidBodyType::Dynamic, &mut commands);
+	let axle		= spawn_axle(&prefix, axle_pos, axle_size, RigidBodyType::Dynamic, &mut commands);
 
 	let mut anchor1	= main_offset;
 	let mut anchor2 = Vec3::ZERO;
@@ -273,7 +292,7 @@ fn spawn_attached_wheel(
 	(axle_joint, wheel_joint, wheel)
 }
 
-fn spawn_wheel_axle(
+fn spawn_axle(
 	prefix			: &String,
 	pos_in			: Vec3,
 	half_size		: Vec3,
@@ -505,15 +524,15 @@ fn cursor_grab_system(
 ) {
 	let window = windows.get_primary_mut().unwrap();
 
-	//if btn.just_pressed(MouseButton::Left) {
-	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Return) {
+	if key.just_pressed(KeyCode::Return) {
 		window.set_cursor_lock_mode(true);
 		window.set_cursor_visibility(false);
 	}
 
 	if key.just_pressed(KeyCode::Escape) {
-		window.set_cursor_lock_mode(false);
-		window.set_cursor_visibility(true);
+		let toggle = !window.cursor_visible();
+		window.set_cursor_visibility(toggle);
+		window.set_cursor_lock_mode(!toggle);
 	}
 }
 
@@ -528,20 +547,15 @@ fn toggle_button_system(
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
 			let toggle = !camera.enabled_follow;
 			camera.enabled_follow = toggle;
-			camera.enabled_movement = !toggle;
-			camera.enabled_view = !toggle;
-
-			if toggle {
-				camera.target = game.body;
-			}
 		}
 
 		if key.just_pressed(KeyCode::Escape) {
-			if camera.enabled_follow {
-				camera.enabled_follow = false;
-			} else {
-				exit.send(AppExit);
-			}
+			let toggle = !camera.enabled_rotation;
+			camera.enabled_rotation = toggle;
+		}
+
+		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Escape) {
+			exit.send(AppExit);
 		}
 	}
 }
@@ -649,11 +663,98 @@ fn display_events_system(
 	}
 }
 
-use bevy_egui::egui::{Slider, WidgetText};
+use bevy_egui::egui::{Slider, Ui};
 use bevy_egui::{egui, EguiContext};
+
+fn draw_mass_param_ui(
+	mut ui: &mut Ui,
+	name_in: &String,
+	mut mass_props_coll: &mut ColliderMassPropsComponent,
+	mut mass_props_rbody: &mut RigidBodyMassPropsComponent,
+) {
+	let name = name_in;//name_in[3..].to_string(); // removing "RF" prefix or similar
+
+	let inv_mass = mass_props_rbody.local_mprops.inv_mass;
+	let mut mass = if inv_mass > 0.0 { 1.0 / inv_mass } else { 0.0 };
+	let mut density = mass_props_coll.density();
+	
+	let label = format!("{} Mass. Density: {}", name, density);
+	//ui.label(label);
+
+	ui.add(
+		Slider::new(&mut mass, 1.0 ..= 1000.0)
+			.text(label),
+	);
+
+	if mass > 0.0 {
+		mass_props_rbody.local_mprops.inv_mass = 1.0 / mass;
+	} 
+
+	/* let mut density = mass_props_coll.density_mut();
+	if ui.add(
+		Slider::new(&mut density, 1.0 ..= 1000.0)
+			.text("Density"),
+	).changed() {
+		mass_props_coll.set_density(10.);//Mut(ColliderMassProps::Density(density));
+	} */
+}
+
+fn draw_single_wheel_params_ui(
+	ui: &mut Ui,
+	name_in: &String,
+	mass_props_coll: &mut ColliderMassPropsComponent,
+	mass_props_rbody: &mut RigidBodyMassPropsComponent,
+	coll_shape: &mut ColliderShapeComponent,
+	tag: &Tag,
+	wh_hh_changed: bool,
+	wh_r_changed: bool,
+	mut wh_hh: &mut f32,
+	mut wh_r: &mut f32,
+) {
+	draw_mass_param_ui(ui, &name_in[3..].to_string(), mass_props_coll, mass_props_rbody);
+
+	match tag {
+		Tag::FrontWheel | Tag::RearWheel => {
+			let 	shape = coll_shape.make_mut();
+			let mut cylinder = shape.as_cylinder_mut().unwrap();
+
+			//ui.collapsing(name.clone(), |ui| {
+			egui::CollapsingHeader::new("Wheel sizes")
+				.default_open(true)
+				.show(ui, |ui| {
+
+			ui.vertical(|ui| {
+			
+			let label = format!("{} radius", cylinder.radius);
+			ui.add(
+				Slider::new(&mut cylinder.radius, 0.05 ..= 1.0)
+					.text(label),
+			);
+
+			let label = format!("{} half height", cylinder.half_height);
+			ui.add(
+				Slider::new(&mut cylinder.half_height, 0.05 ..= 1.0)
+					.text(label),
+			);
+
+			}); // ui.vertical
+			}); // ui.collapsing
+
+			if wh_hh_changed {
+				cylinder.half_height = *wh_hh;
+			}
+
+			if wh_r_changed {
+				cylinder.half_height = *wh_r;
+			}
+		},
+		_ => (),
+	}
+}
 
 fn update_ui(
 	mut ui_context	: ResMut<EguiContext>,
+	mut vehicle_cfg	: ResMut<VehicleConfig>,
 	mut	query		: Query<(
 		&mut ColliderMassPropsComponent,
 		&mut RigidBodyMassPropsComponent,
@@ -663,93 +764,135 @@ fn update_ui(
 	)>
 ) {
 	egui::Window::new("Parameters").show(ui_context.ctx_mut(), |ui| {
-		let mut front_wheels_half_height = 0.5;
+		let mut front_wheels_half_height = vehicle_cfg.front_hh;
 		let front_wh_hh_changed = ui.add(
-			Slider::new(&mut front_wheels_half_height, 0.05 ..= 2.0)
+			Slider::new(&mut front_wheels_half_height, 0.05 ..= 1.0)
 				.text("Front wheels half height"),
 		).changed();
 
-		let mut rear_wheels_half_height = 0.5;
+		let mut rear_wheels_half_height = vehicle_cfg.rear_hh;
 		let rear_wh_hh_changed = ui.add(
-			Slider::new(&mut rear_wheels_half_height, 0.05 ..= 2.0)
+			Slider::new(&mut rear_wheels_half_height, 0.05 ..= 1.0)
 				.text("Rear wheels half height"),
 		).changed();
 
-		let mut front_wheels_radius = 0.8;
+		let mut front_wheels_radius = vehicle_cfg.front_r;
 		let front_wh_r_changed = ui.add(
-			Slider::new(&mut front_wheels_radius, 0.05 ..= 2.0)
+			Slider::new(&mut front_wheels_radius, 0.05 ..= 1.0)
 				.text("Front wheels radius"),
 		).changed();
 
-		let mut rear_wheels_radius = 0.8;
+		let mut rear_wheels_radius = vehicle_cfg.rear_r;
 		let rear_wh_r_changed = ui.add(
-			Slider::new(&mut rear_wheels_radius, 0.05 ..= 2.0)
+			Slider::new(&mut rear_wheels_radius, 0.05 ..= 1.0)
 				.text("Rear wheels radius"),
 		).changed();
 
+		let mut RF = vec![];
+		let mut LF = vec![];
+		let mut RR = vec![];
+		let mut LR = vec![];
+
 		for (mut mass_props_coll, mut mass_props_rbody, mut coll_shape, name_comp, tag) in query.iter_mut() {
-			let inv_mass = mass_props_rbody.local_mprops.inv_mass;
-			let mut mass = if inv_mass > 0.0 { 1.0 / inv_mass } else { 0.0 };
-			
-			let label = format!("{} - mass: {}", name_comp.name, mass);
-			ui.label(label);
+			let name = &name_comp.name;
 
-			ui.add(
-				Slider::new(&mut mass, 1.0 ..= 10_00.0)
-					.text("Mass"),
-			);
-
-			if mass > 0.0 {
-				mass_props_rbody.local_mprops.inv_mass = 1.0 / mass;
-			} 
-
-			/* let mut density = mass_props_coll.density_mut();
-			if ui.add(
-				Slider::new(&mut density, 1.0 ..= 1000.0)
-					.text("Density"),
-			).changed() {
-				mass_props_coll.set_density(10.);//Mut(ColliderMassProps::Density(density));
-			} */
-
-			match tag {
-				Tag::FrontWheel | Tag::RearWheel => {
-					let 	shape = coll_shape.make_mut();
-					let mut cylinder = shape.as_cylinder_mut().unwrap();
-
-					ui.collapsing(format!("{} Wheel", name_comp.name), |ui| {
-					ui.vertical(|ui| {
-
-					
-					let label = format!("{} wheel half height", cylinder.half_height);
-					ui.add(
-						Slider::new(&mut cylinder.half_height, 0.05 ..= 10.0)
-							.text(label),
-					);
-
-					let label = format!("{} wheel radius", cylinder.radius);
-					ui.add(
-						Slider::new(&mut cylinder.radius, 0.05 ..= 10.0)
-							.text(label),
-					);
-
-					}); // ui.vertical
-					}); // ui.collapsing
-
-					match tag {
-						Tag::FrontWheel if front_wh_hh_changed =>  cylinder.half_height = front_wheels_half_height,
-						Tag::RearWheel if rear_wh_hh_changed =>  cylinder.half_height = rear_wheels_half_height,
-						_ => (),
-					}
-
-					match tag {
-						Tag::FrontWheel if front_wh_r_changed =>  cylinder.radius = front_wheels_radius,
-						Tag::RearWheel if rear_wh_r_changed =>  cylinder.radius = rear_wheels_radius,
-						_ => (),
-					}
-				},
-				_ => (),
+			// there should be a way to do it like this :/
+			//let to_push = (name, mass_props_coll, mass_props_rbody, coll_shape, tag);
+			if name.starts_with("RF") {
+				RF.push((name, mass_props_coll, mass_props_rbody, coll_shape, tag));
+			} else if name.starts_with("LF") {
+				LF.push((name, mass_props_coll, mass_props_rbody, coll_shape, tag));
+			} else if name.starts_with("RR") {
+				RR.push((name, mass_props_coll, mass_props_rbody, coll_shape, tag));
+			} else if name.starts_with("LR") {
+				LR.push((name, mass_props_coll, mass_props_rbody, coll_shape, tag));
+			} else {
+				draw_mass_param_ui(ui, name, &mut mass_props_coll, &mut mass_props_rbody);
 			}
 		}
+
+		// the coming part is horrible and has to be 4 lines tops but Mut<'_ is wrapped around every type in Vec so we cant declare function header :/
+
+		ui.collapsing("RF".to_string(), |ui| {
+		ui.vertical(|ui| {
+
+		for (name_in, mut mass_props_coll, mut mass_props_rbody, mut coll_shape, tag) in RF {
+			draw_single_wheel_params_ui(
+				ui,
+				name_in,
+				&mut mass_props_coll,
+				&mut mass_props_rbody,
+				&mut coll_shape,
+				tag,
+				front_wh_hh_changed,
+				front_wh_r_changed,
+				&mut front_wheels_half_height,
+				&mut front_wheels_radius
+			);
+		}
+
+		}); // ui.vertical
+		}); // ui.collapsing
+		ui.collapsing("LF".to_string(), |ui| {
+		ui.vertical(|ui| {
+
+		for (name_in, mut mass_props_coll, mut mass_props_rbody, mut coll_shape, tag) in LF {
+			draw_single_wheel_params_ui(
+				ui,
+				name_in,
+				&mut mass_props_coll,
+				&mut mass_props_rbody,
+				&mut coll_shape,
+				tag,
+				front_wh_hh_changed,
+				front_wh_r_changed,
+				&mut front_wheels_half_height,
+				&mut front_wheels_radius
+			);
+		}
+
+		}); // ui.vertical
+		}); // ui.collapsing
+		ui.collapsing("RR".to_string(), |ui| {
+		ui.vertical(|ui| {
+
+		for (name_in, mut mass_props_coll, mut mass_props_rbody, mut coll_shape, tag) in RR {
+			draw_single_wheel_params_ui(
+				ui,
+				name_in,
+				&mut mass_props_coll,
+				&mut mass_props_rbody,
+				&mut coll_shape,
+				tag,
+				rear_wh_hh_changed,
+				rear_wh_r_changed,
+				&mut rear_wheels_half_height,
+				&mut rear_wheels_radius
+			);
+		}
+
+		}); // ui.vertical
+		}); // ui.collapsing
+		ui.collapsing("LR".to_string(), |ui| {
+		ui.vertical(|ui| {
+
+		for (name_in, mut mass_props_coll, mut mass_props_rbody, mut coll_shape, tag) in LR {
+			draw_single_wheel_params_ui(
+				ui,
+				name_in,
+				&mut mass_props_coll,
+				&mut mass_props_rbody,
+				&mut coll_shape,
+				tag,
+				rear_wh_hh_changed,
+				rear_wh_r_changed,
+				&mut rear_wheels_half_height,
+				&mut rear_wheels_radius
+			);
+		}
+
+		}); // ui.vertical
+		}); // ui.collapsing
 	});
 }
 
