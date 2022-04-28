@@ -671,37 +671,25 @@ fn display_events_system(
 use bevy_egui::egui::{Slider, Ui};
 use bevy_egui::{egui, EguiContext};
 
-fn draw_mass_param_ui(
+fn draw_density_param_ui(
 	mut ui: &mut Ui,
-	name_in: &String,
+	name: &String,
 	mut mass_props_coll: &mut ColliderMassPropsComponent,
 	mut mass_props_rbody: &mut RigidBodyMassPropsComponent,
+	mut coll_shape: &mut ColliderShapeComponent,
 ) {
-	let name = name_in;
-
-	let inv_mass = mass_props_rbody.local_mprops.inv_mass;
-	let mut mass = if inv_mass > 0.0 { 1.0 / inv_mass } else { 0.0 };
-	let mut density = mass_props_coll.density();
-	
-	let label = format!("{} Mass. Density: {}", name, density);
-	//ui.label(label);
-
-	ui.add(
-		Slider::new(&mut mass, 1.0 ..= 1000.0)
-			.text(label),
-	);
-
-	if mass > 0.0 {
-		mass_props_rbody.local_mprops.inv_mass = 1.0 / mass;
-	} 
-
-	let mut density = mass_props_coll.density_mut();
-	if ui.add(
-		Slider::new(&mut density, 1.0 ..= 1000.0)
-			.text("Density"),
-	).changed() {
-		println!("density changed to {} while in reality it's {}", density, mass_props_coll.density());
-	} 
+	let prev_props = mass_props_coll.mass_properties(&***coll_shape).clone();
+	match &mut mass_props_coll as &mut ColliderMassProps{
+		ColliderMassProps::Density(density) => {
+			if ui.add(
+				Slider::new(&mut *density, 0.01 ..= 1000.0).text(format!("{} Density", name))
+			).changed() {
+				mass_props_rbody.local_mprops -= prev_props;
+				mass_props_rbody.local_mprops += mass_props_coll.mass_properties(&***coll_shape);
+			}; 
+		},
+		ColliderMassProps::MassProperties(_) => (),
+	};
 }
 
 fn draw_single_wheel_params_ui(
@@ -712,14 +700,13 @@ fn draw_single_wheel_params_ui(
 	coll_shape: &mut ColliderShapeComponent,
 	tag: &Tag,
 ) {
-	draw_mass_param_ui(ui, &name_in[3..].to_string(), mass_props_coll, mass_props_rbody);
+	draw_density_param_ui(ui, &name_in[3..].to_string(), mass_props_coll, mass_props_rbody, coll_shape);
 
 	match tag {
 		Tag::FrontWheel | Tag::RearWheel => {
 			let shape = coll_shape.make_mut();
 			let cylinder = shape.as_cylinder_mut().unwrap();
 
-			//ui.collapsing(name.clone(), |ui| {
 			egui::CollapsingHeader::new("Wheel sizes")
 				.default_open(true)
 				.show(ui, |ui| {
@@ -850,7 +837,7 @@ fn update_ui(
 				let (name, mut mass_props_coll, mut mass_props_rbody, mut coll_shape, _) = to_push;
 				ui.collapsing("Body".to_string(), |ui| {
 				ui.vertical(|ui| {
-					draw_mass_param_ui(ui, name, &mut mass_props_coll, &mut mass_props_rbody);
+					draw_density_param_ui(ui, name, &mut mass_props_coll, &mut mass_props_rbody, &mut coll_shape);
 
 					let shape = coll_shape.make_mut();
 					let cuboid = shape.as_cuboid_mut().unwrap();
