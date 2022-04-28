@@ -781,11 +781,6 @@ fn update_ui(
 				.text("Front wheels radius"),
 		).changed();
 
-		front_wh_r_changed = ui.add(
-			Slider::new(&mut front_wheels_radius, 0.05 ..= 1.0)
-				.text("Front wheels radius"),
-		).changed();
-
 		}); // ui.vertical
 		}); // ui.collapsing
 		ui.collapsing("Rear Wheels".to_string(), |ui| {
@@ -841,17 +836,18 @@ fn update_ui(
 				_ => (),
 			}
 
-			// there should be a way to do it like this :/
-			//let to_push = (name, mass_props_coll, mass_props_rbody, coll_shape, tag);
+			let to_push = (name, mass_props_coll, mass_props_rbody, coll_shape, tag);
 			if name.starts_with("RF") {
-				RF.push((name, mass_props_coll, mass_props_rbody, coll_shape, tag));
+				RF.push(to_push);
 			} else if name.starts_with("LF") {
-				LF.push((name, mass_props_coll, mass_props_rbody, coll_shape, tag));
+				LF.push(to_push);
 			} else if name.starts_with("RR") {
-				RR.push((name, mass_props_coll, mass_props_rbody, coll_shape, tag));
+				RR.push(to_push);
 			} else if name.starts_with("LR") {
-				LR.push((name, mass_props_coll, mass_props_rbody, coll_shape, tag));
+				LR.push(to_push);
 			} else if name.eq("Body") {
+				// thanks kpreid!
+				let (name, mut mass_props_coll, mut mass_props_rbody, mut coll_shape, _) = to_push;
 				ui.collapsing("Body".to_string(), |ui| {
 				ui.vertical(|ui| {
 					draw_mass_param_ui(ui, name, &mut mass_props_coll, &mut mass_props_rbody);
