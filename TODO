@@ -13,6 +13,12 @@
 11. bug: wheels collision doesnt correspond to visual!
 12. suspension
 13. (wip)ui for different parameters tweaking (see rapier all_examples3)
+13.1. figure out how to change ColliderMassProps::Density
+13.2. figure out what's wrong with body section and why camera starts pointing to a different object
+13.3. make wheel position adjustable
+13.4. make wheel position attached to body size
 14. research how to release cursor when hitting breakpoint
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
 16. update bevy to 0.7
+
+next milestone: fully configurable vehicle with an environment to test it
