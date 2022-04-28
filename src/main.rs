@@ -779,7 +779,7 @@ fn draw_body_params_ui_collapsing(
 
 			let label = format!("{} half height Z", cuboid.half_extents[2]);
 			ui.add(
-				Slider::new(&mut cuboid.half_extents[1], 0.05 ..= 5.0)
+				Slider::new(&mut cuboid.half_extents[2], 0.05 ..= 5.0)
 					.text(label),
 			);
 		}); // ui.vertical
