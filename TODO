@@ -17,8 +17,12 @@
 13.2. figure out what's wrong with body section and why camera starts pointing to a different object
 13.3. make wheel position adjustable
 13.4. make wheel position attached to body size
+13.5. make motor adjustable
+13.6. make axles adjustable
+13.7. make center of mass adjustable
 14. research how to release cursor when hitting breakpoint
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
 16. update bevy to 0.7
+17. make a collection of presets of vehicles after 13 is done
 
 next milestone: fully configurable vehicle with an environment to test it
