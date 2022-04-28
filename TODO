@@ -24,5 +24,7 @@
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
 16. update bevy to 0.7
 17. make a collection of presets of vehicles after 13 is done
+18. return changes to upstream: bevy_fly_camera
+19. return changes to upstream: rapier
 
 next milestone: fully configurable vehicle with an environment to test it
