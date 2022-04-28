@@ -15,3 +15,4 @@
 13. (wip)ui for different parameters tweaking (see rapier all_examples3)
 14. research how to release cursor when hitting breakpoint
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
+16. update bevy to 0.7
