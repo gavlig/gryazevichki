@@ -825,11 +825,6 @@ fn update_ui(
 	)>
 ) {
 	egui::Window::new("Parameters").show(ui_context.ctx_mut(), |ui| {
-		//let mut front_wheels_half_height	= vehicle_cfg.front_hh;
-		let mut front_wheels_radius 		= vehicle_cfg.front_r;
-		let mut rear_wheels_half_height 	= vehicle_cfg.rear_hh;
-		let mut rear_wheels_radius 			= vehicle_cfg.rear_r;
-
 		let mut front_wh_hh_changed			= false;
 		let mut front_wh_r_changed			= false;
 		let mut rear_wh_hh_changed			= false;
@@ -845,7 +840,7 @@ fn update_ui(
 
 		
 		front_wh_r_changed = ui.add(
-			Slider::new(&mut front_wheels_radius, 0.05 ..= 1.0)
+			Slider::new(&mut vehicle_cfg.front_r, 0.05 ..= 1.0)
 				.text("Front wheels radius"),
 		).changed();
 
@@ -857,12 +852,12 @@ fn update_ui(
 
 		
 		rear_wh_hh_changed = ui.add(
-			Slider::new(&mut rear_wheels_half_height, 0.05 ..= 1.0)
+			Slider::new(&mut vehicle_cfg.rear_hh, 0.05 ..= 1.0)
 				.text("Rear wheels half height"),
 		).changed();
 
 		rear_wh_r_changed = ui.add(
-			Slider::new(&mut rear_wheels_radius, 0.05 ..= 1.0)
+			Slider::new(&mut vehicle_cfg.rear_r, 0.05 ..= 1.0)
 				.text("Rear wheels radius"),
 		).changed();
 
