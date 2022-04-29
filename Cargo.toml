@@ -20,9 +20,9 @@ opt-level = 0
 [dependencies]
 
 rand = "0.8.0"
-bevy = { version = "0.6.1" } #, features = ["dynamic"] }
+bevy = { version = "0.7" } #, features = ["dynamic"] }
 bevy_rapier3d = { version = "0.12.1", features = [ "simd-stable", "render" ] } # "parallel"
-bevy_egui = "0.12"
+bevy_egui = "0.13"
 
 bevy_fly_camera = { path = "../bevy_fly_camera" } # "0.8.0"
 

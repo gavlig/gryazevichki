@@ -10,7 +10,7 @@ use bevy::render::mesh::shape as render_shape;
 
 #[derive(Component)]
 pub struct NameComponent {
-    name			: String
+	pub name		: String
 }
 
 #[derive(Component)]
@@ -160,6 +160,7 @@ fn spawn_camera(
 	})
 	.insert_bundle(camera_collider)
 		.insert(FlyCamera::default())
+		.insert(NameComponent{ name: "Camera".to_string() })
 		.id();
 	game.camera = Some(camera);
 	println!("camera Entity ID {:?}", camera);
@@ -415,6 +416,7 @@ fn spawn_wheel_joint(
 	commands
 		.spawn()
 		.insert(JointBuilderComponent::new(wheel_joint, entity1, entity2))
+		.insert(NameComponent{ name: "Wheel".to_string() })
 		.id()
 }
 
@@ -692,18 +694,18 @@ fn set_cylinder_r(
 fn draw_density_param_ui(
 	ui: &mut Ui,
 	name: &String,
-	mut mass_props_coll: &mut ColliderMassPropsComponent,
-	mass_props_rbody: &mut RigidBodyMassPropsComponent,
-	coll_shape: &mut ColliderShapeComponent,
+	mut mass_props_coll: &mut Mut<ColliderMassPropsComponent>,
+	mut mass_props_rbody: &mut Mut<RigidBodyMassPropsComponent>,
+	coll_shape: &Mut<ColliderShapeComponent>,
 ) {
-	let prev_props = mass_props_coll.mass_properties(&***coll_shape).clone();
+	let prev_props = mass_props_coll.mass_properties(&****coll_shape).clone();
 	match &mut mass_props_coll as &mut ColliderMassProps {
 		ColliderMassProps::Density(density) => {
 			if ui.add(
 				Slider::new(&mut *density, 0.01 ..= 1000.0).text(format!("{} Density", name))
 			).changed() {
 				mass_props_rbody.local_mprops -= prev_props;
-				mass_props_rbody.local_mprops += mass_props_coll.mass_properties(&***coll_shape);
+				mass_props_rbody.local_mprops += mass_props_coll.mass_properties(&****coll_shape);
 			}; 
 		},
 		ColliderMassProps::MassProperties(_) => (),
@@ -713,9 +715,9 @@ fn draw_density_param_ui(
 fn draw_single_wheel_params_ui(
 	ui: &mut Ui,
 	name: &String,
-	mass_props_coll: &mut ColliderMassPropsComponent,
-	mass_props_rbody: &mut RigidBodyMassPropsComponent,
-	coll_shape: &mut ColliderShapeComponent,
+	mass_props_coll: &mut Mut<ColliderMassPropsComponent>,
+	mass_props_rbody: &mut Mut<RigidBodyMassPropsComponent>,
+	coll_shape: &mut Mut<ColliderShapeComponent>,
 	tag: &Tag,
 ) {
 	draw_density_param_ui(ui, &name[3..].to_string(), mass_props_coll, mass_props_rbody, coll_shape);
@@ -753,9 +755,9 @@ fn draw_single_wheel_params_ui(
 fn draw_body_params_ui_collapsing(
 	ui: &mut Ui,
 	name: &String,
-	mass_props_coll: &mut ColliderMassPropsComponent,
-	mass_props_rbody: &mut RigidBodyMassPropsComponent,
-	coll_shape: &mut ColliderShapeComponent,
+	mass_props_coll: &mut Mut<ColliderMassPropsComponent>,
+	mass_props_rbody: &mut Mut<RigidBodyMassPropsComponent>,
+	coll_shape: &mut Mut<ColliderShapeComponent>,
 	section_name: String
 ) {
 	ui.collapsing(section_name, |ui| {
@@ -815,6 +817,7 @@ fn draw_single_wheel_params_ui_collapsing(
 
 fn update_ui(
 	mut ui_context	: ResMut<EguiContext>,
+		game		: Res	<Game>,
 	mut vehicle_cfg	: ResMut<VehicleConfig>,
 	mut	query		: Query<(
 		&mut ColliderMassPropsComponent,
@@ -824,7 +827,8 @@ fn update_ui(
 		&Tag
 	)>
 ) {
-	egui::Window::new("Parameters").show(ui_context.ctx_mut(), |ui| {
+	let window = egui::Window::new("Parameters");
+	let out = window.show(ui_context.ctx_mut(), |ui| {
 		let mut front_wh_hh_changed			= false;
 		let mut front_wh_r_changed			= false;
 		let mut rear_wh_hh_changed			= false;
@@ -849,7 +853,6 @@ fn update_ui(
 
 		ui.collapsing("Rear Wheels".to_string(), |ui| {
 		ui.vertical(|ui| {
-
 		
 		rear_wh_hh_changed = ui.add(
 			Slider::new(&mut vehicle_cfg.rear_hh, 0.05 ..= 1.0)
@@ -907,12 +910,19 @@ fn update_ui(
 				draw_body_params_ui_collapsing(ui, name, &mut mass_props_coll, &mut mass_props_rbody, &mut coll_shape, "Body".to_string());
 			}
 		}
-
 		draw_single_wheel_params_ui_collapsing(ui, RF, "RF".to_string());
 		draw_single_wheel_params_ui_collapsing(ui, LF, "LF".to_string());
 		draw_single_wheel_params_ui_collapsing(ui, RR, "RR".to_string());
 		draw_single_wheel_params_ui_collapsing(ui, LR, "LR".to_string());
 	});
+
+// uncomment when we need to catch a closed window
+//	match out {
+//		Some(response) => {
+//			if response.inner == None { println!("PEWPEWPEWPEW") }; 
+//		}
+//		_ => ()
+//	}
 }
 
 // contact info + modification. I'd rather add more info to event

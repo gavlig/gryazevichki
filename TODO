@@ -1,5 +1,4 @@
-1. Implement proper cylinder visualization instead of capsule for bevy_rapier3d when we switch to bevy 0.7 from 0.6
-(waiting because i dont want to maintain a version of bevy 0.6 locally)
+1. Implement proper cylinder visualization instead of capsule for bevy_rapier3d when new version of bevy_rapier3d drops
 2. give camera a dynamic collision that corrects camera's position when bumping
 3. (done!) following camera
 4. (done!)steering: try using two joints with two body instead of just one wheel
@@ -14,15 +13,17 @@
 12. suspension
 13. (wip)ui for different parameters tweaking (see rapier all_examples3)
 13.1. (done!)figure out how to change ColliderMassProps::Density
-13.2. (wip)figure out what's wrong with body section and why camera starts pointing to a different object
+13.2. (done! always use Mut< for components from Query)figure out what's wrong with body section and why camera starts pointing to a different object
 13.3. make wheel position adjustable
 13.4. make wheel position attached to body size
 13.5. make motor adjustable
 13.6. make axles adjustable
 13.7. make center of mass adjustable
+13.8. (wip)make mass adjustable
+13.9. add a tab where all parameters of entities with same type are adjustable with one control 
 14. research how to release cursor when hitting breakpoint
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
-16. update bevy to 0.7
+16. (done!)update bevy to 0.7
 17. make a collection of presets of vehicles after 13 is done
 18. return changes to upstream: bevy_fly_camera
 19. return changes to upstream: rapier
