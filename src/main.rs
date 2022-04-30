@@ -10,22 +10,51 @@ use bevy::render::mesh::shape as render_shape;
 
 #[derive(Component)]
 pub struct NameComponent {
-	pub name		: String
+	pub name : String
 }
 
 #[derive(Component)]
-pub struct WheelTag;
-#[derive(Component)]
-pub struct AxleTag;
-#[derive(Component)]
-pub struct BodyTag;
-
-#[derive(Component)]
 pub enum Tag {
-	FrontWheel,
-	RearWheel,
+	Wheel,
 	Axle,
 	Body
+}
+
+// TODO: all this looks like a bad design, most likely i need a different approach
+use usize as WheelSideType;
+pub const FRONT_RIGHT		: WheelSideType = 0;
+pub const FRONT_LEFT		: WheelSideType = 1;
+pub const FRONT_SPLIT		: WheelSideType	= 2;
+
+pub const REAR_RIGHT		: WheelSideType = 2;
+pub const REAR_LEFT			: WheelSideType = 3;
+pub const REAR_SPLIT		: WheelSideType = 4;
+
+pub const WHEELS_MAX		: WheelSideType = 4;
+
+fn wheel_side_name(side: WheelSideType) -> &'static str {
+	match side {
+		  FRONT_RIGHT		=> "Front Right"
+		, FRONT_LEFT		=> "Front Left"
+		, REAR_RIGHT		=> "Rear Right"
+		, REAR_LEFT			=> "Rear Left"
+		, _					=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
+	}
+}
+
+const WHEEL_SIDES: &'static [WheelSideType] = &[
+	  FRONT_RIGHT
+	, FRONT_LEFT
+	, REAR_LEFT
+	, REAR_RIGHT
+];
+
+#[derive(Default, Debug)]
+pub struct WheelEntity {
+	wheel			: Option<Entity>
+  , wheel_joint		: Option<Entity>
+  , axle			: Option<Entity>
+  , axle_joint		: Option<Entity>
 }
 
 #[derive(Default)]
@@ -33,38 +62,59 @@ pub struct Game {
 	  camera		: Option<Entity>
 	, body 			: Option<Entity>
 
-	, rf_axle_joint	: Option<Entity>
-	, lf_axle_joint	: Option<Entity>
-	, rr_axle_joint	: Option<Entity>
-	, lr_axle_joint	: Option<Entity>
-
-	, rf_wheel_joint: Option<Entity>
-	, lf_wheel_joint: Option<Entity>
-	, rr_wheel_joint: Option<Entity>
-	, lr_wheel_joint: Option<Entity>
-
-	, rf_wheel		: Option<Entity>
-	, lf_wheel		: Option<Entity>
-	, rr_wheel		: Option<Entity>
-	, lr_wheel		: Option<Entity>
+	, wheels		: [WheelEntity; WHEELS_MAX as usize]
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct WheelConfig {
+	  wheel_hh					: f32
+	, wheel_r					: f32
+	, wheel_density				: f32
+	, axle_density				: f32 // TODO: axle config instead?
+}
+
+impl Default for WheelConfig {
+	fn default() -> Self {
+		Self {
+			  wheel_hh			: 0.5
+			, wheel_r			: 0.8
+			, wheel_density		: 5.0
+			, axle_density		: 10.0
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct VehicleConfig {
-	  front_hh		: f32
-	, front_r		: f32
-	, rear_hh		: f32
-	, rear_r		: f32
+	  body_half_size			: Vec3
+	, body_density				: f32
+	, wheel_offset_abs			: Vec3
+	, wheel_cfg					: [WheelConfig; WHEELS_MAX as usize],
 }
 
 impl Default for VehicleConfig {
-    fn default() -> Self {
-        Self {
-            front_hh: 0.5,
-            front_r: 0.8,
-            rear_hh: 0.5,
-			rear_r: 0.8, 
-        }
-    }
+	fn default() -> Self {
+		Self {
+			  body_half_size	: Vec3::new(0.5, 0.5, 1.0)
+			, body_density		: 10.0
+			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
+			, wheel_cfg			: [WheelConfig::default(); WHEELS_MAX as usize]
+		}
+	}
+}
+
+impl VehicleConfig {
+	fn wheel_offset(self, side: WheelSideType) -> Vec3 {
+		let off 				= &self.wheel_offset_abs;
+		match side {
+			FRONT_RIGHT			=> Vec3::new( off.x, -off.y,  off.z),
+			FRONT_LEFT			=> Vec3::new(-off.x, -off.y,  off.z),
+			REAR_RIGHT			=> Vec3::new( off.x, -off.y, -off.z),
+			REAR_LEFT 			=> Vec3::new(-off.x, -off.y, -off.z),
+			WHEELS_MAX			=> panic!("Max shouldn't be used as a wheel side!"),
+			_					=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
+		}
+	}
 }
 
 fn main() {
@@ -136,9 +186,9 @@ fn setup_graphics_system(
 
 	//
 
-	spawn_world_axis(meshes, materials, &mut commands);
+	spawn_world_axis	(meshes, materials, &mut commands);
 
-	spawn_camera(&mut game, &mut commands);
+	spawn_camera		(&mut game, &mut commands);
 }
 
 fn spawn_camera(
@@ -150,7 +200,7 @@ fn spawn_camera(
 		..ColliderBundle::default()
 	};
 
-	let camera = commands
+	let camera 			= commands
 		.spawn_bundle(PerspectiveCameraBundle {
 		transform: Transform {
 			translation: Vec3::new(0., 1., 10.),
@@ -158,12 +208,13 @@ fn spawn_camera(
 		},
 		..Default::default()
 	})
-	.insert_bundle(camera_collider)
-		.insert(FlyCamera::default())
-		.insert(NameComponent{ name: "Camera".to_string() })
-		.id();
-	game.camera = Some(camera);
-	println!("camera Entity ID {:?}", camera);
+	.insert_bundle		(camera_collider)
+		.insert			(FlyCamera::default())
+		.insert			(NameComponent{ name: "Camera".to_string() })
+		.id				();
+
+	game.camera			= Some(camera);
+	println!			("camera Entity ID {:?}", camera);
 }
 
 pub fn setup_physics_system(
@@ -191,12 +242,12 @@ fn setup_camera_system(
 	if game.camera.is_some() && game.body.is_some() {
 		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
 		camera.target 	= Some(game.body.unwrap());
-		println!("{:?} camera.target", camera.target);
+		println!		("{:?} camera.target", camera.target);
 	}
 }
 
 fn spawn_ground(
-	game				: &mut ResMut<Game>,
+	_game				: &mut ResMut<Game>,
 	commands			: &mut Commands
 ) {
 	let ground_size 	= 200.1;
@@ -222,83 +273,57 @@ fn spawn_vehicle(
 		vehicle_cfg		: &Res<VehicleConfig>,
 	mut commands		: &mut Commands
 ) {
-	let body_pos = Vec3::new(0.0, 5.5, 0.0);
-	let body_half_size = Vec3::new(0.5, 0.5, 1.0);
-	let body = spawn_body(body_pos, body_half_size, RigidBodyType::Dynamic, &mut commands);
-	game.body = Some(body);
-	println!("body Entity ID {:?}", body);
+	let body_pos 		= Vec3::new(0.0, 5.5, 0.0);
+	let body 			= spawn_body(body_pos, vehicle_cfg.body_half_size, RigidBodyType::Dynamic, &mut commands);
+	game.body 			= Some(body);
+	println!			("body Entity ID {:?}", body);
 
-	// offsets for wheel placement relative to body center
-	let x_off = 0.8;
-	let y_off = 0.8;
-	let z_off = 1.4;
-
-	{
-		let offset = Vec3::new(x_off, -y_off, z_off);
-		let (rf_axle_joint, rf_wheel_joint, rf_wheel) =
-		spawn_attached_wheel("RF".to_string(), Tag::FrontWheel, body, body_pos, offset, vehicle_cfg.front_hh, vehicle_cfg.front_r, &mut commands);
-		(game.rf_axle_joint, game.rf_wheel_joint, game.rf_wheel) = (Some(rf_axle_joint), Some(rf_wheel_joint), Some(rf_wheel));
-		println!("rf_wheel Entity ID {:?}", rf_wheel);
-	}
-
-	if true {
-		let offset = Vec3::new(-x_off, -y_off, z_off);
-		let (lf_axle_joint, lf_wheel_joint, lf_wheel) =
-		spawn_attached_wheel("LF".to_string(), Tag::FrontWheel, body, body_pos, offset, vehicle_cfg.front_hh, vehicle_cfg.front_r, &mut commands);
-		(game.lf_axle_joint, game.lf_wheel_joint, game.lf_wheel) = (Some(lf_axle_joint), Some(lf_wheel_joint), Some(lf_wheel));
-		println!("lf_wheel Entity ID {:?}", lf_wheel);
-	}
-
-	if true {
-		let offset = Vec3::new(x_off, -y_off, -z_off);
-		let (rr_axle_joint, rr_wheel_joint, rr_wheel) =
-		spawn_attached_wheel("RR".to_string(), Tag::RearWheel, body, body_pos, offset, vehicle_cfg.rear_hh, vehicle_cfg.rear_r, &mut commands);
-		(game.rr_axle_joint, game.rr_wheel_joint, game.rr_wheel) = (Some(rr_axle_joint), Some(rr_wheel_joint), Some(rr_wheel));
-		println!("rr_wheel Entity ID {:?}", rr_wheel);
-	}
-
-	if true {
-		let offset = Vec3::new(-x_off, -y_off, -z_off);
-		let (lr_axle_joint, lr_wheel_joint, lr_wheel) =
-		spawn_attached_wheel("LR".to_string(), Tag::RearWheel, body, body_pos, offset, vehicle_cfg.rear_hh, vehicle_cfg.rear_r, &mut commands);
-		(game.lr_axle_joint, game.lr_wheel_joint, game.lr_wheel) = (Some(lr_axle_joint), Some(lr_wheel_joint), Some(lr_wheel));
-		println!("lr_wheel Entity ID {:?}", lr_wheel);
+	for side_ref in WHEEL_SIDES {
+		let side 		= *side_ref;
+		let offset 		= &vehicle_cfg.wheel_offset(side);
+		let wheel_cfg	= &vehicle_cfg.wheel_cfg[side];
+		game.wheels[side] =
+			spawn_attached_wheel(side, body, body_pos, offset.clone(), wheel_cfg, &mut commands);
 	}
 }
 
 fn spawn_attached_wheel(
-	prefix			: String,
-	tag				: Tag,
+	side			: WheelSideType,
 	body			: Entity,
 	body_pos		: Vec3,
-	main_offset		: Vec3,
-	half_height		: f32,
-	radius			: f32, 
+	offset			: Vec3,
+	wheel_cfg		: &WheelConfig,
 	mut	commands	: &mut Commands
-) -> (Entity, Entity, Entity) {
-	let x_sign		= main_offset.x * (1.0 / main_offset.x.abs());
-	let wheel_offset= Vec3::X * 0.8 * x_sign; // 0.2 offset by x axis
+) -> WheelEntity {
+	let side_name	= wheel_side_name(side);
 
 	let axle_size	= Vec3::new(0.1, 0.2, 0.1);
-	let axle_pos	= body_pos + main_offset;
-	let axle		= spawn_axle(&prefix, axle_pos, axle_size, RigidBodyType::Dynamic, &mut commands);
+	let axle_pos	= body_pos + offset;
+	let axle		= spawn_axle(side_name, axle_pos, axle_size, RigidBodyType::Dynamic, &mut commands);
 
-	let mut anchor1	= main_offset;
+	let mut anchor1	= offset;
 	let mut anchor2 = Vec3::ZERO;
 	let axle_joint 	= spawn_axle_joint(body, axle, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
 
+	let x_sign		= offset.x * (1.0 / offset.x.abs());
+	let wheel_offset= Vec3::X * 0.8 * x_sign; // 0.2 offset by x axis
 	let wheel_pos 	= axle_pos + wheel_offset;
-	let wheel 		= spawn_wheel(&prefix, tag, wheel_pos, half_height, radius, RigidBodyType::Dynamic, &mut commands);
+	let wheel 		= spawn_wheel(side_name, wheel_pos, wheel_cfg.wheel_hh, wheel_cfg.wheel_r, RigidBodyType::Dynamic, &mut commands);
 
 	anchor1			= wheel_offset;
 	anchor2 		= Vec3::ZERO;
 	let wheel_joint = spawn_wheel_joint(axle, wheel, point![anchor1.x, anchor1.y, anchor1.z], point![anchor2.x, anchor2.y, anchor2.z], &mut commands);
 
-	(axle_joint, wheel_joint, wheel)
+	WheelEntity {
+		wheel		: Some(wheel),
+		wheel_joint	: Some(wheel_joint),
+		axle		: Some(axle),
+		axle_joint	: Some(axle_joint),
+	}
 }
 
 fn spawn_axle(
-	prefix			: &String,
+	prefix			: &str,
 	pos_in			: Vec3,
 	half_size		: Vec3,
 	body_type		: RigidBodyType,
@@ -337,13 +362,12 @@ fn spawn_axle(
 }
 
 fn spawn_wheel(
-	prefix: &String,
-	tag: Tag,
-	pos_in: Vec3,
-	half_height: f32,
-	radius: f32,
-	body_type: RigidBodyType,
-	commands: &mut Commands,
+	prefix			: &str,
+	pos_in			: Vec3,
+	half_height		: f32,
+	radius			: f32,
+	body_type		: RigidBodyType,
+	commands		: &mut Commands,
 ) -> Entity {
 	let mut pos_comp = RigidBodyPositionComponent::default();
 	pos_comp.position.translation = pos_in.clone().into();
@@ -380,16 +404,16 @@ fn spawn_wheel(
 		.insert(ColliderDebugRender::default())
 		.insert(ColliderPositionSync::Discrete)
 		.insert(NameComponent{ name: format!("{} Wheel", prefix) })
-		.insert(tag)
+		.insert(Tag::Wheel)
 		.id()
 }
 
 fn spawn_axle_joint(
-	entity1: Entity,
-	entity2: Entity,
-	anchor1: nalgebra::Point3<Real>,
-	anchor2: nalgebra::Point3<Real>,
-	commands: &mut Commands,
+	entity1			: Entity,
+	entity2			: Entity,
+	anchor1			: nalg::Point3<Real>,
+	anchor2			: nalg::Point3<Real>,
+	commands		: &mut Commands,
 ) -> Entity {
 	let axle_joint = RevoluteJoint::new(Vector::y_axis())
 		.local_anchor1(anchor1)
@@ -403,11 +427,11 @@ fn spawn_axle_joint(
 }
 
 fn spawn_wheel_joint(
-	entity1: Entity,
-	entity2: Entity,
-	anchor1: nalgebra::Point3<Real>,
-	anchor2: nalgebra::Point3<Real>,
-	commands: &mut Commands,
+	entity1			: Entity,
+	entity2			: Entity,
+	anchor1			: nalg::Point3<Real>,
+	anchor2			: nalg::Point3<Real>,
+	commands		: &mut Commands,
 ) -> Entity {
 	let wheel_joint = RevoluteJoint::new(Vector::x_axis())
 		.local_anchor1(anchor1)
@@ -421,10 +445,10 @@ fn spawn_wheel_joint(
 }
 
 fn spawn_body(
-	pos_in: Vec3,
-	half_size: Vec3,
-	body_type: RigidBodyType,
-	commands: &mut Commands,
+	pos_in			: Vec3,
+	half_size		: Vec3,
+	body_type		: RigidBodyType,
+	commands		: &mut Commands,
 ) -> Entity {
 	let mut component = RigidBodyPositionComponent::default();
 	component.position.translation = pos_in.clone().into();
@@ -497,9 +521,9 @@ fn spawn_cubes(commands: &mut Commands) {
 }
 
 fn spawn_world_axis(
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
-	commands: &mut Commands,
+	mut meshes		: ResMut<Assets<Mesh>>,
+	mut materials	: ResMut<Assets<StandardMaterial>>,
+	commands		: &mut Commands,
 ) {
 	// X
 	commands.spawn_bundle(PbrBundle {
@@ -525,9 +549,9 @@ fn spawn_world_axis(
 }
 
 fn cursor_grab_system(
-	mut windows: ResMut<Windows>,
-	btn: Res<Input<MouseButton>>,
-	key: Res<Input<KeyCode>>,
+	mut windows		: ResMut<Windows>,
+	_btn			: Res<Input<MouseButton>>,
+	key				: Res<Input<KeyCode>>,
 ) {
 	let window = windows.get_primary_mut().unwrap();
 
@@ -544,11 +568,11 @@ fn cursor_grab_system(
 }
 
 fn toggle_button_system(
-		btn		: Res<Input<MouseButton>>,
-		key		: Res<Input<KeyCode>>,
-		game	: Res<Game>,
-	mut exit	: EventWriter<AppExit>,
-	mut query	: Query<&mut FlyCamera>,
+		_btn		: Res<Input<MouseButton>>,
+		key			: Res<Input<KeyCode>>,
+		_game		: Res<Game>,
+	mut exit		: EventWriter<AppExit>,
+	mut query		: Query<&mut FlyCamera>,
 ) {
 	for mut camera in query.iter_mut() {
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
@@ -567,7 +591,13 @@ fn toggle_button_system(
 	}
 }
 
-fn motor_velocity(velocity: f32, factor: f32, joint_e: Entity, joints: &mut ResMut<ImpulseJointSet>, query: &mut Query<&mut JointHandleComponent>) {
+fn motor_velocity(
+	velocity		: f32,
+	factor			: f32,
+	joint_e			: Entity,
+	joints			: &mut ResMut<ImpulseJointSet>,
+	query			: &mut Query<&mut JointHandleComponent>
+) {
 	let 	joint_comp	= query.get(joint_e).unwrap();
 	let mut joint		= joints.get_mut(joint_comp.handle()).unwrap();
 			joint.data	= joint.data.motor_velocity(JointAxis::AngX, velocity, factor);
@@ -589,54 +619,50 @@ fn motor_steer(angle: f32, stiffness: f32, damping: f32, joint_e: Entity, joints
 }
 
 fn accelerate_system(
-		key		: Res<Input<KeyCode>>,
-		game	: ResMut<Game>,
-	mut	joints	: ResMut<ImpulseJointSet>,
-	mut	query	: Query<&mut JointHandleComponent>,
+		key			: Res<Input<KeyCode>>,
+		game		: ResMut<Game>,
+	mut	joints		: ResMut<ImpulseJointSet>,
+	mut	query		: Query<&mut JointHandleComponent>,
 ) {
-	let rf_axle_joint = game.rf_axle_joint.unwrap();
-	let lf_axle_joint = game.lf_axle_joint.unwrap();
-	let rr_axle_joint = game.rr_axle_joint.unwrap();
-	let lr_axle_joint = game.lr_axle_joint.unwrap();
+	let fr_axle_joint = game.wheels[FRONT_RIGHT].axle_joint.unwrap();
+	let fl_axle_joint = game.wheels[FRONT_LEFT].axle_joint.unwrap();
 
-	let rf_wheel_joint = game.rf_wheel_joint.unwrap();
-	let lf_wheel_joint = game.lf_wheel_joint.unwrap();
-	let rr_wheel_joint = game.rr_wheel_joint.unwrap();
-	let lr_wheel_joint = game.lr_wheel_joint.unwrap();
+	let rr_wheel_joint = game.wheels[REAR_RIGHT].wheel_joint.unwrap();
+	let rl_wheel_joint = game.wheels[REAR_LEFT].wheel_joint.unwrap();
 
 	if key.just_pressed(KeyCode::W) {
 		motor_velocity(10.0, 0.7, rr_wheel_joint, &mut joints, &mut query);
-		motor_velocity(10.0, 0.7, lr_wheel_joint, &mut joints, &mut query);
+		motor_velocity(10.0, 0.7, rl_wheel_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::W) {
 		motor_velocity(0.0, 0.7, rr_wheel_joint, &mut joints, &mut query);
-		motor_velocity(0.0, 0.7, lr_wheel_joint, &mut joints, &mut query);
+		motor_velocity(0.0, 0.7, rl_wheel_joint, &mut joints, &mut query);
 	}
 	
 	 if key.just_pressed(KeyCode::S) {
 		motor_velocity(-10.0, 0.3, rr_wheel_joint, &mut joints, &mut query);
-		motor_velocity(-10.0, 0.3, lr_wheel_joint, &mut joints, &mut query);
+		motor_velocity(-10.0, 0.3, rl_wheel_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::S) {
 		motor_velocity(0.0, 0.7, rr_wheel_joint, &mut joints, &mut query);
-		motor_velocity(0.0, 0.7, lr_wheel_joint, &mut joints, &mut query);
+		motor_velocity(0.0, 0.7, rl_wheel_joint, &mut joints, &mut query);
 	}
  
 	let steer_angle = 20.0;
-	let stiffness = 5.0;
-	let damping = 3.0;
+	let stiffness 	= 5.0;
+	let damping 	= 3.0;
 	if key.just_pressed(KeyCode::D) {
-		motor_steer(-steer_angle, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(-steer_angle, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, stiffness, damping, fr_axle_joint, &mut joints, &mut query);
+		motor_steer(-steer_angle, stiffness, damping, fl_axle_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::D) {
-		motor_steer(0.0, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(0.0, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, stiffness, damping, fr_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, stiffness, damping, fl_axle_joint, &mut joints, &mut query);
 	}
 
  	if key.just_pressed(KeyCode::A) {
-		motor_steer(steer_angle, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(steer_angle, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, stiffness, damping, fr_axle_joint, &mut joints, &mut query);
+		motor_steer(steer_angle, stiffness, damping, fl_axle_joint, &mut joints, &mut query);
 	} else if key.just_released(KeyCode::A) {
-		motor_steer(0.0, stiffness, damping, rf_axle_joint, &mut joints, &mut query);
-		motor_steer(0.0, stiffness, damping, lf_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, stiffness, damping, fr_axle_joint, &mut joints, &mut query);
+		motor_steer(0.0, stiffness, damping, fl_axle_joint, &mut joints, &mut query);
 	}
 }
 
@@ -656,25 +682,23 @@ fn display_events_system(
 	mut intersection_events: EventReader<IntersectionEvent>,
 	mut contact_events: EventReader<ContactEvent>,
 ) {
-	if true {return}
-
-	for intersection_event in intersection_events.iter() {
-		println!("Received intersection event: collider1 {:?} collider2 {:?}", intersection_event.collider1.entity(), intersection_event.collider2.entity());
-	}
-
-	for contact_event in contact_events.iter() {
-		match contact_event {
-			ContactEvent::Started(collider1, collider2) => println!("Received contact START event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
-			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
-		}
-	}
+//	for intersection_event in intersection_events.iter() {
+//		println!("Received intersection event: collider1 {:?} collider2 {:?}", intersection_event.collider1.entity(), intersection_event.collider2.entity());
+//	}
+//
+//	for contact_event in contact_events.iter() {
+//		match contact_event {
+//			ContactEvent::Started(collider1, collider2) => println!("Received contact START event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
+//			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
+//		}
+//	}
 }
 
 use bevy_egui::egui::{Slider, Ui};
 use bevy_egui::{egui, EguiContext};
 
 fn set_cylinder_hh(
-	mut coll_shape: &mut ColliderShapeComponent,
+	coll_shape: &mut ColliderShapeComponent,
 	new_hh: f32,
 ) {
 	let 	shape 	= coll_shape.make_mut();
@@ -683,7 +707,7 @@ fn set_cylinder_hh(
 }
 
 fn set_cylinder_r(
-	mut coll_shape: &mut ColliderShapeComponent,
+	coll_shape: &mut ColliderShapeComponent,
 	new_r: f32,
 ) {
 	let 	shape 	= coll_shape.make_mut();
@@ -712,44 +736,44 @@ fn draw_density_param_ui(
 	};
 }
 
+fn draw_cylinder_param_ui(
+	ui: &mut Ui,
+	coll_shape: &mut Mut<ColliderShapeComponent>,
+) {
+	let shape = coll_shape.make_mut();
+	let cylinder = shape.as_cylinder_mut().unwrap();
+
+	egui::CollapsingHeader::new("Wheel sizes")
+		.default_open(true)
+		.show(ui, |ui| {
+
+	ui.vertical(|ui| {
+	
+	let label = format!("{} radius", cylinder.radius);
+	ui.add(
+		Slider::new(&mut cylinder.radius, 0.05 ..= 1.0)
+			.text(label),
+	);
+
+	let label = format!("{} half height", cylinder.half_height);
+	ui.add(
+		Slider::new(&mut cylinder.half_height, 0.05 ..= 1.0)
+			.text(label),
+	);
+
+	}); // ui.vertical
+	}); // ui.collapsing
+}
+
 fn draw_single_wheel_params_ui(
 	ui: &mut Ui,
 	name: &String,
 	mass_props_coll: &mut Mut<ColliderMassPropsComponent>,
 	mass_props_rbody: &mut Mut<RigidBodyMassPropsComponent>,
 	coll_shape: &mut Mut<ColliderShapeComponent>,
-	tag: &Tag,
 ) {
 	draw_density_param_ui(ui, &name[3..].to_string(), mass_props_coll, mass_props_rbody, coll_shape);
-
-	match tag {
-		Tag::FrontWheel | Tag::RearWheel => {
-			let shape = coll_shape.make_mut();
-			let cylinder = shape.as_cylinder_mut().unwrap();
-
-			egui::CollapsingHeader::new("Wheel sizes")
-				.default_open(true)
-				.show(ui, |ui| {
-
-			ui.vertical(|ui| {
-			
-			let label = format!("{} radius", cylinder.radius);
-			ui.add(
-				Slider::new(&mut cylinder.radius, 0.05 ..= 1.0)
-					.text(label),
-			);
-
-			let label = format!("{} half height", cylinder.half_height);
-			ui.add(
-				Slider::new(&mut cylinder.half_height, 0.05 ..= 1.0)
-					.text(label),
-			);
-
-			}); // ui.vertical
-			}); // ui.collapsing
-		},
-		_ => (),
-	}
+	draw_cylinder_param_ui(ui, coll_shape);
 }
 
 fn draw_body_params_ui_collapsing(
@@ -772,7 +796,7 @@ fn draw_body_params_ui_collapsing(
 				Slider::new(&mut cuboid.half_extents[0], 0.05 ..= 5.0)
 					.text(label),
 			);
-
+			
 			let label = format!("{} half height Y", cuboid.half_extents[1]);
 			ui.add(
 				Slider::new(&mut cuboid.half_extents[1], 0.05 ..= 5.0)
@@ -795,20 +819,18 @@ fn draw_single_wheel_params_ui_collapsing(
 		Mut<ColliderMassPropsComponent>,
 		Mut<RigidBodyMassPropsComponent>,
 		Mut<ColliderShapeComponent>,
-		&Tag
 	)>,
 	section_name: String,
 ) {
 	ui.collapsing(section_name, |ui| {
 		ui.vertical(|ui| {
-			for (name_in, mut mass_props_coll, mut mass_props_rbody, mut coll_shape, tag) in wheel {
+			for (name_in, mut mass_props_coll, mut mass_props_rbody, mut coll_shape) in wheel {
 				draw_single_wheel_params_ui(
 					ui,
 					name_in,
 					&mut mass_props_coll,
 					&mut mass_props_rbody,
 					&mut coll_shape,
-					tag,
 				);
 			}
 		});
@@ -817,8 +839,8 @@ fn draw_single_wheel_params_ui_collapsing(
 
 fn update_ui(
 	mut ui_context	: ResMut<EguiContext>,
-		game		: Res	<Game>,
-	mut vehicle_cfg	: ResMut<VehicleConfig>,
+		_game		: Res	<Game>,
+	mut veh_cfg		: ResMut<VehicleConfig>,
 	mut	query		: Query<(
 		&mut ColliderMassPropsComponent,
 		&mut RigidBodyMassPropsComponent,
@@ -827,26 +849,62 @@ fn update_ui(
 		&Tag
 	)>
 ) {
-	let window = egui::Window::new("Parameters");
-	let out = window.show(ui_context.ctx_mut(), |ui| {
-		let mut front_wh_hh_changed			= false;
-		let mut front_wh_r_changed			= false;
-		let mut rear_wh_hh_changed			= false;
-		let mut rear_wh_r_changed			= false;
+	// get front and rear minimal wheel size
+	let wheels					= &mut veh_cfg.wheel_cfg;
+	let (mut front_wheels, mut rear_wheels)	= wheels.split_at_mut(FRONT_SPLIT);
+	
+	let mut front_hh: f32 		= 1000.0;
+	let mut front_r	: f32 		= 1000.0;
+	for wh in front_wheels.iter() {
+		front_hh 				= front_hh.min(wh.wheel_hh);
+		front_r 				= front_r.min(wh.wheel_r);
+	}
+
+	let mut rear_hh	: f32 		= 1000.0;
+	let mut rear_r	: f32 		= 1000.0;
+	for wh in rear_wheels.iter() {
+		rear_hh 				= rear_hh.min(wh.wheel_hh);
+		rear_r 					= rear_r.min(wh.wheel_r);
+	}
+
+	let set_hh = |hh: f32, wheels: &mut [WheelConfig]| {
+		for wh in wheels {
+			wh.wheel_hh			= hh;
+		}
+	};
+
+	let set_r = |r: f32, wheels: &mut [WheelConfig]| {
+		for wh in wheels {
+			wh.wheel_r			= r;
+		}
+	};
+
+	let window 					= egui::Window::new("Parameters");
+	//let out = 
+	window.show(ui_context.ctx_mut(), |ui| {
+		let mut front_wh_hh_changed	= false;
+		let mut front_wh_r_changed	= false;
+		let mut rear_wh_hh_changed	= false;
+		let mut rear_wh_r_changed	= false;
 
 		ui.collapsing("Front Wheels".to_string(), |ui| {
 		ui.vertical(|ui| {
 
-		front_wh_hh_changed = ui.add(
-			Slider::new(&mut vehicle_cfg.front_hh, 0.05 ..= 1.0)
+		if ui.add(
+			Slider::new(&mut front_hh, 0.05 ..= 1.0)
 				.text("Front wheels half height"),
-		).changed();
+		).changed() {
+			front_wh_hh_changed = true;
+			set_hh				(front_hh, &mut front_wheels);
+		}
 
-		
-		front_wh_r_changed = ui.add(
-			Slider::new(&mut vehicle_cfg.front_r, 0.05 ..= 1.0)
+		if ui.add(
+			Slider::new(&mut front_r, 0.05 ..= 1.0)
 				.text("Front wheels radius"),
-		).changed();
+		).changed() {
+			front_wh_r_changed 	= true;
+			set_r				(front_r, &mut front_wheels);
+		}
 
 		}); // ui.vertical
 		}); // ui.collapsing
@@ -854,66 +912,73 @@ fn update_ui(
 		ui.collapsing("Rear Wheels".to_string(), |ui| {
 		ui.vertical(|ui| {
 		
-		rear_wh_hh_changed = ui.add(
-			Slider::new(&mut vehicle_cfg.rear_hh, 0.05 ..= 1.0)
+		if ui.add(
+			Slider::new(&mut rear_hh, 0.05 ..= 1.0)
 				.text("Rear wheels half height"),
-		).changed();
+		).changed() {
+			rear_wh_hh_changed = true;
+			set_hh				(front_hh, &mut rear_wheels);
+		}
 
-		rear_wh_r_changed = ui.add(
-			Slider::new(&mut vehicle_cfg.rear_r, 0.05 ..= 1.0)
+		if ui.add(
+			Slider::new(&mut rear_r, 0.05 ..= 1.0)
 				.text("Rear wheels radius"),
-		).changed();
+		).changed() {
+			rear_wh_r_changed = true;
+			set_r				(front_r, &mut front_wheels);
+		}
 
 		}); // ui.vertical
 		}); // ui.collapsing
 
-		let mut RF = vec![];
-		let mut LF = vec![];
+		let mut FR = vec![];
+		let mut FL = vec![];
 		let mut RR = vec![];
-		let mut LR = vec![];
+		let mut RL = vec![];
 
 		for (mass_props_coll, mass_props_rbody, mut coll_shape, name_comp, tag) in query.iter_mut() {
 			let name = &name_comp.name;
 
 			match tag {
-				Tag::FrontWheel => {
+				Tag::Wheel if name.starts_with("Front") => {
 					if front_wh_hh_changed {
-						set_cylinder_hh(&mut coll_shape, vehicle_cfg.front_hh);
+						set_cylinder_hh(&mut coll_shape, front_hh);
 					}
 					if front_wh_r_changed {
-						set_cylinder_r(&mut coll_shape, vehicle_cfg.front_r);
+						set_cylinder_r(&mut coll_shape, front_r);
 					}
 				},
-				Tag::RearWheel  => {
+				Tag::Wheel if name.starts_with("Rear") => {
 					if rear_wh_hh_changed {
-						set_cylinder_hh(&mut coll_shape, vehicle_cfg.rear_hh);
+						set_cylinder_hh(&mut coll_shape, rear_hh);
 					}
 					if rear_wh_r_changed {
-						set_cylinder_r(&mut coll_shape, vehicle_cfg.rear_r);
+						set_cylinder_r(&mut coll_shape, rear_r);
 					}
 				}
 				_ => (),
 			}
 
-			let to_push = (name, mass_props_coll, mass_props_rbody, coll_shape, tag);
-			if name.starts_with("RF") {
-				RF.push(to_push);
-			} else if name.starts_with("LF") {
-				LF.push(to_push);
-			} else if name.starts_with("RR") {
+			let to_push = (name, mass_props_coll, mass_props_rbody, coll_shape);
+			if name.starts_with(wheel_side_name(FRONT_RIGHT)) {
+				FR.push(to_push);
+			} else if name.starts_with(wheel_side_name(FRONT_LEFT)) {
+				FL.push(to_push);
+			} else if name.starts_with(wheel_side_name(REAR_RIGHT)) {
 				RR.push(to_push);
-			} else if name.starts_with("LR") {
-				LR.push(to_push);
+			} else if name.starts_with(wheel_side_name(REAR_LEFT)) {
+				RL.push(to_push);
 			} else if name.eq("Body") {
 				// thanks kpreid!
-				let (name, mut mass_props_coll, mut mass_props_rbody, mut coll_shape, _) = to_push;
+				let (name, mut mass_props_coll, mut mass_props_rbody, mut coll_shape) = to_push;
 				draw_body_params_ui_collapsing(ui, name, &mut mass_props_coll, &mut mass_props_rbody, &mut coll_shape, "Body".to_string());
 			}
 		}
-		draw_single_wheel_params_ui_collapsing(ui, RF, "RF".to_string());
-		draw_single_wheel_params_ui_collapsing(ui, LF, "LF".to_string());
-		draw_single_wheel_params_ui_collapsing(ui, RR, "RR".to_string());
-		draw_single_wheel_params_ui_collapsing(ui, LR, "LR".to_string());
+
+		draw_single_wheel_params_ui_collapsing(ui, FR, wheel_side_name(FRONT_RIGHT).to_string());
+		draw_single_wheel_params_ui_collapsing(ui, FL, wheel_side_name(FRONT_LEFT).to_string());
+		draw_single_wheel_params_ui_collapsing(ui, RR, wheel_side_name(REAR_RIGHT).to_string());
+		draw_single_wheel_params_ui_collapsing(ui, RL, wheel_side_name(REAR_LEFT).to_string());
 	});
 
 // uncomment when we need to catch a closed window
@@ -927,38 +992,38 @@ fn update_ui(
 
 // contact info + modification. I'd rather add more info to event
 /* fn display_contact_info(narrow_phase: Res<NarrowPhase>) {
-    let entity1 = ...; // The first entity with a collider bundle attached.
-    let entity2 = ...; // The second entity with a collider bundle attached.
-    
-    /* Find the contact pair, if it exists, between two colliders. */
-    if let Some(contact_pair) = narrow_phase.contact_pair(entity1.handle(), entity2.handle()) {
-        // The contact pair exists meaning that the broad-phase identified a potential contact.
-        if contact_pair.has_any_active_contact {
-            // The contact pair has active contacts, meaning that it
-            // contains contacts for which contact forces were computed.
-        }
+	let entity1 = ...; // The first entity with a collider bundle attached.
+	let entity2 = ...; // The second entity with a collider bundle attached.
+	
+	/* Find the contact pair, if it exists, between two colliders. */
+	if let Some(contact_pair) = narrow_phase.contact_pair(entity1.handle(), entity2.handle()) {
+		// The contact pair exists meaning that the broad-phase identified a potential contact.
+		if contact_pair.has_any_active_contact {
+			// The contact pair has active contacts, meaning that it
+			// contains contacts for which contact forces were computed.
+		}
 
-        // We may also read the contact manifolds to access the contact geometry.
-        for manifold in &contact_pair.manifolds {
-            println!("Local-space contact normal: {}", manifold.local_n1);
-            println!("Local-space contact normal: {}", manifold.local_n2);
-            println!("World-space contact normal: {}", manifold.data.normal);
+		// We may also read the contact manifolds to access the contact geometry.
+		for manifold in &contact_pair.manifolds {
+			println!("Local-space contact normal: {}", manifold.local_n1);
+			println!("Local-space contact normal: {}", manifold.local_n2);
+			println!("World-space contact normal: {}", manifold.data.normal);
 
-            // Read the geometric contacts.
-            for contact_point in &manifold.points {
-                // Keep in mind that all the geometric contact data are expressed in the local-space of the colliders.
-                println!("Found local contact point 1: {:?}", contact_point.local_p1);
-                println!("Found contact distance: {:?}", contact_point.dist); // Negative if there is a penetration.
-                println!("Found contact impulse: {}", contact_point.data.impulse);
-                println!("Found friction impulse: {}", contact_point.data.tangent_impulse);
-            }
+			// Read the geometric contacts.
+			for contact_point in &manifold.points {
+				// Keep in mind that all the geometric contact data are expressed in the local-space of the colliders.
+				println!("Found local contact point 1: {:?}", contact_point.local_p1);
+				println!("Found contact distance: {:?}", contact_point.dist); // Negative if there is a penetration.
+				println!("Found contact impulse: {}", contact_point.data.impulse);
+				println!("Found friction impulse: {}", contact_point.data.tangent_impulse);
+			}
 
-            // Read the solver contacts.
-            for solver_contact in &manifold.data.solver_contacts {
-                // Keep in mind that all the solver contact data are expressed in world-space.
-                println!("Found solver contact point: {:?}", solver_contact.point);
-                println!("Found solver contact distance: {:?}", solver_contact.dist); // Negative if there is a penetration.
-            }
-        }
-    }
+			// Read the solver contacts.
+			for solver_contact in &manifold.data.solver_contacts {
+				// Keep in mind that all the solver contact data are expressed in world-space.
+				println!("Found solver contact point: {:?}", solver_contact.point);
+				println!("Found solver contact distance: {:?}", solver_contact.dist); // Negative if there is a penetration.
+			}
+		}
+	}
 } */

@@ -13,7 +13,7 @@
 12. suspension
 13. (wip)ui for different parameters tweaking (see rapier all_examples3)
 13.1. (done!)figure out how to change ColliderMassProps::Density
-13.2. (done! always use Mut< for components from Query)figure out what's wrong with body section and why camera starts pointing to a different object
+13.2. (wip always use Mut< for components from Query)figure out what's wrong with body section and why camera starts pointing to a different object
 13.3. make wheel position adjustable
 13.4. make wheel position attached to body size
 13.5. make motor adjustable
@@ -25,7 +25,8 @@
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
 16. (done!)update bevy to 0.7
 17. make a collection of presets of vehicles after 13 is done
-18. return changes to upstream: bevy_fly_camera
+18. (wait until 0.7?)return changes to upstream: bevy_fly_camera
 19. return changes to upstream: rapier
+20. (done!)remove duplication 4 times of all code for wheels, axles etc
 
 next milestone: fully configurable vehicle with an environment to test it
