@@ -28,5 +28,7 @@
 18. (wait until 0.7?)return changes to upstream: bevy_fly_camera
 19. return changes to upstream: rapier
 20. (done!)remove duplication 4 times of all code for wheels, axles etc
+21. (done!)update bevy_rapier to 0.13
+22. implement neutral mode for driving (for now we always stop without input)
 
 next milestone: fully configurable vehicle with an environment to test it
