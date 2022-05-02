@@ -923,6 +923,26 @@ fn update_ui(
 		}); // ui.vertical
 		}); // ui.collapsing
 
+		ui.collapsing("Steering".to_string(), |ui| {
+		ui.vertical(|ui| {
+	
+			ui.add(
+				Slider::new(&mut steer_cfg.angle, 0.05 ..=180.0)
+					.text("Steering Angle"),
+			);
+			ui.add(
+				Slider::new(&mut steer_cfg.damping, 0.05 ..= 1000.0)
+					.text("Steering Damping"),
+			);
+	
+			ui.add(
+				Slider::new(&mut steer_cfg.stiffness, 0.05 ..= 1000.0)
+					.text("Steering Stiffness"),
+			);
+	
+		}); // ui.vertical
+		}); // ui.collapsing
+
 		let mut front_wh_hh_changed	= false;
 		let mut front_wh_r_changed	= false;
 		let mut rear_wh_hh_changed	= false;
