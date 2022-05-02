@@ -13,22 +13,25 @@
 12. suspension
 13. (wip)ui for different parameters tweaking (see rapier all_examples3)
 13.1. (done!)figure out how to change ColliderMassProps::Density
-13.2. (wip always use Mut< for components from Query)figure out what's wrong with body section and why camera starts pointing to a different object
+13.2. (done! always use Mut< for components from Query)figure out what's wrong with body section and why camera starts pointing to a different object
 13.3. make wheel position adjustable
 13.4. make wheel position attached to body size
-13.5. make motor adjustable
+13.5. (done!)make motor adjustable
 13.6. make axles adjustable
 13.7. make center of mass adjustable
-13.8. (wip)make mass adjustable
+13.8. (done!)make mass adjustable
 13.9. add a tab where all parameters of entities with same type are adjustable with one control 
 14. research how to release cursor when hitting breakpoint
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
 16. (done!)update bevy to 0.7
 17. make a collection of presets of vehicles after 13 is done
-18. (wait until 0.7?)return changes to upstream: bevy_fly_camera
+18. (wait until it gets updated to 0.7 first?)return changes to upstream: bevy_fly_camera
 19. return changes to upstream: rapier
 20. (done!)remove duplication 4 times of all code for wheels, axles etc
 21. (done!)update bevy_rapier to 0.13
 22. implement neutral mode for driving (for now we always stop without input)
+23. bridge of leonardo
+24. bug: when typing data into egui we get a conflict of hiding/showing mouse cursor because app also does this independently
+25. (wip)get a working vehicle again
 
 next milestone: fully configurable vehicle with an environment to test it

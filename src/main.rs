@@ -78,8 +78,8 @@ impl Default for WheelConfig {
 		Self {
 			  wheel_hh			: 0.5
 			, wheel_r			: 0.8
-			, wheel_density		: 2.0
-			, axle_density		: 1000.0
+			, wheel_density		: 1.0
+			, axle_density		: 1.0
 		}
 	}
 }
@@ -92,6 +92,17 @@ pub struct VehicleConfig {
 	, wheel_cfg					: [WheelConfig; WHEELS_MAX as usize]
 }
 
+impl Default for VehicleConfig {
+	fn default() -> Self {
+		Self {
+			  body_half_size	: Vec3::new(0.5, 0.5, 1.0)
+			, body_density		: 1.0
+			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
+			, wheel_cfg			: [WheelConfig::default(); WHEELS_MAX as usize]
+		}
+	}
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct AcceleratorConfig {
 	  vel_fwd					: f32
@@ -101,6 +112,18 @@ pub struct AcceleratorConfig {
 	, damping_stop				: f32
 }
 
+impl Default for AcceleratorConfig {
+	fn default() -> Self {
+		Self {
+			  vel_fwd			: 10.0
+			, vel_bwd			: 7.0
+			, damping_fwd		: 1.0
+			, damping_bwd		: 1.0
+			, damping_stop		: 2.0
+		}
+	}
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct SteeringConfig {
 	  stiffness					: f32
@@ -108,35 +131,12 @@ pub struct SteeringConfig {
 	, angle						: f32
 }
 
-impl Default for VehicleConfig {
-	fn default() -> Self {
-		Self {
-			  body_half_size	: Vec3::new(0.5, 0.5, 1.0)
-			, body_density		: 10.0
-			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
-			, wheel_cfg			: [WheelConfig::default(); WHEELS_MAX as usize]
-		}
-	}
-}
-
-impl Default for AcceleratorConfig {
-	fn default() -> Self {
-		Self {
-			  vel_fwd			: 10.0
-			, vel_bwd			: 7.0
-			, damping_fwd		: 0.5
-			, damping_bwd		: 0.5
-			, damping_stop		: 0.5
-		}
-	}
-}
-
 impl Default for SteeringConfig {
 	fn default() -> Self {
 		Self {
-			  stiffness			: 100.0 // was 5
-			, damping			: 5.0 	// was 3
-			, angle				: 25.0
+			  stiffness			: 1.0 // was 5
+			, damping			: 1.0 	// was 3
+			, angle				: 20.0
 		}
 	}
 }
@@ -383,6 +383,7 @@ fn spawn_axle(
 		.insert		(body_type)
 		.insert		(Transform::from_translation(pos))
 		.insert		(GlobalTransform::default())
+		.insert		(MassProperties::default())
 		.with_children(|children| {
 			children
 				.spawn()
@@ -419,6 +420,7 @@ fn spawn_wheel(
 			.insert		(body_type)
 			.insert		(Transform::from_translation(pos))
 			.insert		(GlobalTransform::default())
+			.insert		(MassProperties::default())
 			.with_children(|children| {
 				children.spawn()
 				.insert	(Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)))
@@ -444,7 +446,7 @@ fn spawn_axle_joint(
 	let axle_joint = RevoluteJointBuilder::new(Vec3::Y)
 		.local_anchor1(anchor1)
 		.local_anchor2(anchor2)
-		.motor_position(0.0, 10.0, 3.0); // by default we want axle joint to stay fixed 
+		.limits([0., 0.]);
 
 	commands
 		.entity		(entity2)
@@ -485,10 +487,11 @@ fn spawn_body(
 		.insert		(body_type)
 		.insert		(Transform::from_translation(pos))
 		.insert		(GlobalTransform::default())
+		.insert		(MassProperties::default())
 		.with_children(|children| {
 		children.spawn()
 			.insert	(Collider::cuboid(half_size.x, half_size.y, half_size.z))
-			.insert	(ColliderMassProperties::Density(10.0)); // joints like it when there is an hierarchy of masses and we want body to be the heaviest
+			.insert	(ColliderMassProperties::Density(density)); // joints like it when there is an hierarchy of masses and we want body to be the heaviest
 		})	
 		.insert		(NameComponent{ name: "Body".to_string() })
 		.insert		(Tag::Body)
@@ -625,7 +628,10 @@ fn motor_steer(angle: f32, stiffness: f32, damping: f32, joint_e: Option<Entity>
 		Some(entity) => {
 			let mut joint 	= query.get_mut(entity).unwrap();
 			let	angle_rad	= angle.to_radians();
-			joint.data.set_motor_position(JointAxis::AngX, angle_rad, stiffness, damping);
+			joint.data
+			.set_motor_position(JointAxis::AngX, angle_rad, stiffness, damping)
+			;//.set_limits(JointAxis::AngX, [-angle_rad, angle_rad]);
+			
 		}
 		_ => ()
 	}
@@ -725,28 +731,30 @@ fn set_cylinder_r(
 }
 
 fn draw_density_param_ui(
-	ui: &mut Ui,
-	name: &String,
-	mut mass_props: &mut Mut<ColliderMassProperties>,
+		ui					: &mut Ui,
+		name				: &String,
+	mut mass_props_co		: &mut Mut<ColliderMassProperties>,
+		mass_props_rb		: &MassProperties
 ) {
-	match &mut mass_props as &mut ColliderMassProperties {
+	match &mut mass_props_co as &mut ColliderMassProperties {
 		ColliderMassProperties::Density(density) => {
 			if ui.add(
 				Slider::new(&mut *density, 0.01 ..= 1000.0).text(format!("{} Density", name))
 			).changed() {
-				**mass_props = ColliderMassProperties::Density(*density);
+				**mass_props_co = ColliderMassProperties::Density(*density);
 			};
 		},
 		ColliderMassProperties::MassProperties(_) => (),
 	};
+	ui.label(format!("{} Mass {:.2}", name, mass_props_rb.mass));
 }
 
 fn draw_cylinder_param_ui(
-	ui: &mut Ui,
-	coll_shape: &mut Mut<Collider>,
+	ui						: &mut Ui,
+	shared_shape			: &mut Mut<Collider>,
 ) {
-	let shape = coll_shape.raw.make_mut();
-	let cylinder = shape.as_cylinder_mut().unwrap();
+	let shape 				= shared_shape.raw.make_mut();
+	let cylinder 			= shape.as_cylinder_mut().unwrap();
 
 	egui::CollapsingHeader::new("Wheel sizes")
 		.default_open(true)
@@ -769,29 +777,31 @@ fn draw_cylinder_param_ui(
 }
 
 fn draw_single_wheel_params_ui(
-	ui: &mut Ui,
-	name: &String,
-	collider: &mut Mut<Collider>,
-	mass_props: &mut Mut<ColliderMassProperties>,
+	ui						: &mut Ui,
+	name					: &String,
+	collider				: &mut Mut<Collider>,
+	mass_props_co			: &mut Mut<ColliderMassProperties>,
+	mass_props_rb			: &MassProperties,
 ) {
-	draw_density_param_ui(ui, name, mass_props);
+	draw_density_param_ui	(ui, name, mass_props_co, mass_props_rb);
 
 	match collider.as_cylinder() {
-		Some(_cylinder) => draw_cylinder_param_ui(ui, collider),
-		_ => (),
+		Some(_cylinder) 	=> draw_cylinder_param_ui(ui, collider),
+		_ 					=> (),
 	};
 }
 
 fn draw_body_params_ui_collapsing(
-	ui: &mut Ui,
-	name: &String,
-	collider: &mut Mut<Collider>,
-	mass_props: &mut Mut<ColliderMassProperties>,
-	section_name: String
+	ui						: &mut Ui,
+	name					: &String,
+	collider				: &mut Mut<Collider>,
+	mass_props_co			: &mut Mut<ColliderMassProperties>,
+	mass_props_rb			: &MassProperties,
+	section_name			: String
 ) {
 	ui.collapsing(section_name, |ui| {
 		ui.vertical(|ui| {
-			draw_density_param_ui(ui, name, mass_props);
+			draw_density_param_ui(ui, name, mass_props_co, mass_props_rb);
 
 			let cuboid = collider.as_cuboid_mut().unwrap();
 
@@ -821,17 +831,19 @@ fn draw_single_wheel_params_ui_collapsing(
 		&String,
 		Mut<Collider>,
 		Mut<ColliderMassProperties>,
+		&MassProperties
 	)>,
 	section_name: String,
 ) {
 	ui.collapsing(section_name, |ui| {
 		ui.vertical(|ui| {
-			for (name_in, mut coll_shape, mut mass_props_coll) in wheel {
+			for (name_in, mut coll_shape, mut mass_props_co, mass_props_rb) in wheel {
 				draw_single_wheel_params_ui(
 					ui,
 					name_in,
 					&mut coll_shape,
-					&mut mass_props_coll,
+					&mut mass_props_co,
+					mass_props_rb,
 				);
 			}
 		});
@@ -848,11 +860,12 @@ fn update_ui(
 	mut q_child		: Query<(
 		&Parent,
 		&mut Collider,
-		&mut ColliderMassProperties,
+		&mut ColliderMassProperties
 	)>,
     	q_parent	: Query<(
 		&NameComponent,
-		&Tag
+		&Tag,
+		&MassProperties
 	)>,
 ) {
 	let window 					= egui::Window::new("Parameters");
@@ -898,7 +911,7 @@ fn update_ui(
 				.text("Target Speed Forward"),
 		);
 		ui.add(
-			Slider::new(&mut accel_cfg.damping_fwd, 0.05 ..= 100.0)
+			Slider::new(&mut accel_cfg.damping_fwd, 0.05 ..= 1000.0)
 				.text("Acceleration Damping Forward"),
 		);
 
@@ -909,14 +922,14 @@ fn update_ui(
 				.text("Target Speed Backward"),
 		);
 		ui.add(
-			Slider::new(&mut accel_cfg.damping_bwd, 0.05 ..= 100.0)
+			Slider::new(&mut accel_cfg.damping_bwd, 0.05 ..= 1000.0)
 				.text("Acceleration Damping Backward"),
 		);
 
 		ui.add_space(1.0);
 
 		ui.add(
-			Slider::new(&mut accel_cfg.damping_stop, 0.05 ..= 100.0)
+			Slider::new(&mut accel_cfg.damping_stop, 0.05 ..= 1000.0)
 				.text("Stopping Damping"),
 		);
 
@@ -997,8 +1010,8 @@ fn update_ui(
 		let mut RR = vec![];
 		let mut RL = vec![];
 
-		for (parent, mut collider, mut mass_props) in q_child.iter_mut() {
-			let (name_comp, tag) = q_parent.get(parent.0).unwrap();
+		for (parent, mut collider, mut mass_props_co) in q_child.iter_mut() {
+			let (name_comp, tag, mass_props_rb) = q_parent.get(parent.0).unwrap();
 
 			let name = &name_comp.name;
 
@@ -1022,7 +1035,7 @@ fn update_ui(
 				_ => (),
 			}
 
-			let to_push = (name, collider, mass_props);
+			let to_push = (name, collider, mass_props_co, mass_props_rb);
 			if name.starts_with(wheel_side_name(FRONT_RIGHT)) {
 				FR.push(to_push);
 			} else if name.starts_with(wheel_side_name(FRONT_LEFT)) {
@@ -1033,8 +1046,8 @@ fn update_ui(
 				RL.push(to_push);
 			} else if name.eq("Body") {
 				// thanks kpreid!
-				let (name, mut collider, mut mass_props) = to_push;
-				draw_body_params_ui_collapsing(ui, name, &mut collider, &mut mass_props, "Body".to_string());
+				let (name, mut collider, mut mass_props_co, mass_props_rb) = to_push;
+				draw_body_params_ui_collapsing(ui, name, &mut collider, &mut mass_props_co, mass_props_rb, "Body".to_string());
 			}
 		}
 
