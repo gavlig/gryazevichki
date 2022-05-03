@@ -828,6 +828,7 @@ fn set_density(
 ) {
 	match &mut mass_props_co as &mut ColliderMassProperties {
 		ColliderMassProperties::Density(density) => {
+			*density 		= density_in;
 			**mass_props_co = ColliderMassProperties::Density(*density);
 		},
 		ColliderMassProperties::MassProperties(_) => (),
@@ -1159,7 +1160,7 @@ fn update_ui(
 					set_cylinder_r	(cfg.r, &mut collider);
 				}
 				if changed.density {
-					set_density		(cfg.density, &mut mass_props_co)
+					set_density		(cfg.density, &mut mass_props_co);
 				}
 			};
 
