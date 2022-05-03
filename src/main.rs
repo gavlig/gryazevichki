@@ -65,7 +65,7 @@ pub struct Game {
 	, wheels		: [WheelEntity; WHEELS_MAX as usize]
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy)]
 pub struct WheelConfig {
 	  hh						: f32
 	, r							: f32
@@ -82,7 +82,7 @@ impl Default for WheelConfig {
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy)]
 pub struct AxleConfig {
 	  half_size					: Vec3
 	, density					: f32
@@ -102,8 +102,6 @@ pub struct VehicleConfig {
 	  body_half_size			: Vec3
 	, body_density				: f32
 	, wheel_offset_abs			: Vec3
-	, wheel_cfg					: [WheelConfig;	WHEELS_MAX as usize]
-	, axle_cfg					: [AxleConfig;	WHEELS_MAX as usize]
 }
 
 impl Default for VehicleConfig {
@@ -112,8 +110,6 @@ impl Default for VehicleConfig {
 			  body_half_size	: Vec3::new(0.5, 0.5, 1.0)
 			, body_density		: 1.0
 			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
-			, wheel_cfg			: [WheelConfig::default();	WHEELS_MAX as usize]
-			, axle_cfg			: [AxleConfig::default();	WHEELS_MAX as usize]
 		}
 	}
 }
@@ -337,10 +333,8 @@ fn spawn_vehicle(
 	for side_ref in WHEEL_SIDES {
 		let side 		= *side_ref;
 		let offset 		= &vehicle_cfg.wheel_offset(side);
-		let wheel_cfg	= &vehicle_cfg.wheel_cfg[side];
-		let axle_cfg	= &vehicle_cfg.axle_cfg[side];
 		game.wheels[side] =
-			spawn_attached_wheel(side, body, body_pos, offset.clone(), wheel_cfg, axle_cfg, &mut commands);
+			spawn_attached_wheel(side, body, body_pos, offset.clone(), &mut commands);
 			
 		println!		("{} Wheel spawned! {:?}", wheel_side_name(side), game.wheels[side]);
 	}
@@ -351,15 +345,14 @@ fn spawn_attached_wheel(
 	body			: Entity,
 	body_pos		: Vec3,
 	offset			: Vec3,
-	wheel_cfg		: &WheelConfig,
-	axle_cfg		: &AxleConfig,
 	mut	commands	: &mut Commands
 ) -> WheelEntity {
 	let side_name	= wheel_side_name(side);
 
-	let axle_size	= axle_cfg.half_size;
+	let axle_size	= AxleConfig::default().half_size;
+	let axle_density= AxleConfig::default().density;
 	let axle_pos	= body_pos + offset;
-	let axle		= spawn_axle(side_name, body, axle_pos, axle_size, RigidBody::Dynamic, axle_cfg.density, &mut commands);
+	let axle		= spawn_axle(side_name, body, axle_pos, axle_size, RigidBody::Dynamic, axle_density, &mut commands);
 
 	let mut anchor1	= offset;
 	let mut anchor2 = Vec3::ZERO;
@@ -368,7 +361,7 @@ fn spawn_attached_wheel(
 	let x_sign		= offset.x * (1.0 / offset.x.abs());
 	let wheel_offset= Vec3::X * 0.8 * x_sign; // 0.2 offset by x axis
 	let wheel_pos 	= axle_pos + wheel_offset;
-	let wheel 		= spawn_wheel(side_name, axle, wheel_pos, wheel_cfg.hh, wheel_cfg.r, RigidBody::Dynamic, wheel_cfg.density, &mut commands);
+	let wheel 		= spawn_wheel(side_name, axle, wheel_pos, WheelConfig::default().hh, WheelConfig::default().r, RigidBody::Dynamic, WheelConfig::default().density, &mut commands);
 
 	anchor1			= wheel_offset;
 	anchor2 		= Vec3::ZERO;
@@ -399,6 +392,10 @@ fn spawn_axle(
 		axle_id = children
 		.spawn		()
 		.insert		(body_type)
+		.insert		(AxleConfig {
+			density		: density,
+			half_size	: half_size,
+		})
 		.insert		(Transform::from_translation(pos))
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
@@ -436,6 +433,11 @@ fn spawn_wheel(
 			wheel_id =
 			children.spawn()
 			.insert		(body_type)
+			.insert		(WheelConfig {
+				r		: radius,
+				hh		: half_height,
+				density	: density
+			})
 			.insert		(Transform::from_translation(pos))
 			.insert		(GlobalTransform::default())
 			.insert		(MassProperties::default())
@@ -896,6 +898,7 @@ fn update_ui(
 		&Tag,
 		&MassProperties
 	)>,
+
 ) {
 	let window 					= egui::Window::new("Parameters");
 	//let out = 
@@ -909,25 +912,25 @@ fn update_ui(
 		let mut front_axle_common	= front_axles.first().unwrap().clone();
 		let mut rear_axle_common	= rear_axles.first().unwrap().clone();
 
-		let set_wheels_hh = |hh: f32, wheels: &mut [WheelConfig]| {
+		let set_wheels_hh 			= |hh: f32, wheels: &mut [WheelConfig]| {
 			for wh in wheels {
 				wh.hh				= hh;
 			}
 		};
 
-		let set_wheels_r = |r: f32, wheels: &mut [WheelConfig]| {
+		let set_wheels_r 			= |r: f32, wheels: &mut [WheelConfig]| {
 			for wh in wheels {
 				wh.r				= r;
 			}
 		};
 
-		let set_wheels_density = |density: f32, wheels: &mut [WheelConfig]| {
+		let set_wheels_density 		= |density: f32, wheels: &mut [WheelConfig]| {
 			for wh in wheels {
 				wh.density			= density;
 			}
 		};
 
-		let set_axles_density = |density: f32, axles: &mut [AxleConfig]| {
+		let set_axles_density 		= |density: f32, axles: &mut [AxleConfig]| {
 			for ax in axles {
 				ax.density			= density;
 			}
