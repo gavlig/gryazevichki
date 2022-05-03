@@ -11,13 +11,34 @@ pub struct NameComponent {
 	pub name : String
 }
 
-#[derive(Component, Debug)]
-pub enum Tag {
+#[derive(Component, Debug, Copy, Clone, PartialEq)]
+pub enum VehiclePart {
 	Wheel,
 	Axle,
 	Body,
 	WheelJoint,
 	AxleJoint,
+}
+
+#[derive(Component, Debug, Copy, Clone, PartialEq)]
+pub enum SideX {
+	Left,
+	Center,
+	Right
+}
+
+#[derive(Component, Debug, Copy, Clone, PartialEq)]
+pub enum SideY {
+	Top,
+	Center,
+	Bottom
+}
+
+#[derive(Component, Debug, Copy, Clone, PartialEq)]
+pub enum SideZ {
+	Front,
+	Center,
+	Rear
 }
 
 // TODO: all this looks like a bad design, most likely i need a different approach
@@ -40,6 +61,16 @@ fn wheel_side_name(side: WheelSideType) -> &'static str {
 		, REAR_LEFT			=> "Rear Left"
 		, _					=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
 	}
+}
+
+fn wheel_side2d(side: WheelSideType) -> (SideZ, SideX) {
+	match side {
+		FRONT_RIGHT			=> (SideZ::Front, SideX::Right)
+	  , FRONT_LEFT			=> (SideZ::Front, SideX::Left)
+	  , REAR_RIGHT			=> (SideZ::Rear, SideX::Right)
+	  , REAR_LEFT			=> (SideZ::Rear, SideX::Left)
+	  , _					=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
+  }
 }
 
 const WHEEL_SIDES: &'static [WheelSideType] = &[
@@ -70,6 +101,7 @@ pub struct WheelConfig {
 	  hh						: f32
 	, r							: f32
 	, density					: f32
+	, mass						: f32
 }
 
 impl Default for WheelConfig {
@@ -78,14 +110,23 @@ impl Default for WheelConfig {
 			  hh				: 0.5
 			, r					: 0.8
 			, density			: 1.0
+			, mass				: 0.0
 		}
 	}
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct WheelConfigChanged {
+	  hh						: bool
+	, r							: bool
+	, density					: bool
 }
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AxleConfig {
 	  half_size					: Vec3
 	, density					: f32
+	, mass						: f32
 }
 
 impl Default for AxleConfig {
@@ -93,8 +134,14 @@ impl Default for AxleConfig {
 		Self {
 			  half_size			: Vec3::new(0.1, 0.2, 0.1)
 			, density			: 1.0
+			, mass				: 0.0
 		}
 	}
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct AxleConfigChanged {
+	density						: bool
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -333,8 +380,8 @@ fn spawn_vehicle(
 	for side_ref in WHEEL_SIDES {
 		let side 		= *side_ref;
 		let offset 		= &vehicle_cfg.wheel_offset(side);
-		game.wheels[side] =
-			spawn_attached_wheel(side, body, body_pos, offset.clone(), &mut commands);
+		let (sidez, sidex) = wheel_side2d(side);
+		game.wheels[side] = spawn_attached_wheel(side, body, body_pos, offset.clone(), sidex, sidez, &mut commands);
 			
 		println!		("{} Wheel spawned! {:?}", wheel_side_name(side), game.wheels[side]);
 	}
@@ -345,6 +392,8 @@ fn spawn_attached_wheel(
 	body			: Entity,
 	body_pos		: Vec3,
 	offset			: Vec3,
+	sidex			: SideX,
+	sidez			: SideZ,
 	mut	commands	: &mut Commands
 ) -> WheelEntity {
 	let side_name	= wheel_side_name(side);
@@ -352,7 +401,7 @@ fn spawn_attached_wheel(
 	let axle_size	= AxleConfig::default().half_size;
 	let axle_density= AxleConfig::default().density;
 	let axle_pos	= body_pos + offset;
-	let axle		= spawn_axle(side_name, body, axle_pos, axle_size, RigidBody::Dynamic, axle_density, &mut commands);
+	let axle		= spawn_axle(side_name, body, axle_pos, axle_size, RigidBody::Dynamic, axle_density, sidex, sidez, &mut commands);
 
 	let mut anchor1	= offset;
 	let mut anchor2 = Vec3::ZERO;
@@ -361,7 +410,18 @@ fn spawn_attached_wheel(
 	let x_sign		= offset.x * (1.0 / offset.x.abs());
 	let wheel_offset= Vec3::X * 0.8 * x_sign; // 0.2 offset by x axis
 	let wheel_pos 	= axle_pos + wheel_offset;
-	let wheel 		= spawn_wheel(side_name, axle, wheel_pos, WheelConfig::default().hh, WheelConfig::default().r, RigidBody::Dynamic, WheelConfig::default().density, &mut commands);
+	let wheel 		= spawn_wheel(
+		  side_name
+		, axle
+		, wheel_pos
+		, WheelConfig::default().hh
+		, WheelConfig::default().r
+		, RigidBody::Dynamic
+		, WheelConfig::default().density
+		, sidex
+		, sidez
+		, &mut commands
+	);
 
 	anchor1			= wheel_offset;
 	anchor2 		= Vec3::ZERO;
@@ -383,6 +443,8 @@ fn spawn_axle(
 	half_size		: Vec3,
 	body_type		: RigidBody,
 	density			: f32,
+	sidex			: SideX,
+	sidez			: SideZ,
 	commands		: &mut Commands,
 ) -> Entity {
 	let mut axle_id = Entity::from_bits(0);
@@ -395,6 +457,7 @@ fn spawn_axle(
 		.insert		(AxleConfig {
 			density		: density,
 			half_size	: half_size,
+			..Default::default()
 		})
 		.insert		(Transform::from_translation(pos))
 		.insert		(GlobalTransform::default())
@@ -408,7 +471,9 @@ fn spawn_axle(
 				.insert(ColliderMassProperties::Density(density));
 		})
 		.insert		(NameComponent{ name: format!("{} Axle", prefix) })
-		.insert		(Tag::Axle)
+		.insert		(VehiclePart::Axle)
+		.insert		(sidex)
+		.insert		(sidez)
 		.id			()
 	});
 
@@ -423,6 +488,8 @@ fn spawn_wheel(
 	radius			: f32,
 	body_type		: RigidBody,
 	density			: f32,
+	sidex			: SideX,
+	sidez			: SideZ,
 	commands		: &mut Commands,
 ) -> Entity {
 	let mut wheel_id = Entity::from_bits(0);
@@ -436,7 +503,8 @@ fn spawn_wheel(
 			.insert		(WheelConfig {
 				r		: radius,
 				hh		: half_height,
-				density	: density
+				density	: density,
+				..Default::default()
 			})
 			.insert		(Transform::from_translation(pos))
 			.insert		(GlobalTransform::default())
@@ -449,7 +517,9 @@ fn spawn_wheel(
 				.insert	(ActiveEvents::COLLISION_EVENTS);
 			})
 			.insert		(NameComponent{ name: format!("{} Wheel", prefix) })
-			.insert		(Tag::Wheel)
+			.insert		(VehiclePart::Wheel)
+			.insert		(sidex)
+			.insert		(sidez)
 			.id			()
 	});
 
@@ -514,7 +584,9 @@ fn spawn_body(
 			.insert	(ColliderMassProperties::Density(density)); // joints like it when there is an hierarchy of masses and we want body to be the heaviest
 		})	
 		.insert		(NameComponent{ name: "Body".to_string() })
-		.insert		(Tag::Body)
+		.insert		(VehiclePart::Body)
+		.insert		(SideX::Center)
+		.insert		(SideZ::Center)
 		.id			()
 }
 
@@ -794,12 +866,12 @@ fn draw_cylinder_param_ui(
 	ui.vertical(|ui| {
 	
 	ui.add(
-		Slider::new(&mut cylinder.radius, 0.05 ..= 1.0)
+		Slider::new(&mut cylinder.radius, 0.05 ..= 2.0)
 			.text("Radius"),
 	);
 
 	ui.add(
-		Slider::new(&mut cylinder.half_height, 0.05 ..= 1.0)
+		Slider::new(&mut cylinder.half_height, 0.05 ..= 2.0)
 			.text("Half Height"),
 	);
 
@@ -883,7 +955,7 @@ fn draw_single_wheel_params_ui_collapsing(
 
 fn update_ui(
 	mut ui_context	: ResMut<EguiContext>,
-		_game		: Res	<Game>,
+		game		: Res	<Game>,
 	mut veh_cfg		: ResMut<VehicleConfig>,
 	mut accel_cfg	: ResMut<AcceleratorConfig>,
 	mut steer_cfg	: ResMut<SteeringConfig>,
@@ -894,51 +966,25 @@ fn update_ui(
 		&mut ColliderMassProperties
 	)>,
     	q_parent	: Query<(
+		&VehiclePart,
+		&SideZ,
 		&NameComponent,
-		&Tag,
 		&MassProperties
+		)>,
+	mut q_wheel_cfg	: Query<(
+		&mut WheelConfig,
+		&SideX,
+		&SideZ
 	)>,
-
+	mut q_axle_cfg	: Query<(
+		&mut AxleConfig,
+		&SideX,
+		&SideZ
+	)>
 ) {
 	let window 					= egui::Window::new("Parameters");
 	//let out = 
 	window.show(ui_context.ctx_mut(), |ui| {
-		// get front and rear minimal wheel size
-		let (mut front_wheels, mut rear_wheels)	= veh_cfg.wheel_cfg.split_at_mut(FRONT_SPLIT);
-		let mut front_wheel_common	= front_wheels.first().unwrap().clone();
-		let mut rear_wheel_common	= rear_wheels.first().unwrap().clone();
-
-		let (mut front_axles, mut rear_axles)	= veh_cfg.axle_cfg.split_at_mut(FRONT_SPLIT);
-		let mut front_axle_common	= front_axles.first().unwrap().clone();
-		let mut rear_axle_common	= rear_axles.first().unwrap().clone();
-
-		let set_wheels_hh 			= |hh: f32, wheels: &mut [WheelConfig]| {
-			for wh in wheels {
-				wh.hh				= hh;
-			}
-		};
-
-		let set_wheels_r 			= |r: f32, wheels: &mut [WheelConfig]| {
-			for wh in wheels {
-				wh.r				= r;
-			}
-		};
-
-		let set_wheels_density 		= |density: f32, wheels: &mut [WheelConfig]| {
-			for wh in wheels {
-				wh.density			= density;
-			}
-		};
-
-		let set_axles_density 		= |density: f32, axles: &mut [AxleConfig]| {
-			for ax in axles {
-				ax.density			= density;
-			}
-		};
-
-		//
-		//
-
 		ui.collapsing("Acceleration".to_string(), |ui| {
 		ui.vertical(|ui| {
 
@@ -997,152 +1043,149 @@ fn update_ui(
 			, wheel_cfg				: &mut WheelConfig
 			, axle_cfg				: &mut AxleConfig
 			, section_name			: String
-		| -> (bool, bool, bool, bool) {
-			let mut hh_changed		= false;
-			let mut r_changed		= false;
-			let mut wh_density_changed = false;
-			let mut axle_density_changed = false;
+		| -> (WheelConfigChanged, AxleConfigChanged) {
+
+			let mut wheel_changed	= WheelConfigChanged::default();
+			let mut axle_changed	= AxleConfigChanged::default();
 
 			ui.collapsing(section_name, |ui| {
 			ui.vertical(|ui| {
 	
 			if ui.add(
-				Slider::new(&mut wheel_cfg.hh, 0.05 ..= 1.0)
+				Slider::new(&mut wheel_cfg.hh, 0.05 ..= 2.0)
 					.text("Half Height"),
 			).changed() {
-				hh_changed 			= true;
+				wheel_changed.hh	= true;
 			}
 	
 			if ui.add(
-				Slider::new(&mut wheel_cfg.r, 0.05 ..= 1.0)
+				Slider::new(&mut wheel_cfg.r, 0.05 ..= 2.0)
 					.text("Radius"),
 			).changed() {
-				r_changed 			= true;
+				wheel_changed.r		= true;
 			}
 
 			if ui.add(
 				Slider::new(&mut wheel_cfg.density, 0.05 ..= 100.0)
-					.text("Wheel Density"),
+					.text(format!("Wheel Density (Mass: {:.3})", wheel_cfg.mass)),
 			).changed() {
-				wh_density_changed	= true;
+				wheel_changed.density = true;
 			}
 
 			if ui.add(
 				Slider::new(&mut axle_cfg.density, 0.05 ..= 100.0)
-					.text("Axle Density"),
+					.text(format!("Axle Density (Mass: {:.3})", axle_cfg.mass)),
 			).changed() {
-				axle_density_changed= true;
+				axle_changed.density = true;
 			}
 	
 			}); // ui.vertical
 			}); // ui.collapsing
 
-			(hh_changed, r_changed, wh_density_changed, axle_density_changed)
+			(wheel_changed, axle_changed)
 		};
 
-		let (front_wh_hh_changed, front_wh_r_changed, front_wh_density_changed, front_axle_density_changed) =
-			render_wheel_params(ui, &mut front_wheel_common, &mut front_axle_common, String::from("Front Wheels"));
+		let (fl_wheel, _, _)	= q_wheel_cfg.get(game.wheels[FRONT_LEFT].wheel.unwrap()).unwrap();
+		let (rl_wheel, _, _)	= q_wheel_cfg.get(game.wheels[REAR_LEFT].wheel.unwrap()).unwrap();
 
-		let (rear_wh_hh_changed, rear_wh_r_changed, rear_wh_density_changed, rear_axle_density_changed) =
-			render_wheel_params(ui, &mut rear_wheel_common, &mut rear_axle_common, String::from("Rear Wheels"));
+		let (fl_axle, _, _)		= q_axle_cfg.get(game.wheels[FRONT_LEFT].axle.unwrap()).unwrap();
+		let (rl_axle, _, _)		= q_axle_cfg.get(game.wheels[REAR_LEFT].axle.unwrap()).unwrap();
 
-		let mut FR = vec![];
-		let mut FL = vec![];
-		let mut RR = vec![];
-		let mut RL = vec![];
+		let mut front_wheel_common 	= fl_wheel.to_owned();
+		let mut rear_wheel_common 	= rl_wheel.to_owned();
+		let mut front_axle_common 	= fl_axle.to_owned();
+		let mut rear_axle_common 	= rl_axle.to_owned();
 
-		for (parent, mut collider, mut mass_props_co) in q_child.iter_mut() {
-			let (name_comp, tag, mass_props_rb) = q_parent.get(parent.0).unwrap();
-			let name = &name_comp.name;
+		let (front_wheels_changed, front_axles_changed) =
+			render_wheel_params		(ui, &mut front_wheel_common, &mut front_axle_common, String::from("Front Wheels"));
 
-			let mut writeback_wheel = |
-				  hh_changed
-				, r_changed
-				, density_changed
-				, wheel_cfg	: &WheelConfig
-				, wheels	: &mut [WheelConfig]
-			| {
-				if hh_changed {
-					set_cylinder_hh(wheel_cfg.hh, &mut collider);
-					set_wheels_hh(wheel_cfg.hh, wheels);
-				}
-				if r_changed {
-					set_cylinder_r(wheel_cfg.r, &mut collider);
-					set_wheels_r(wheel_cfg.r, wheels);
-				}
-				if density_changed {
-					set_density(wheel_cfg.density, &mut mass_props_co);
-					set_wheels_density(wheel_cfg.density, wheels);
-				}
-			};
+		let (rear_wheels_changed, rear_axles_changed) =
+			render_wheel_params		(ui, &mut rear_wheel_common, &mut rear_axle_common, String::from("Rear Wheels"));
 
-			let mut writeback_axle = |
-				  density_changed
-				, axle_cfg	: &AxleConfig
-				, axles		: &mut [AxleConfig]
-			| {
-				if density_changed {
-					set_density(axle_cfg.density, &mut mass_props_co);
-					set_axles_density(axle_cfg.density, axles);
-				}
-			};
-
-			match tag {
-				Tag::Wheel if name.starts_with("Front") => {
-					writeback_wheel(
-						  front_wh_hh_changed
-						, front_wh_r_changed
-						, front_wh_density_changed
-						, &front_wheel_common
-						, &mut front_wheels
-					);
-				},
-				Tag::Axle if name.starts_with("Front") => {
-					writeback_axle(
-						  front_axle_density_changed
-						, &front_axle_common
-						, &mut front_axles
-					);
-				},
-				Tag::Wheel if name.starts_with("Rear") => {
-					writeback_wheel(
-						  rear_wh_hh_changed
-						, rear_wh_r_changed
-						, rear_wh_density_changed
-						, &rear_wheel_common
-						, &mut rear_wheels
-					);
-				},
-				Tag::Axle if name.starts_with("Rear") => {
-					writeback_axle(
-						  rear_axle_density_changed
-						, &rear_axle_common
-						, &mut rear_axles
-					);
-				},
-				_ => (),
+		let mut writeback_wheel = |
+			  changed	: WheelConfigChanged
+			, cfg_from	: &WheelConfig
+			, cfg_to	: &mut WheelConfig
+		| {
+			if changed.hh {
+				cfg_to.hh 			= cfg_from.hh;
 			}
+			if changed.r {
+				cfg_to.r 			= cfg_from.r;
+			}
+			if changed.density {
+				cfg_to.density 		= cfg_from.density;
+			}
+		};
 
-			let to_push = (name, collider, mass_props_co, mass_props_rb);
-			if name.starts_with(wheel_side_name(FRONT_RIGHT)) {
-				FR.push(to_push);
-			} else if name.starts_with(wheel_side_name(FRONT_LEFT)) {
-				FL.push(to_push);
-			} else if name.starts_with(wheel_side_name(REAR_RIGHT)) {
-				RR.push(to_push);
-			} else if name.starts_with(wheel_side_name(REAR_LEFT)) {
-				RL.push(to_push);
-			} else if name.eq("Body") {
-				// thanks kpreid!
-				let (name, mut collider, mut mass_props_co, mass_props_rb) = to_push;
-				draw_body_params_ui_collapsing(ui, name, &mut collider, &mut mass_props_co, mass_props_rb, "Body".to_string());
+		for (mut wheel_cfg, _sidex, sidez) in q_wheel_cfg.iter_mut() {
+			if *sidez == SideZ::Front {
+				writeback_wheel(
+					  front_wheels_changed
+					, &front_wheel_common
+					, &mut wheel_cfg
+				);
+			} else if *sidez == SideZ::Rear {
+				writeback_wheel(
+					  rear_wheels_changed
+					, &rear_wheel_common
+					, &mut wheel_cfg
+				);
 			}
 		}
 
-		draw_single_wheel_params_ui_collapsing(ui, FR, wheel_side_name(FRONT_RIGHT).to_string());
-		draw_single_wheel_params_ui_collapsing(ui, FL, wheel_side_name(FRONT_LEFT).to_string());
-		draw_single_wheel_params_ui_collapsing(ui, RR, wheel_side_name(REAR_RIGHT).to_string());
-		draw_single_wheel_params_ui_collapsing(ui, RL, wheel_side_name(REAR_LEFT).to_string());
+		for (mut axle_cfg, _sidex, sidez) in q_axle_cfg.iter_mut() {
+			if *sidez == SideZ::Front && front_axles_changed.density {
+				axle_cfg.density 	= front_axle_common.density;
+			}
+			if *sidez == SideZ::Rear && rear_axles_changed.density {
+				axle_cfg.density 	= rear_axle_common.density;
+			}
+		}
+
+		for (parent, mut collider, mut mass_props_co) in q_child.iter_mut() {
+			let (vehicle_part, sidez, name_comp, mass_props_rb) = q_parent.get(parent.0).unwrap();
+			let name 				= &name_comp.name;
+			let vp 					= *vehicle_part;
+
+			let mut writeback_wheel = |
+				  changed	: WheelConfigChanged
+				, cfg		: &WheelConfig
+			| {
+				if changed.hh {
+					set_cylinder_hh	(cfg.hh, &mut collider);
+				}
+				if changed.r {
+					set_cylinder_r	(cfg.r, &mut collider);
+				}
+				if changed.density {
+					set_density		(cfg.density, &mut mass_props_co)
+				}
+			};
+
+			if vp == VehiclePart::Body {
+				// thanks kpreid!
+				draw_body_params_ui_collapsing(ui, name, &mut collider, &mut mass_props_co, mass_props_rb, "Body".to_string());
+			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front {
+				writeback_wheel		(front_wheels_changed, &front_wheel_common);
+			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear {
+				writeback_wheel		(rear_wheels_changed, &rear_wheel_common);
+			} else if vp == VehiclePart::Axle && *sidez == SideZ::Front {
+				set_density			(front_axle_common.density, &mut mass_props_co);
+			} else if vp == VehiclePart::Axle && *sidez == SideZ::Rear {
+				set_density			(rear_axle_common.density, &mut mass_props_co);
+			}
+
+			if vp == VehiclePart::Wheel {
+				let (mut wheel_cfg, _, _) = q_wheel_cfg.get_mut(parent.0).unwrap();
+				wheel_cfg.mass		= mass_props_rb.mass;
+			}
+
+			if vp == VehiclePart::Axle {
+				let (mut axle_cfg, _, _) = q_axle_cfg.get_mut(parent.0).unwrap();
+				axle_cfg.mass		= mass_props_rb.mass;
+			}
+		}
 	});
 
 // uncomment when we need to catch a closed window
@@ -1153,41 +1196,3 @@ fn update_ui(
 //		_ => ()
 //	}
 }
-
-// contact info + modification. I'd rather add more info to event
-/* fn display_contact_info(narrow_phase: Res<NarrowPhase>) {
-	let entity1 = ...; // The first entity with a collider bundle attached.
-	let entity2 = ...; // The second entity with a collider bundle attached.
-	
-	/* Find the contact pair, if it exists, between two colliders. */
-	if let Some(contact_pair) = narrow_phase.contact_pair(entity1.handle(), entity2.handle()) {
-		// The contact pair exists meaning that the broad-phase identified a potential contact.
-		if contact_pair.has_any_active_contact {
-			// The contact pair has active contacts, meaning that it
-			// contains contacts for which contact forces were computed.
-		}
-
-		// We may also read the contact manifolds to access the contact geometry.
-		for manifold in &contact_pair.manifolds {
-			println!("Local-space contact normal: {}", manifold.local_n1);
-			println!("Local-space contact normal: {}", manifold.local_n2);
-			println!("World-space contact normal: {}", manifold.data.normal);
-
-			// Read the geometric contacts.
-			for contact_point in &manifold.points {
-				// Keep in mind that all the geometric contact data are expressed in the local-space of the colliders.
-				println!("Found local contact point 1: {:?}", contact_point.local_p1);
-				println!("Found contact distance: {:?}", contact_point.dist); // Negative if there is a penetration.
-				println!("Found contact impulse: {}", contact_point.data.impulse);
-				println!("Found friction impulse: {}", contact_point.data.tangent_impulse);
-			}
-
-			// Read the solver contacts.
-			for solver_contact in &manifold.data.solver_contacts {
-				// Keep in mind that all the solver contact data are expressed in world-space.
-				println!("Found solver contact point: {:?}", solver_contact.point);
-				println!("Found solver contact distance: {:?}", solver_contact.dist); // Negative if there is a penetration.
-			}
-		}
-	}
-} */
