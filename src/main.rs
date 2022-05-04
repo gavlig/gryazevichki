@@ -133,7 +133,7 @@ impl Default for AxleConfig {
 	fn default() -> Self {
 		Self {
 			  half_size			: Vec3::new(0.1, 0.2, 0.1)
-			, density			: 1.0
+			, density			: 150.0
 			, mass				: 0.0
 		}
 	}
@@ -155,7 +155,7 @@ impl Default for VehicleConfig {
 	fn default() -> Self {
 		Self {
 			  body_half_size	: Vec3::new(0.5, 0.5, 1.0)
-			, body_density		: 1.0
+			, body_density		: 2.0
 			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
 		}
 	}
@@ -175,9 +175,9 @@ impl Default for AcceleratorConfig {
 		Self {
 			  vel_fwd			: 10.0
 			, vel_bwd			: 7.0
-			, damping_fwd		: 1.0
-			, damping_bwd		: 1.0
-			, damping_stop		: 2.0
+			, damping_fwd		: 100.0
+			, damping_bwd		: 100.0
+			, damping_stop		: 200.0
 		}
 	}
 }
@@ -192,8 +192,8 @@ pub struct SteeringConfig {
 impl Default for SteeringConfig {
 	fn default() -> Self {
 		Self {
-			  stiffness			: 1.0 // was 5
-			, damping			: 1.0 	// was 3
+			  stiffness			: 67000.0 // was 5
+			, damping			: 100.0 	// was 3
 			, angle				: 20.0
 		}
 	}
@@ -536,7 +536,7 @@ fn spawn_axle_joint(
 	let axle_joint = RevoluteJointBuilder::new(Vec3::Y)
 		.local_anchor1(anchor1)
 		.local_anchor2(anchor2)
-		.limits([0., 0.]);
+		.limits([0.001, 0.001]);
 
 	commands
 		.entity		(entity2)
@@ -722,7 +722,7 @@ fn motor_steer(angle: f32, stiffness: f32, damping: f32, joint_e: Option<Entity>
 			let	angle_rad	= angle.to_radians();
 			joint.data
 			.set_motor_position(JointAxis::AngX, angle_rad, stiffness, damping)
-			;//.set_limits(JointAxis::AngX, [-angle_rad, angle_rad]);
+			.set_limits(JointAxis::AngX, [-angle_rad.abs(), angle_rad.abs()]);
 			
 		}
 		_ => ()
@@ -1028,7 +1028,7 @@ fn update_ui(
 		ui.vertical(|ui| {
 	
 			ui.add(
-				Slider::new(&mut steer_cfg.angle, 0.05 ..=180.0)
+				Slider::new(&mut steer_cfg.angle, 0.05 ..= 180.0)
 					.text("Steering Angle"),
 			);
 			ui.add(
@@ -1037,7 +1037,7 @@ fn update_ui(
 			);
 	
 			ui.add(
-				Slider::new(&mut steer_cfg.stiffness, 0.05 ..= 1000.0)
+				Slider::new(&mut steer_cfg.stiffness, 0.05 ..= 100000.0)
 					.text("Steering Stiffness"),
 			);
 	
