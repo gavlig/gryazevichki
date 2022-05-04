@@ -838,13 +838,14 @@ fn set_density(
 fn draw_density_param_ui(
 		ui					: &mut Ui,
 		name				: &String,
+		range				: [f32; 2],
 	mut mass_props_co		: &mut Mut<ColliderMassProperties>,
 		mass_props_rb		: &MassProperties
 ) {
 	match &mut mass_props_co as &mut ColliderMassProperties {
 		ColliderMassProperties::Density(density) => {
 			if ui.add(
-				Slider::new(&mut *density, 0.01 ..= 1000.0).text(format!("{} Density (Mass {:.3})", name, mass_props_rb.mass))
+				Slider::new(&mut *density, range[0] ..= range[1]).text(format!("{} Density (Mass {:.3})", name, mass_props_rb.mass))
 			).changed() {
 				**mass_props_co = ColliderMassProperties::Density(*density);
 			};
@@ -883,11 +884,12 @@ fn draw_cylinder_param_ui(
 fn draw_single_wheel_params_ui(
 	ui						: &mut Ui,
 	name					: &String,
+	range					: [f32; 2],
 	collider				: &mut Mut<Collider>,
 	mass_props_co			: &mut Mut<ColliderMassProperties>,
 	mass_props_rb			: &MassProperties,
 ) {
-	draw_density_param_ui	(ui, name, mass_props_co, mass_props_rb);
+	draw_density_param_ui	(ui, name, range, mass_props_co, mass_props_rb);
 
 	match collider.as_cylinder() {
 		Some(_cylinder) 	=> draw_cylinder_param_ui(ui, collider),
@@ -898,6 +900,7 @@ fn draw_single_wheel_params_ui(
 fn draw_body_params_ui_collapsing(
 	ui						: &mut Ui,
 	name					: &String,
+	density_range			: [f32; 2],
 	collider				: &mut Mut<Collider>,
 	mass_props_co			: &mut Mut<ColliderMassProperties>,
 	mass_props_rb			: &MassProperties,
@@ -905,7 +908,7 @@ fn draw_body_params_ui_collapsing(
 ) {
 	ui.collapsing(section_name, |ui| {
 		ui.vertical(|ui| {
-			draw_density_param_ui(ui, name, mass_props_co, mass_props_rb);
+			draw_density_param_ui(ui, name, density_range, mass_props_co, mass_props_rb);
 
 			let cuboid = collider.as_cuboid_mut().unwrap();
 
@@ -930,7 +933,8 @@ fn draw_body_params_ui_collapsing(
 }
 
 fn draw_single_wheel_params_ui_collapsing(
-	ui: &mut Ui,
+	ui				: &mut Ui,
+	density_range	: [f32; 2],
 	wheel: Vec<(
 		&String,
 		Mut<Collider>,
@@ -941,10 +945,11 @@ fn draw_single_wheel_params_ui_collapsing(
 ) {
 	ui.collapsing(section_name, |ui| {
 		ui.vertical(|ui| {
-			for (name_in, mut coll_shape, mut mass_props_co, mass_props_rb) in wheel {
+			for (name, mut coll_shape, mut mass_props_co, mass_props_rb) in wheel {
 				draw_single_wheel_params_ui(
 					ui,
-					name_in,
+					name,
+					density_range,
 					&mut coll_shape,
 					&mut mass_props_co,
 					mass_props_rb,
@@ -1074,7 +1079,7 @@ fn update_ui(
 			}
 
 			if ui.add(
-				Slider::new(&mut axle_cfg.density, 0.05 ..= 100.0)
+				Slider::new(&mut axle_cfg.density, 0.05 ..= 1000.0)
 					.text(format!("Axle Density (Mass: {:.3})", axle_cfg.mass)),
 			).changed() {
 				axle_changed.density = true;
@@ -1166,7 +1171,7 @@ fn update_ui(
 
 			if vp == VehiclePart::Body {
 				// thanks kpreid!
-				draw_body_params_ui_collapsing(ui, name, &mut collider, &mut mass_props_co, mass_props_rb, "Body".to_string());
+				draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], &mut collider, &mut mass_props_co, mass_props_rb, "Body".to_string());
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front {
 				writeback_wheel		(front_wheels_changed, &front_wheel_common);
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear {
