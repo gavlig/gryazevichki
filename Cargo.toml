@@ -23,12 +23,7 @@ rand = "0.8.0"
 bevy = { version = "0.6.1" } #, features = ["dynamic"] }
 bevy_rapier3d = { git = "https://github.com/gavlig/bevy_rapier.git", branch = "gryazevichki_rapier_v0.12.0-alpha.0", features = [ "simd-stable", "render" ] } # "parallel"
 bevy_egui = "0.12"
-
-bevy_fly_camera = { path = "../bevy_fly_camera" } # "0.8.0"
-
-#bevy_editor_pls_core = { path = "../bevy_editor_pls/crates/bevy_editor_pls_core" }
-#bevy_editor_pls = { path = "../bevy_editor_pls/crates/bevy_editor_pls" }
-#bevy_editor_pls_default_windows = { path = "../bevy_editor_pls/crates/bevy_editor_pls_default_windows" }
+bevy_fly_camera = { git = "https://github.com/gavlig/bevy_fly_camera.git", branch = "gryazevichki_rapier_v0.12.0-alpha.0" }
 
 #[patch.crates-io]
 #bevy_rapier3d = { path = "../bevy_rapier/bevy_rapier3d/" }
