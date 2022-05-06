@@ -172,11 +172,11 @@ pub fn setup_physics_system(
 		vehicle_cfg		: Res<VehicleConfig>,
 	mut commands		: Commands
 ) {
-	configuration.timestep_mode = TimestepMode::VariableTimestep;
+//	configuration.timestep_mode = TimestepMode::VariableTimestep;
 
 	spawn_ground		(&mut game, &mut commands);
 
-	if false {
+	if true {
 		spawn_cubes		(&mut commands);
 	}
 
