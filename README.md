@@ -1,4 +1,5 @@
 ## ⚠️Legacy branch!⚠️
+### 'master' branch is currently broken due to migration to newer rapier and bevy_rapier so unless you want to compare old and new versions this branch offers a better experience
 
 ![cargo_run](https://github.com/gavlig/gryazevichki/blob/gryazevichki_rapier_v0.12.0-alpha.0/content/README/cargo_run.gif)
 
