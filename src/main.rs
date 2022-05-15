@@ -176,7 +176,7 @@ pub fn setup_physics_system(
 
 	spawn_ground		(&mut game, &mut commands);
 
-	if true {
+	if false {
 		spawn_cubes		(&mut commands);
 	}
 
