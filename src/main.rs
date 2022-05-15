@@ -133,7 +133,7 @@ impl Default for AxleConfig {
 	fn default() -> Self {
 		Self {
 			  half_size			: Vec3::new(0.1, 0.2, 0.1)
-			, density			: 150.0
+			, density			: 1000.0
 			, mass				: 0.0
 		}
 	}
@@ -155,7 +155,7 @@ impl Default for VehicleConfig {
 	fn default() -> Self {
 		Self {
 			  body_half_size	: Vec3::new(0.5, 0.5, 1.0)
-			, body_density		: 2.0
+			, body_density		: 10.0
 			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
 		}
 	}
@@ -175,9 +175,9 @@ impl Default for AcceleratorConfig {
 		Self {
 			  vel_fwd			: 10.0
 			, vel_bwd			: 7.0
-			, damping_fwd		: 100.0
-			, damping_bwd		: 100.0
-			, damping_stop		: 200.0
+			, damping_fwd		: 0.7
+			, damping_bwd		: 0.3
+			, damping_stop		: 0.7
 		}
 	}
 }
@@ -192,8 +192,8 @@ pub struct SteeringConfig {
 impl Default for SteeringConfig {
 	fn default() -> Self {
 		Self {
-			  stiffness			: 67000.0 // was 5
-			, damping			: 100.0 	// was 3
+			  stiffness			: 5.0
+			, damping			: 3.0
 			, angle				: 20.0
 		}
 	}
@@ -320,7 +320,7 @@ pub fn setup_physics_system(
 
 	spawn_ground		(&game, &mut meshes, &mut materials, &mut commands);
 
-	if true {
+	if false {
 		spawn_cubes		(&mut commands);
 	}
 
@@ -372,7 +372,7 @@ fn spawn_vehicle(
 	mut commands		: &mut Commands
 ) {
 	let body_pos 		= Vec3::new(0.0, 5.5, 0.0);
-	let body 			= spawn_body(body_pos, vehicle_cfg.body_half_size, RigidBody::Dynamic, vehicle_cfg.body_density, &mut commands);
+	let body 			= spawn_body(body_pos, vehicle_cfg.body_half_size, RigidBody::Fixed, vehicle_cfg.body_density, &mut commands);
 	game.body 			= Some(body);
 	println!			("body Entity ID {:?}", body);
 
