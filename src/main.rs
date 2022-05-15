@@ -372,7 +372,7 @@ fn spawn_vehicle(
 	mut commands		: &mut Commands
 ) {
 	let body_pos 		= Vec3::new(0.0, 5.5, 0.0);
-	let body 			= spawn_body(body_pos, vehicle_cfg.body_half_size, RigidBody::Fixed, vehicle_cfg.body_density, &mut commands);
+	let body 			= spawn_body(body_pos, vehicle_cfg.body_half_size, RigidBody::Dynamic, vehicle_cfg.body_density, &mut commands);
 	game.body 			= Some(body);
 	println!			("body Entity ID {:?}", body);
 
