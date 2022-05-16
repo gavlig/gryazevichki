@@ -233,6 +233,11 @@ impl VehicleConfig {
 	}
 }
 
+#[derive(Default)]
+pub struct DespawnResource {
+    entities: Vec<Entity>,
+}
+
 fn main() {
 	App::new()
 		.insert_resource(ClearColor(Color::rgb(
@@ -241,10 +246,11 @@ fn main() {
 			0xFF as f32 / 255.0,
 		)))
 		.insert_resource		(Msaa::default())
-		.init_resource::<Game>	()
+		.insert_resource		(Game::default())
 		.insert_resource		(VehicleConfig::default())
 		.insert_resource		(AcceleratorConfig::default())
 		.insert_resource		(SteeringConfig::default())
+		.insert_resource		(DespawnResource::default())
 		.add_plugins			(DefaultPlugins)
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin				(RapierDebugRenderPlugin::default())
@@ -259,6 +265,7 @@ fn main() {
 		.add_system				(accelerate_system)
 		.add_system				(update_ui)
 		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
+		.add_system				(despawn)
 		.run					();
 }
 
@@ -556,14 +563,12 @@ fn spawn_axle_joint(
 	let axle_joint = RevoluteJointBuilder::new(Vec3::Y)
 		.local_anchor1(anchor1)
 		.local_anchor2(anchor2)
-		.limits([0.001, 0.001]);
+		.limits		([0.001, 0.001]);
 
 	commands
 		.entity		(entity2)
 		.insert		(ImpulseJoint::new(entity1, axle_joint))
-//		.insert		(NameComponent{ name: "Axle Joint".to_string() })
-//		.insert		(Tag::AxleJoint)
-		.id()
+		.id			()
 }
 
 fn spawn_wheel_joint(
@@ -580,9 +585,7 @@ fn spawn_wheel_joint(
 	commands
 		.entity		(entity2)
 		.insert		(ImpulseJoint::new(entity1, wheel_joint))
-//		.insert		(NameComponent{ name: "Wheel Joint".to_string() })
-//		.insert		(Tag::WheelJoint)
-		.id()
+		.id			()
 }
 
 fn spawn_body(
@@ -863,7 +866,7 @@ fn draw_density_param_ui(
 		mass				: f32,
 ) -> bool {
 	ui.add(
-		Slider::new			(&mut density, range[0] ..= range[1]).text(format!("{} Density (Mass {:.3})", name, mass))
+		Slider::new			(density, std::ops::RangeInclusive::new(range[0], range[1])).text(format!("{} Density (Mass {:.3})", name, mass))
 	).changed()
 }
 
@@ -1085,6 +1088,7 @@ fn update_ui(
 	mut	q_wheel_pos	: Query<(
 		&mut Transform
 	)>,
+	mut despawn		: ResMut<DespawnResource>,
 ) {
 	let window 					= egui::Window::new("Parameters");
 	//let out = 
@@ -1226,7 +1230,7 @@ fn update_ui(
 				let mut half_size	= veh_cfg.body_half_size.clone();
 				let mut density		= 1.0;
 				match &mut mass_props_co as &mut ColliderMassProperties {
-					ColliderMassProperties::Density(d) => density = d,
+					ColliderMassProperties::Density(d) => density = *d,
 					ColliderMassProperties::MassProperties(_) => (),
 				};
 				let mass			= mass_props_rb.mass;
@@ -1266,7 +1270,9 @@ fn update_ui(
 
 				for side_ref in WHEEL_SIDES {
 					let side 		= *side_ref;
-					let offset 		= veh_cfg.wheel_offset(side);
+//					let offset 		= veh_cfg.wheel_offset(side);
+					despawn.entities.push(game.wheels[side].axle.unwrap());
+					despawn.entities.push(game.wheels[side].wheel.unwrap());
 				}
 			}
 		}
@@ -1279,4 +1285,14 @@ fn update_ui(
 //		}
 //		_ => ()
 //	}
+}
+
+pub fn despawn(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
+    if time.seconds_since_startup() > 5.0 {
+        for entity in &despawn.entities {
+            println!("Despawning entity {:?}", entity);
+            commands.entity(*entity).despawn();
+        }
+        despawn.entities.clear();
+    }
 }
