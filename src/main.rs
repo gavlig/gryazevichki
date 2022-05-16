@@ -63,7 +63,7 @@ fn wheel_side_name(side: WheelSideType) -> &'static str {
 	}
 }
 
-fn wheel_side2d(side: WheelSideType) -> (SideZ, SideX) {
+fn wheel_side_to_zx(side: WheelSideType) -> (SideZ, SideX) {
 	match side {
 		FRONT_RIGHT			=> (SideZ::Front, SideX::Right)
 	  , FRONT_LEFT			=> (SideZ::Front, SideX::Left)
@@ -71,6 +71,26 @@ fn wheel_side2d(side: WheelSideType) -> (SideZ, SideX) {
 	  , REAR_LEFT			=> (SideZ::Rear, SideX::Left)
 	  , _					=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
   }
+}
+
+fn wheel_side_from_zx(sidez: SideZ, sidex: SideX) -> WheelSideType {
+	match sidez {
+		SideZ::Front		=> {
+			match sidex {
+				SideX::Left => return FRONT_LEFT,
+				SideX::Center=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
+				SideX::Right=> return FRONT_RIGHT,
+			};
+		},
+		SideZ::Center		=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
+		SideZ::Rear			=> {
+			match sidex {
+				SideX::Left => return REAR_LEFT,
+				SideX::Center=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
+				SideX::Right=> return REAR_RIGHT,
+			}
+		}
+	}
 }
 
 const WHEEL_SIDES: &'static [WheelSideType] = &[
@@ -372,16 +392,16 @@ fn spawn_vehicle(
 	mut commands		: &mut Commands
 ) {
 	let body_pos 		= Vec3::new(0.0, 5.5, 0.0);
-	let body 			= spawn_body(body_pos, vehicle_cfg.body_half_size, RigidBody::Dynamic, vehicle_cfg.body_density, &mut commands);
+	let body 			= spawn_body(body_pos, vehicle_cfg.body_half_size, RigidBody::Fixed, vehicle_cfg.body_density, &mut commands);
 	game.body 			= Some(body);
 	println!			("body Entity ID {:?}", body);
 
 	// 0..1 {
 	for side_ref in WHEEL_SIDES {
 		let side 		= *side_ref;
-		let offset 		= &vehicle_cfg.wheel_offset(side);
-		let (sidez, sidex) = wheel_side2d(side);
-		game.wheels[side] = spawn_attached_wheel(side, body, body_pos, offset.clone(), sidex, sidez, &mut commands);
+		let offset 		= vehicle_cfg.wheel_offset(side);
+		let (sidez, sidex) = wheel_side_to_zx(side);
+		game.wheels[side] = spawn_attached_wheel(side, body, body_pos, offset, sidex, sidez, &mut commands);
 			
 		println!		("{} Wheel spawned! {:?}", wheel_side_name(side), game.wheels[side]);
 	}
@@ -449,8 +469,8 @@ fn spawn_axle(
 ) -> Entity {
 	let mut axle_id = Entity::from_bits(0);
 	commands
-		.entity		(body)
-		.with_children(|children| {
+	.entity			(body)
+	.with_children(|children| {
 		axle_id = children
 		.spawn		()
 		.insert		(body_type)
@@ -464,11 +484,11 @@ fn spawn_axle(
 		.insert		(MassProperties::default())
 		.with_children(|children| {
 			children
-				.spawn()
-				.insert(Transform::from_translation(Vec3::new(0.0, 0.3, 0.0)))
-				.insert(GlobalTransform::default())
-				.insert(Collider::cuboid(half_size.x, half_size.y, half_size.z))
-				.insert(ColliderMassProperties::Density(density));
+			.spawn	()
+			.insert	(Transform::from_translation(Vec3::new(0.0, 0.3, 0.0)))
+			.insert	(GlobalTransform::default())
+			.insert	(Collider::cuboid(half_size.x, half_size.y, half_size.z))
+			.insert	(ColliderMassProperties::Density(density));
 		})
 		.insert		(NameComponent{ name: format!("{} Axle", prefix) })
 		.insert		(VehiclePart::Axle)
@@ -482,7 +502,7 @@ fn spawn_axle(
 
 fn spawn_wheel(
 	prefix			: &str,
-	body			: Entity,
+	axle			: Entity,
 	pos				: Vec3,
 	half_height		: f32,
 	radius			: f32,
@@ -495,32 +515,32 @@ fn spawn_wheel(
 	let mut wheel_id = Entity::from_bits(0);
 	// by default cylinder spawns with its flat surface on the ground and we want the round part
 	commands
-		.entity			(body)
-		.with_children	(|children| {
-			wheel_id =
+	.entity			(axle)
+	.with_children	(|children| {
+		wheel_id =
+		children.spawn()
+		.insert		(body_type)
+		.insert		(WheelConfig {
+			r		: radius,
+			hh		: half_height,
+			density	: density,
+			..Default::default()
+		})
+		.insert		(Transform::from_translation(pos))
+		.insert		(GlobalTransform::default())
+		.insert		(MassProperties::default())
+		.with_children(|children| {
 			children.spawn()
-			.insert		(body_type)
-			.insert		(WheelConfig {
-				r		: radius,
-				hh		: half_height,
-				density	: density,
-				..Default::default()
-			})
-			.insert		(Transform::from_translation(pos))
-			.insert		(GlobalTransform::default())
-			.insert		(MassProperties::default())
-			.with_children(|children| {
-				children.spawn()
-				.insert	(Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)))
-				.insert	(Collider::cylinder(half_height, radius))
-				.insert	(ColliderMassProperties::Density(density))
-				.insert	(ActiveEvents::COLLISION_EVENTS);
-			})
-			.insert		(NameComponent{ name: format!("{} Wheel", prefix) })
-			.insert		(VehiclePart::Wheel)
-			.insert		(sidex)
-			.insert		(sidez)
-			.id			()
+			.insert	(Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)))
+			.insert	(Collider::cylinder(half_height, radius))
+			.insert	(ColliderMassProperties::Density(density))
+			.insert	(ActiveEvents::COLLISION_EVENTS);
+		})
+		.insert		(NameComponent{ name: format!("{} Wheel", prefix) })
+		.insert		(VehiclePart::Wheel)
+		.insert		(sidex)
+		.insert		(sidez)
+		.id			()
 	});
 
 	wheel_id
@@ -839,20 +859,32 @@ fn draw_density_param_ui(
 		ui					: &mut Ui,
 		name				: &String,
 		range				: [f32; 2],
-	mut mass_props_co		: &mut Mut<ColliderMassProperties>,
-		mass_props_rb		: &MassProperties
+	mut density				: &mut f32,
+		mass				: f32,
+) -> bool {
+	ui.add(
+		Slider::new			(&mut density, range[0] ..= range[1]).text(format!("{} Density (Mass {:.3})", name, mass))
+	).changed()
+}
+
+/* fn draw_density_param_ui(
+	ui					: &mut Ui,
+	name				: &String,
+	range				: [f32; 2],
+mut mass_props_co		: &mut Mut<ColliderMassProperties>,
+	mass_props_rb		: &MassProperties
 ) {
 	match &mut mass_props_co as &mut ColliderMassProperties {
-		ColliderMassProperties::Density(density) => {
-			if ui.add(
-				Slider::new(&mut *density, range[0] ..= range[1]).text(format!("{} Density (Mass {:.3})", name, mass_props_rb.mass))
-			).changed() {
-				**mass_props_co = ColliderMassProperties::Density(*density);
-			};
-		},
-		ColliderMassProperties::MassProperties(_) => (),
-	};
-}
+	ColliderMassProperties::Density(density) => {
+		if ui.add(
+			Slider::new(&mut *density, range[0] ..= range[1]).text(format!("{} Density (Mass {:.3})", name, mass_props_rb.mass))
+		).changed() {
+			**mass_props_co = ColliderMassProperties::Density(*density);
+		};
+	},
+	ColliderMassProperties::MassProperties(_) => (),
+};
+} */
 
 fn draw_cylinder_param_ui(
 	ui						: &mut Ui,
@@ -886,10 +918,10 @@ fn draw_single_wheel_params_ui(
 	name					: &String,
 	range					: [f32; 2],
 	collider				: &mut Mut<Collider>,
-	mass_props_co			: &mut Mut<ColliderMassProperties>,
-	mass_props_rb			: &MassProperties,
+	density					: &mut f32,
+	mass					: f32,
 ) {
-	draw_density_param_ui	(ui, name, range, mass_props_co, mass_props_rb);
+	draw_density_param_ui	(ui, name, range, density, mass);
 
 	match collider.as_cylinder() {
 		Some(_cylinder) 	=> draw_cylinder_param_ui(ui, collider),
@@ -901,38 +933,38 @@ fn draw_body_params_ui_collapsing(
 	ui						: &mut Ui,
 	name					: &String,
 	density_range			: [f32; 2],
-	collider				: &mut Mut<Collider>,
-	mass_props_co			: &mut Mut<ColliderMassProperties>,
-	mass_props_rb			: &MassProperties,
+	half_size				: &mut Vec3,
+	density					: &mut f32,
+	mass					: f32,
 	section_name			: String
-) {
+) -> bool {
+	let mut changed			= false;			
+
 	ui.collapsing(section_name, |ui| {
 		ui.vertical(|ui| {
-			draw_density_param_ui(ui, name, density_range, mass_props_co, mass_props_rb);
+			changed			|= draw_density_param_ui(ui, name, density_range, density, mass);
 
-			let cuboid = collider.as_cuboid_mut().unwrap();
-
-			if ui.add(
-				Slider::new(&mut cuboid.raw.half_extents[0], 0.05 ..= 5.0)
+			changed 		|= ui.add(
+				Slider::new(&mut half_size[0], 0.05 ..= 5.0)
 					.text("Half Height X"),
-			).changed() {
-				println!("{}", cuboid.raw.half_extents[0]);
-			}
+			).changed();
 			
-			ui.add(
-				Slider::new(&mut cuboid.raw.half_extents[1], 0.05 ..= 5.0)
+			changed 		|= ui.add(
+				Slider::new(&mut half_size[1], 0.05 ..= 5.0)
 					.text("Half Height Y"),
-			);
+			).changed();
 
-			ui.add(
-				Slider::new(&mut cuboid.raw.half_extents[2], 0.05 ..= 5.0)
+			changed 		|= ui.add(
+				Slider::new(&mut half_size[2], 0.05 ..= 5.0)
 					.text("Half Height Z"),
-			);
+			).changed();
 		}); // ui.vertical
 	}); // ui.collapsing
+
+	changed
 }
 
-fn draw_single_wheel_params_ui_collapsing(
+/* fn draw_single_wheel_params_ui_collapsing(
 	ui				: &mut Ui,
 	density_range	: [f32; 2],
 	wheel: Vec<(
@@ -951,12 +983,75 @@ fn draw_single_wheel_params_ui_collapsing(
 					name,
 					density_range,
 					&mut coll_shape,
-					&mut mass_props_co,
-					mass_props_rb,
+					&mut density,
+					mass,
 				);
 			}
 		});
 	});
+} */
+
+fn draw_acceleration_params_ui(
+	ui				: &mut Ui,
+	mut accel_cfg	: &mut ResMut<AcceleratorConfig>,
+) {
+	ui.collapsing("Acceleration".to_string(), |ui| {
+	ui.vertical(|ui| {
+
+	ui.add(
+		Slider::new(&mut accel_cfg.vel_fwd, 0.05 ..= 400.0)
+			.text("Target Speed Forward"),
+	);
+	ui.add(
+		Slider::new(&mut accel_cfg.damping_fwd, 0.05 ..= 1000.0)
+			.text("Acceleration Damping Forward"),
+	);
+
+	ui.add_space(1.0);
+	
+	ui.add(
+		Slider::new(&mut accel_cfg.vel_bwd, 0.05 ..= 400.0)
+			.text("Target Speed Backward"),
+	);
+	ui.add(
+		Slider::new(&mut accel_cfg.damping_bwd, 0.05 ..= 1000.0)
+			.text("Acceleration Damping Backward"),
+	);
+
+	ui.add_space(1.0);
+
+	ui.add(
+		Slider::new(&mut accel_cfg.damping_stop, 0.05 ..= 1000.0)
+			.text("Stopping Damping"),
+	);
+
+	}); // ui.vertical
+	}); // ui.collapsing
+}
+
+fn draw_steering_params_ui(
+	ui				: &mut Ui,
+	mut steer_cfg	: &mut ResMut<SteeringConfig>,
+) {
+	ui.collapsing("Steering".to_string(), |ui| {
+	ui.vertical(|ui| {
+
+		ui.add(
+			Slider::new(&mut steer_cfg.angle, 0.05 ..= 180.0)
+				.text("Steering Angle"),
+		);
+		ui.add(
+			Slider::new(&mut steer_cfg.damping, 0.05 ..= 1000.0)
+				.text("Steering Damping"),
+		);
+
+		ui.add(
+			Slider::new(&mut steer_cfg.stiffness, 0.05 ..= 100000.0)
+				.text("Steering Stiffness"),
+		);
+
+	}); // ui.vertical
+	}); // ui.collapsing
 }
 
 fn update_ui(
@@ -986,63 +1081,16 @@ fn update_ui(
 		&mut AxleConfig,
 		&SideX,
 		&SideZ
-	)>
+	)>,
+	mut	q_wheel_pos	: Query<(
+		&mut Transform
+	)>,
 ) {
 	let window 					= egui::Window::new("Parameters");
 	//let out = 
 	window.show(ui_context.ctx_mut(), |ui| {
-		ui.collapsing("Acceleration".to_string(), |ui| {
-		ui.vertical(|ui| {
-
-		ui.add(
-			Slider::new(&mut accel_cfg.vel_fwd, 0.05 ..= 400.0)
-				.text("Target Speed Forward"),
-		);
-		ui.add(
-			Slider::new(&mut accel_cfg.damping_fwd, 0.05 ..= 1000.0)
-				.text("Acceleration Damping Forward"),
-		);
-
-		ui.add_space(1.0);
-		
-		ui.add(
-			Slider::new(&mut accel_cfg.vel_bwd, 0.05 ..= 400.0)
-				.text("Target Speed Backward"),
-		);
-		ui.add(
-			Slider::new(&mut accel_cfg.damping_bwd, 0.05 ..= 1000.0)
-				.text("Acceleration Damping Backward"),
-		);
-
-		ui.add_space(1.0);
-
-		ui.add(
-			Slider::new(&mut accel_cfg.damping_stop, 0.05 ..= 1000.0)
-				.text("Stopping Damping"),
-		);
-
-		}); // ui.vertical
-		}); // ui.collapsing
-
-		ui.collapsing("Steering".to_string(), |ui| {
-		ui.vertical(|ui| {
-	
-			ui.add(
-				Slider::new(&mut steer_cfg.angle, 0.05 ..= 180.0)
-					.text("Steering Angle"),
-			);
-			ui.add(
-				Slider::new(&mut steer_cfg.damping, 0.05 ..= 1000.0)
-					.text("Steering Damping"),
-			);
-	
-			ui.add(
-				Slider::new(&mut steer_cfg.stiffness, 0.05 ..= 100000.0)
-					.text("Steering Stiffness"),
-			);
-	
-		}); // ui.vertical
-		}); // ui.collapsing
+		draw_acceleration_params_ui	(ui, &mut accel_cfg);
+		draw_steering_params_ui		(ui, &mut steer_cfg);
 
 		let render_wheel_params = |
 			  ui					: &mut Ui
@@ -1169,9 +1217,24 @@ fn update_ui(
 				}
 			};
 
+			let mut body_changed	= false;
+			let 	veh_cfg_cache 	= veh_cfg.clone();
+
 			if vp == VehiclePart::Body {
 				// thanks kpreid!
-				draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], &mut collider, &mut mass_props_co, mass_props_rb, "Body".to_string());
+
+				let mut half_size	= veh_cfg.body_half_size.clone();
+				let mut density		= 1.0;
+				match &mut mass_props_co as &mut ColliderMassProperties {
+					ColliderMassProperties::Density(d) => density = d,
+					ColliderMassProperties::MassProperties(_) => (),
+				};
+				let mass			= mass_props_rb.mass;
+
+				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], &mut half_size, &mut density, mass, "Body".to_string());
+
+				veh_cfg.body_density = density;
+				veh_cfg.body_half_size = half_size;
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front {
 				writeback_wheel		(front_wheels_changed, &front_wheel_common);
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear {
@@ -1190,6 +1253,21 @@ fn update_ui(
 			if vp == VehiclePart::Axle {
 				let (mut axle_cfg, _, _) = q_axle_cfg.get_mut(parent.0).unwrap();
 				axle_cfg.mass		= mass_props_rb.mass;
+			}
+
+			if body_changed {
+				*mass_props_co	 	= ColliderMassProperties::Density(veh_cfg.body_density);
+
+				let cuboid 			= collider.as_cuboid_mut().unwrap();
+				cuboid.raw.half_extents = veh_cfg.body_half_size.into();
+
+				let s = veh_cfg.body_half_size / veh_cfg_cache.body_half_size;
+				veh_cfg.wheel_offset_abs *= s;
+
+				for side_ref in WHEEL_SIDES {
+					let side 		= *side_ref;
+					let offset 		= veh_cfg.wheel_offset(side);
+				}
 			}
 		}
 	});
