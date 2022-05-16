@@ -100,18 +100,31 @@ const WHEEL_SIDES: &'static [WheelSideType] = &[
 	, REAR_RIGHT
 ];
 
+#[derive(Debug)]
+struct RespawnableEntity {
+	entity			: Entity,
+	respawn			: bool
+}
+
+impl Default for RespawnableEntity {
+	fn default() -> Self {
+		Self {
+			  entity			: Entity::from_bits(0)
+			, respawn			: false
+		}
+	}
+}
+
 #[derive(Default, Debug)]
 pub struct WheelEntity {
-	wheel			: Option<Entity>
-  , wheel_joint		: Option<Entity>
-  , axle			: Option<Entity>
-  , axle_joint		: Option<Entity>
+	wheel			: Option<RespawnableEntity>
+  , axle			: Option<RespawnableEntity>
 }
 
 #[derive(Default)]
 pub struct Game {
 	  camera		: Option<Entity>
-	, body 			: Option<Entity>
+	, body 			: Option<RespawnableEntity>
 
 	, wheels		: [WheelEntity; WHEELS_MAX as usize]
 }
@@ -212,7 +225,7 @@ pub struct SteeringConfig {
 impl Default for SteeringConfig {
 	fn default() -> Self {
 		Self {
-			  stiffness			: 67000.0 // was 5
+			  stiffness			: 67000.0 	// was 5
 			, damping			: 100.0 	// was 3
 			, angle				: 20.0
 		}
@@ -272,15 +285,15 @@ fn main() {
 fn setup_grab_system(mut windows: ResMut<Windows>) {
 	let window = windows.get_primary_mut().unwrap();
 
-	window.set_cursor_lock_mode(true);
+	window.set_cursor_lock_mode	(true);
 	window.set_cursor_visibility(false);
 }
 
 fn setup_graphics_system(
-	mut	meshes: ResMut<Assets<Mesh>>,
-	mut	materials: ResMut<Assets<StandardMaterial>>,
-	mut game: ResMut<Game>,
-	mut commands: Commands,
+	mut	meshes					: ResMut<Assets<Mesh>>,
+	mut	materials				: ResMut<Assets<StandardMaterial>>,
+	mut game					: ResMut<Game>,
+	mut commands				: Commands,
 ) {
 	const HALF_SIZE: f32 = 100.0;
 
@@ -347,7 +360,7 @@ pub fn setup_physics_system(
 
 	spawn_ground		(&game, &mut meshes, &mut materials, &mut commands);
 
-	if true {
+	if false {
 		spawn_cubes		(&mut commands);
 	}
 
@@ -400,15 +413,14 @@ fn spawn_vehicle(
 ) {
 	let body_pos 		= Vec3::new(0.0, 5.5, 0.0);
 	let body 			= spawn_body(body_pos, vehicle_cfg.body_half_size, RigidBody::Fixed, vehicle_cfg.body_density, &mut commands);
-	game.body 			= Some(body);
+	game.body 			= Some(RespawnableEntity { entity : body, ..Default::default() });
 	println!			("body Entity ID {:?}", body);
 
 	// 0..1 {
 	for side_ref in WHEEL_SIDES {
 		let side 		= *side_ref;
 		let offset 		= vehicle_cfg.wheel_offset(side);
-		let (sidez, sidex) = wheel_side_to_zx(side);
-		game.wheels[side] = spawn_attached_wheel(side, body, body_pos, offset, sidex, sidez, &mut commands);
+		game.wheels[side] = spawn_attached_wheel(side, body, body_pos, offset, &mut commands);
 			
 		println!		("{} Wheel spawned! {:?}", wheel_side_name(side), game.wheels[side]);
 	}
@@ -418,62 +430,79 @@ fn spawn_attached_wheel(
 	side			: WheelSideType,
 	body			: Entity,
 	body_pos		: Vec3,
-	offset			: Vec3,
-	sidex			: SideX,
-	sidez			: SideZ,
+	axle_offset		: Vec3,
 	mut	commands	: &mut Commands
 ) -> WheelEntity {
-	let side_name	= wheel_side_name(side);
-
-	let axle_size	= AxleConfig::default().half_size;
-	let axle_density= AxleConfig::default().density;
-	let axle_pos	= body_pos + offset;
-	let axle		= spawn_axle(side_name, body, axle_pos, axle_size, RigidBody::Dynamic, axle_density, sidex, sidez, &mut commands);
-
-	let mut anchor1	= offset;
-	let mut anchor2 = Vec3::ZERO;
-	let axle_joint 	= spawn_axle_joint(body, axle, anchor1, anchor2, &mut commands);
-
-	let x_sign		= offset.x * (1.0 / offset.x.abs());
-	let wheel_offset= Vec3::X * 0.8 * x_sign; // 0.2 offset by x axis
-	let wheel_pos 	= axle_pos + wheel_offset;
-	let wheel 		= spawn_wheel(
-		  side_name
-		, axle
-		, wheel_pos
-		, WheelConfig::default().hh
-		, WheelConfig::default().r
-		, RigidBody::Dynamic
-		, WheelConfig::default().density
-		, sidex
-		, sidez
-		, &mut commands
-	);
-
-	anchor1			= wheel_offset;
-	anchor2 		= Vec3::ZERO;
-	let wheel_joint = spawn_wheel_joint(axle, wheel, anchor1, anchor2, &mut commands);
+	let axle		= spawn_axle_with_joint(side, body, body_pos, axle_offset, AxleConfig::default(), commands);
+	let wheel		= spawn_wheel_with_joint(side, axle, body_pos, axle_offset, WheelConfig::default(), commands);
 
 	WheelEntity {
-		wheel		: Some(wheel),
-		wheel_joint	: Some(wheel_joint),
-		axle		: Some(axle),
-		axle_joint	: Some(axle_joint),
-		..Default::default()
+		wheel		: Some(RespawnableEntity{ entity : wheel, ..Default::default() }),
+		axle		: Some(RespawnableEntity{ entity : axle, ..Default::default() }),
 	}
 }
 
+fn spawn_axle_with_joint(
+	side			: WheelSideType,
+	body			: Entity,
+	body_pos		: Vec3,
+	offset			: Vec3,
+	cfg				: AxleConfig,
+	mut	commands	: &mut Commands
+) -> Entity {
+	let axle_size	= cfg.half_size;
+	let axle_density= cfg.density;
+	let axle_pos	= body_pos + offset;
+	let axle		= spawn_axle(side, body, axle_pos, axle_size, RigidBody::Dynamic, axle_density, &mut commands);
+
+	let mut anchor1	= offset;
+	let mut anchor2 = Vec3::ZERO;
+	spawn_axle_joint(body, axle, anchor1, anchor2, &mut commands);
+
+	axle
+}
+
+fn spawn_wheel_with_joint(
+	side			: WheelSideType,
+	axle			: Entity,
+	body_pos		: Vec3,
+	axle_offset		: Vec3,
+	cfg				: WheelConfig,
+	mut	commands	: &mut Commands
+) -> Entity {
+	let x_sign		= axle_offset.x * (1.0 / axle_offset.x.abs());
+	let wheel_offset= Vec3::X * 0.8 * x_sign; // 0.2 offset by x axis
+	let wheel_pos 	= body_pos + axle_offset + wheel_offset;
+	let wheel 		= spawn_wheel(
+		  side
+		, axle
+		, wheel_pos
+		, cfg.hh
+		, cfg.r
+		, RigidBody::Dynamic
+		, cfg.density
+		, &mut commands
+	);
+
+	let anchor1		= wheel_offset;
+	let anchor2 	= Vec3::ZERO;
+	spawn_wheel_joint(axle, wheel, anchor1, anchor2, &mut commands);
+
+	wheel
+}
+
 fn spawn_axle(
-	prefix			: &str,
+	side			: WheelSideType,
 	body			: Entity,
 	pos				: Vec3,
 	half_size		: Vec3,
 	body_type		: RigidBody,
 	density			: f32,
-	sidex			: SideX,
-	sidez			: SideZ,
 	commands		: &mut Commands,
 ) -> Entity {
+	let side_name	= wheel_side_name(side);
+	let (sidez, sidex) = wheel_side_to_zx(side);
+
 	let mut axle_id = Entity::from_bits(0);
 	commands
 	.entity			(body)
@@ -497,7 +526,7 @@ fn spawn_axle(
 			.insert	(Collider::cuboid(half_size.x, half_size.y, half_size.z))
 			.insert	(ColliderMassProperties::Density(density));
 		})
-		.insert		(NameComponent{ name: format!("{} Axle", prefix) })
+		.insert		(NameComponent{ name: format!("{} Axle", side_name) })
 		.insert		(VehiclePart::Axle)
 		.insert		(sidex)
 		.insert		(sidez)
@@ -508,17 +537,17 @@ fn spawn_axle(
 }
 
 fn spawn_wheel(
-	prefix			: &str,
+	side			: WheelSideType,
 	axle			: Entity,
 	pos				: Vec3,
 	half_height		: f32,
 	radius			: f32,
 	body_type		: RigidBody,
 	density			: f32,
-	sidex			: SideX,
-	sidez			: SideZ,
 	commands		: &mut Commands,
 ) -> Entity {
+	let side_name	= wheel_side_name(side);
+	let (sidez, sidex) = wheel_side_to_zx(side);
 	let mut wheel_id = Entity::from_bits(0);
 	// by default cylinder spawns with its flat surface on the ground and we want the round part
 	commands
@@ -543,7 +572,7 @@ fn spawn_wheel(
 			.insert	(ColliderMassProperties::Density(density))
 			.insert	(ActiveEvents::COLLISION_EVENTS);
 		})
-		.insert		(NameComponent{ name: format!("{} Wheel", prefix) })
+		.insert		(NameComponent{ name: format!("{} Wheel", side_name) })
 		.insert		(VehiclePart::Wheel)
 		.insert		(sidex)
 		.insert		(sidez)
@@ -559,7 +588,7 @@ fn spawn_axle_joint(
 	anchor1			: Vec3,
 	anchor2			: Vec3,
 	commands		: &mut Commands,
-) -> Entity {
+) {
 	let axle_joint = RevoluteJointBuilder::new(Vec3::Y)
 		.local_anchor1(anchor1)
 		.local_anchor2(anchor2)
@@ -567,8 +596,7 @@ fn spawn_axle_joint(
 
 	commands
 		.entity		(entity2)
-		.insert		(ImpulseJoint::new(entity1, axle_joint))
-		.id			()
+		.insert		(ImpulseJoint::new(entity1, axle_joint));
 }
 
 fn spawn_wheel_joint(
@@ -577,15 +605,14 @@ fn spawn_wheel_joint(
 	anchor1			: Vec3,
 	anchor2			: Vec3,
 	commands		: &mut Commands,
-) -> Entity {
+) {
 	let wheel_joint = RevoluteJointBuilder::new(Vec3::X)
 		.local_anchor1(anchor1)
 		.local_anchor2(anchor2);
 
 	commands
 		.entity		(entity2)
-		.insert		(ImpulseJoint::new(entity1, wheel_joint))
-		.id			()
+		.insert		(ImpulseJoint::new(entity1, wheel_joint));
 }
 
 fn spawn_body(
@@ -726,22 +753,27 @@ fn toggle_button_system(
 fn motor_velocity(
 	velocity		: f32,
 	factor			: f32,
-	joint_e			: Option<Entity>,
+	joint_e			: Option<RespawnableEntity>,
 	query			: &mut Query<&mut ImpulseJoint>
 ) {
 	match joint_e {
-		Some(entity) => {
-			let mut	joint	= query.get_mut(entity).unwrap();
+		Some(j) => {
+			let mut	joint	= query.get_mut(j.entity).unwrap();
 			joint.data.set_motor_velocity(JointAxis::AngX, velocity, factor);
 		}
 		_ => ()
 	}
 }
 
-fn motor_steer(angle: f32, stiffness: f32, damping: f32, joint_e: Option<Entity>, query: &mut Query<&mut ImpulseJoint>) {
+fn motor_steer(
+	angle			: f32,
+	stiffness		: f32,
+	damping			: f32,
+	joint_e			: Option<RespawnableEntity>,
+	query			: &mut Query<&mut ImpulseJoint>) {
 	match joint_e {
-		Some(entity) => {
-			let mut joint 	= query.get_mut(entity).unwrap();
+		Some(JointAxis) => {
+			let mut joint 	= query.get_mut(j.entity).unwrap();
 			let	angle_rad	= angle.to_radians();
 			joint.data
 			.set_motor_position(JointAxis::AngX, angle_rad, stiffness, damping)
@@ -767,11 +799,11 @@ fn accelerate_system(
 		steer_cfg	: Res<SteeringConfig>,
 	mut	query		: Query<&mut ImpulseJoint>,
 ) {
-	let fr_axle_joint = game.wheels[FRONT_RIGHT].axle_joint;
-	let fl_axle_joint = game.wheels[FRONT_LEFT].axle_joint;
+	let fr_axle_joint = game.wheels[FRONT_RIGHT].axle;
+	let fl_axle_joint = game.wheels[FRONT_LEFT].axle;
 
-	let rr_wheel_joint = game.wheels[REAR_RIGHT].wheel_joint;
-	let rl_wheel_joint = game.wheels[REAR_LEFT].wheel_joint;
+	let rr_wheel_joint = game.wheels[REAR_RIGHT].wheel;
+	let rl_wheel_joint = game.wheels[REAR_LEFT].wheel;
 
 	if key.just_pressed(KeyCode::W) {
 		motor_velocity(accel_cfg.vel_fwd, accel_cfg.damping_fwd, rr_wheel_joint, &mut query);
@@ -1088,7 +1120,6 @@ fn update_ui(
 	mut	q_wheel_pos	: Query<(
 		&mut Transform
 	)>,
-	mut despawn		: ResMut<DespawnResource>,
 ) {
 	let window 					= egui::Window::new("Parameters");
 	//let out = 
@@ -1143,11 +1174,11 @@ fn update_ui(
 			(wheel_changed, axle_changed)
 		};
 
-		let (fl_wheel, _, _)	= q_wheel_cfg.get(game.wheels[FRONT_LEFT].wheel.unwrap()).unwrap();
-		let (rl_wheel, _, _)	= q_wheel_cfg.get(game.wheels[REAR_LEFT].wheel.unwrap()).unwrap();
+		let (fl_wheel, _, _)	= q_wheel_cfg.get(game.wheels[FRONT_LEFT].wheel.unwrap().entity).unwrap();
+		let (rl_wheel, _, _)	= q_wheel_cfg.get(game.wheels[REAR_LEFT].wheel.unwrap().entity).unwrap();
 
-		let (fl_axle, _, _)		= q_axle_cfg.get(game.wheels[FRONT_LEFT].axle.unwrap()).unwrap();
-		let (rl_axle, _, _)		= q_axle_cfg.get(game.wheels[REAR_LEFT].axle.unwrap()).unwrap();
+		let (fl_axle, _, _)		= q_axle_cfg.get(game.wheels[FRONT_LEFT].axle.unwrap().entity).unwrap();
+		let (rl_axle, _, _)		= q_axle_cfg.get(game.wheels[REAR_LEFT].axle.unwrap().entity).unwrap();
 
 		let mut front_wheel_common 	= fl_wheel.to_owned();
 		let mut rear_wheel_common 	= rl_wheel.to_owned();
@@ -1161,9 +1192,9 @@ fn update_ui(
 			render_wheel_params		(ui, &mut rear_wheel_common, &mut rear_axle_common, String::from("Rear Wheels"));
 
 		let mut writeback_wheel = |
-			  changed	: WheelConfigChanged
-			, cfg_from	: &WheelConfig
-			, cfg_to	: &mut WheelConfig
+			  changed				: WheelConfigChanged
+			, cfg_from				: &WheelConfig
+			, cfg_to				: &mut WheelConfig
 		| {
 			if changed.hh {
 				cfg_to.hh 			= cfg_from.hh;
@@ -1270,9 +1301,8 @@ fn update_ui(
 
 				for side_ref in WHEEL_SIDES {
 					let side 		= *side_ref;
-//					let offset 		= veh_cfg.wheel_offset(side);
-					despawn.entities.push(game.wheels[side].axle.unwrap());
-					despawn.entities.push(game.wheels[side].wheel.unwrap());
+					game.wheels[side].axle.unwrap().respawn = true;
+					game.wheels[side].wheel.unwrap().respawn = true;
 				}
 			}
 		}
@@ -1285,6 +1315,27 @@ fn update_ui(
 //		}
 //		_ => ()
 //	}
+}
+
+pub fn respawn(
+	mut commands	: Commands,
+	mut game		: ResMut<Game>,
+	mut	q_body_pos	: Query<(
+		&mut Transform
+	)>,
+) {
+	for side_ref in WHEEL_SIDES {
+		let side 		= *side_ref;
+		if true == game.wheels[side].axle.unwrap().respawn {
+			let body_pose = q_body_pos.get(game.body.unwrap());
+			commands.entity(game.wheels[side].axle.unwrap().entity).despawn();
+			let axle	= spawn_axle_with_joint(side, game.body.unwrap(), body_pose.unwrap().translation, axle_offset, AxleConfig::default(), &mut commands);
+		}
+		if true == game.wheels[side].wheel.unwrap().respawn {
+			commands.entity(game.wheels[side].wheel.unwrap().entity).despawn();
+			let wheel	= spawn_wheel_with_joint(side, axle, body_pose.unwrap().translation, axle_offset, WheelConfig::default(), &mut commands);
+		}
+	}
 }
 
 pub fn despawn(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
