@@ -278,11 +278,11 @@ fn main() {
 		.add_system				(cursor_grab_system)
 		.add_system				(toggle_button_system)
 		.add_system				(accelerate_system)
-		.add_system				(update_ui)
+		.add_system				(update_ui_system)
 
 		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
-		.add_system_to_stage	(CoreStage::PostUpdate, respawn)
-		.add_system_to_stage	(CoreStage::PostUpdate, despawn)
+		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)
+		.add_system_to_stage	(CoreStage::PostUpdate, despawn_system)
 		.run					();
 }
 
@@ -368,7 +368,8 @@ pub fn setup_physics_system(
 		spawn_cubes		(&mut commands);
 	}
 
-	spawn_vehicle		(&mut game, &mut meshes, &mut materials, &vehicle_cfg, &mut commands);
+	let body_pos 		= Vec3::new(0.0, 5.5, 0.0);
+	spawn_vehicle		(&mut game, &mut meshes, &mut materials, &vehicle_cfg, body_pos, &mut commands);
 }
 
 fn setup_camera_system(
@@ -379,7 +380,7 @@ fn setup_camera_system(
 	if game.camera.is_some() && game.body.is_some() {
 		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
 		camera.target 	= Some(game.body.unwrap().entity);
-		println!		("{:?} camera.target", camera.target);
+		println!		("camera.target Entity ID {:?}", camera.target);
 	}
 }
 
@@ -413,10 +414,10 @@ fn spawn_vehicle(
 	mut _meshes			: &mut ResMut<Assets<Mesh>>,
 	mut _materials		: &mut ResMut<Assets<StandardMaterial>>,
 		veh_cfg			: &Res<VehicleConfig>,
+		body_pos		: Vec3,
 	mut commands		: &mut Commands
 ) {
-	let body_pos 		= Vec3::new(0.0, 5.5, 0.0);
-	let body 			= spawn_body(body_pos, veh_cfg.body_half_size, RigidBody::Fixed, veh_cfg.body_density, &mut commands);
+	let body 			= spawn_body(body_pos, veh_cfg.body_half_size, RigidBody::Dynamic, veh_cfg.body_density, &mut commands);
 	game.body 			= Some(RespawnableEntity { entity : body, ..Default::default() });
 	println!			("body Entity ID {:?}", body);
 
@@ -1077,7 +1078,7 @@ fn draw_steering_params_ui(
 	}); // ui.collapsing
 }
 
-fn update_ui(
+fn update_ui_system(
 	mut ui_context	: ResMut<EguiContext>,
 	mut	game		: ResMut<Game>,
 	mut veh_cfg		: ResMut<VehicleConfig>,
@@ -1104,10 +1105,7 @@ fn update_ui(
 		&mut AxleConfig,
 		&SideX,
 		&SideZ
-	)>,
-	mut	_q_wheel_pos: Query<
-		&mut Transform
-	>,
+	)>
 ) {
 	let window 					= egui::Window::new("Parameters");
 	//let out = 
@@ -1162,16 +1160,16 @@ fn update_ui(
 			(wheel_changed, axle_changed)
 		};
 
+		// ^^
 		let (fl_wheel, _, _)	= q_wheel_cfg.get(game.wheels[FRONT_LEFT].wheel.unwrap().entity).unwrap();
 		let (rl_wheel, _, _)	= q_wheel_cfg.get(game.wheels[REAR_LEFT].wheel.unwrap().entity).unwrap();
-
 		let (fl_axle, _, _)		= q_axle_cfg.get(game.wheels[FRONT_LEFT].axle.unwrap().entity).unwrap();
 		let (rl_axle, _, _)		= q_axle_cfg.get(game.wheels[REAR_LEFT].axle.unwrap().entity).unwrap();
 
-		let mut front_wheel_common 	= fl_wheel.to_owned();
-		let mut rear_wheel_common 	= rl_wheel.to_owned();
-		let mut front_axle_common 	= fl_axle.to_owned();
-		let mut rear_axle_common 	= rl_axle.to_owned();
+		let mut front_wheel_common 	= fl_wheel.clone();
+		let mut rear_wheel_common 	= rl_wheel.clone();
+		let mut front_axle_common 	= fl_axle.clone();
+		let mut rear_axle_common 	= rl_axle.clone();
 
 		let (front_wheels_changed, front_axles_changed) =
 			render_wheel_params		(ui, &mut front_wheel_common, &mut front_axle_common, String::from("Front Wheels"));
@@ -1288,10 +1286,14 @@ fn update_ui(
 
 				for side_ref in WHEEL_SIDES {
 					let side 		= *side_ref;
-					game.wheels[side].axle = Some(RespawnableEntity{ entity : game.wheels[side].axle.unwrap().entity, respawn: true });
+					game.wheels[side].axle = Some(RespawnableEntity{ entity : game.wheels[side].axle.unwrap().entity, respawn: true }); // todo: hide the ugly
 					game.wheels[side].wheel = Some(RespawnableEntity{ entity : game.wheels[side].wheel.unwrap().entity, respawn: true });
 				}
 			}
+		}
+
+		if ui.button("Respawn Vehicle").clicked() {
+			game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
 		}
 	});
 
@@ -1304,7 +1306,7 @@ fn update_ui(
 //	}
 }
 
-fn respawn(
+pub fn respawn_vehicle_system(
 	mut	game		: ResMut<Game>,
 		veh_cfg		: Res<VehicleConfig>,
 		q_body_pos	: Query<
@@ -1316,22 +1318,40 @@ fn respawn(
 		q_wheel_cfg	: Query<
 		&mut WheelConfig
 	>,
+	mut q_camera	: Query<
+		&mut FlyCamera
+	>,
 	mut commands	: Commands,
 ) {
-	let body			= match game.body {
-		Some(respawn_e)	=> respawn_e.entity,
+	let mut respawn_body = false;
+	let mut body		= match game.body {
+		Some(re)		=> { respawn_body = re.respawn; re.entity },
 		_				=> return,
 	};
+	let mut body_pos 	= q_body_pos.get(body).unwrap().clone();
+
+	if true == respawn_body {
+		commands.entity(body).despawn_recursive();
+
+		body_pos.translation = Vec3::new(0.0, 5.5, 0.0);
+		body 			= spawn_body(body_pos.translation, veh_cfg.body_half_size, RigidBody::Dynamic, veh_cfg.body_density, &mut commands);
+		game.body 		= Some(RespawnableEntity { entity : body, ..Default::default() });
+		// TODO: is there an event we can attach to? 
+		let mut camera 	= q_camera.get_mut(game.camera.unwrap()).unwrap();
+		camera.target 	= Some(body);
+		println!		("camera.target Entity ID {:?}", camera.target);
+
+		println!		("respawned body Entity ID {:?}", body);
+	}
 
 	for side_ref in WHEEL_SIDES {
 		let side 		= *side_ref;
 
 		let axle_offset = veh_cfg.wheel_offset(side);
-		let mut game_axle = game.wheels[side].axle.unwrap();
-		let mut axle	= game_axle.entity;
+		let mut re_axle = game.wheels[side].axle.unwrap();
+		let mut axle	= re_axle.entity;
 
-		if true == game.wheels[side].axle.unwrap().respawn {
-			let body_pose = q_body_pos.get(body).unwrap().clone();
+		if re_axle.respawn || respawn_body {
 			let axle_cfg = q_axle_cfg.get(axle).unwrap().clone();
 
 			commands.entity(axle).despawn_recursive();
@@ -1339,38 +1359,41 @@ fn respawn(
 			axle = spawn_axle_with_joint(
 				  side
 				, body
-				, body_pose.translation
+				, body_pos.translation
 				, axle_offset
 				, &axle_cfg
 				, &mut commands
 			);
 
 			game.wheels[side].axle = Some(RespawnableEntity{ entity : axle, respawn: false });
+
+			println!		("respawned {} axle Entity ID {:?}", side, axle);
 		}
 
-		let mut game_wheel	= game.wheels[side].wheel.unwrap();
-		let mut wheel		= game_wheel.entity;
-		if true == game_wheel.respawn {
-			let body_pose = q_body_pos.get(body).unwrap().clone();
+		let mut re_wheel	= game.wheels[side].wheel.unwrap();
+		let mut wheel		= re_wheel.entity;
+		if re_wheel.respawn || respawn_body {
 			let wheel_cfg = q_wheel_cfg.get(wheel).unwrap().clone();
 
-			commands.entity(game_wheel.entity).despawn_recursive();
+			commands.entity(wheel).despawn_recursive();
 
 			wheel	= spawn_wheel_with_joint(
 				  side
 				, axle
-				, body_pose.translation
+				, body_pos.translation
 				, axle_offset
 				, &wheel_cfg
 				, &mut commands
 			);
 
 			game.wheels[side].wheel = Some(RespawnableEntity{ entity : wheel, respawn: false });
+
+			println!		("respawned {} wheel Entity ID {:?}", side, wheel);
 		}
 	}
 }
 
-pub fn despawn(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
+pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
     if time.seconds_since_startup() > 5.0 {
         for entity in &despawn.entities {
             println!("Despawning entity {:?}", entity);

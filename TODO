@@ -34,7 +34,7 @@
 23. bridge of leonardo
 24. bug: when typing data into egui we get a conflict of hiding/showing mouse cursor because app also does this independently
 25. (wip)get a working vehicle again
-26. reset button
+26. (done!)respawn button
 27. make kinematic button
 28. adjustable ranges for density, sizes etc
 
