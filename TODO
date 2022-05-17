@@ -34,7 +34,7 @@
 22. implement neutral mode for driving (for now we always stop without input)
 23. bridge of leonardo
 24. bug: when typing data into egui we get a conflict of hiding/showing mouse cursor because app also does this independently
-25. (wip)get a working vehicle again
+25. (done!)get a working vehicle again
 26. (done!)respawn button
 27. (done!)make kinematic(fixed) button
 28. adjustable ranges for density, sizes etc

@@ -227,7 +227,7 @@ impl Default for SteeringConfig {
 		Self {
 			  stiffness			: 5000.0 	
 			, stiffness_release	: 10000.0
-			, damping			: 100.0
+			, damping			: 300.0
 			, damping_release	: 100.0
 			, angle				: 20.0
 		}
