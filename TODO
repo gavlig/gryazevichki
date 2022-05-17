@@ -27,7 +27,7 @@
 16. (done!)update bevy to 0.7
 17. make a collection of presets of vehicles after 13 is done
 18. (wait until it gets updated to 0.7 first?)return changes to upstream: bevy_fly_camera
-19. return changes to upstream: rapier
+19. (done)return changes to upstream: rapier
 20. (done!)remove duplication 4 times of all code for wheels, axles etc
 21. (done!)update bevy_rapier to 0.13
 22. implement neutral mode for driving (for now we always stop without input)

@@ -996,11 +996,11 @@ fn draw_body_params_ui_collapsing(
 			).changed();
 			
 			changed 		|= ui.add(
-				Slider::new(&mut wheel_offset[1], 0.05 ..= 5.0).text("wheel_offset Y"),
+				Slider::new(&mut wheel_offset[1], 0.05 ..= 5.0).text("Wheel Offset Y"),
 			).changed();
 
 			changed 		|= ui.add(
-				Slider::new(&mut wheel_offset[2], 0.05 ..= 5.0).text("wheel_offset Z"),
+				Slider::new(&mut wheel_offset[2], 0.05 ..= 5.0).text("Wheel Offset Z"),
 			).changed();
 
 			changed			|= ui.checkbox(fixed, "Fixed (Debug)").changed();
@@ -1311,8 +1311,8 @@ fn update_ui_system(
 				let cuboid 			= collider.as_cuboid_mut().unwrap();
 				cuboid.raw.half_extents = body_cfg.half_size.into();
 
-				let s = body_cfg.half_size / body_cfg_cache.half_size;
-				body_cfg.wheel_offset_abs *= s;
+				let delta			= body_cfg.half_size - body_cfg_cache.half_size;
+				body_cfg.wheel_offset_abs += delta;
 
 				for side_ref in WHEEL_SIDES {
 					let side 		= *side_ref;
