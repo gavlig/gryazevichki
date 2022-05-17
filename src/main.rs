@@ -181,6 +181,7 @@ pub struct AxleConfigChanged {
 pub struct VehicleConfig {
 	  body_half_size			: Vec3
 	, body_density				: f32
+	, body_fixed				: bool
 	, wheel_offset_abs			: Vec3
 }
 
@@ -189,6 +190,7 @@ impl Default for VehicleConfig {
 		Self {
 			  body_half_size	: Vec3::new(0.5, 0.5, 1.0)
 			, body_density		: 2.0
+			, body_fixed		: false
 			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
 		}
 	}
@@ -417,7 +419,8 @@ fn spawn_vehicle(
 		body_pos		: Vec3,
 	mut commands		: &mut Commands
 ) {
-	let body 			= spawn_body(body_pos, veh_cfg.body_half_size, RigidBody::Dynamic, veh_cfg.body_density, &mut commands);
+	let body_type		= if veh_cfg.body_fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
+	let body 			= spawn_body(body_pos, veh_cfg.body_half_size, body_type, veh_cfg.body_density, &mut commands);
 	game.body 			= Some(RespawnableEntity { entity : body, ..Default::default() });
 	println!			("body Entity ID {:?}", body);
 
@@ -908,7 +911,7 @@ mut mass_props_co		: &mut Mut<ColliderMassProperties>,
 	},
 	ColliderMassProperties::MassProperties(_) => (),
 };
-} */
+} 
 
 fn draw_cylinder_param_ui(
 	ui						: &mut Ui,
@@ -951,7 +954,7 @@ fn draw_single_wheel_params_ui(
 		Some(_cylinder) 	=> draw_cylinder_param_ui(ui, collider),
 		_ 					=> (),
 	};
-}
+} */
 
 fn draw_body_params_ui_collapsing(
 	ui						: &mut Ui,
@@ -960,6 +963,7 @@ fn draw_body_params_ui_collapsing(
 	half_size				: &mut Vec3,
 	density					: &mut f32,
 	mass					: f32,
+	fixed					: &mut bool,
 	section_name			: String
 ) -> bool {
 	let mut changed			= false;			
@@ -982,6 +986,8 @@ fn draw_body_params_ui_collapsing(
 				Slider::new(&mut half_size[2], 0.05 ..= 5.0)
 					.text("Half Height Z"),
 			).changed();
+
+			changed			|= ui.checkbox(fixed, "Fixed (Debug)").changed();
 		}); // ui.vertical
 	}); // ui.collapsing
 
@@ -1250,11 +1256,13 @@ fn update_ui_system(
 					ColliderMassProperties::MassProperties(_) => (),
 				};
 				let mass			= mass_props_rb.mass;
+				let mut fixed		= veh_cfg.body_fixed;
 
-				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], &mut half_size, &mut density, mass, "Body".to_string());
+				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], &mut half_size, &mut density, mass, &mut fixed, "Body".to_string());
 
-				veh_cfg.body_density = density;
 				veh_cfg.body_half_size = half_size;
+				veh_cfg.body_density = density;
+				veh_cfg.body_fixed	= fixed;
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front {
 				writeback_wheel		(front_wheels_changed, &front_wheel_common);
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear {
@@ -1289,12 +1297,22 @@ fn update_ui_system(
 					game.wheels[side].axle = Some(RespawnableEntity{ entity : game.wheels[side].axle.unwrap().entity, respawn: true }); // todo: hide the ugly
 					game.wheels[side].wheel = Some(RespawnableEntity{ entity : game.wheels[side].wheel.unwrap().entity, respawn: true });
 				}
+
+				if veh_cfg_cache.body_fixed != veh_cfg.body_fixed {
+					game.body 		= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true })
+				}
 			}
 		}
 
 		if ui.button("Respawn Vehicle").clicked() {
 			game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
 		}
+
+		// let mut boolean : bool;
+		// ui.add(super::toggle_switch::toggle(boolean)).on_hover_text(
+        //     "It's easy to create your own widgets!\n\
+        //     This toggle switch is just 15 lines of code.",
+        // );
 	});
 
 // uncomment when we need to catch a closed window
@@ -1323,9 +1341,8 @@ pub fn respawn_vehicle_system(
 	>,
 	mut commands	: Commands,
 ) {
-	let mut respawn_body = false;
-	let mut body		= match game.body {
-		Some(re)		=> { respawn_body = re.respawn; re.entity },
+	let (mut body, respawn_body) = match game.body {
+		Some(re)		=> (re.entity, re.respawn),
 		_				=> return,
 	};
 	let mut body_pos 	= q_body_pos.get(body).unwrap().clone();
@@ -1333,8 +1350,9 @@ pub fn respawn_vehicle_system(
 	if true == respawn_body {
 		commands.entity(body).despawn_recursive();
 
+		let body_type	= if veh_cfg.body_fixed { RigidBody::Fixed } else { RigidBody::Dynamic }; // TODO: pass veh_cfg to spawn_body instead this
 		body_pos.translation = Vec3::new(0.0, 5.5, 0.0);
-		body 			= spawn_body(body_pos.translation, veh_cfg.body_half_size, RigidBody::Dynamic, veh_cfg.body_density, &mut commands);
+		body 			= spawn_body(body_pos.translation, veh_cfg.body_half_size, body_type, veh_cfg.body_density, &mut commands);
 		game.body 		= Some(RespawnableEntity { entity : body, ..Default::default() });
 		// TODO: is there an event we can attach to? 
 		let mut camera 	= q_camera.get_mut(game.camera.unwrap()).unwrap();
@@ -1348,7 +1366,7 @@ pub fn respawn_vehicle_system(
 		let side 		= *side_ref;
 
 		let axle_offset = veh_cfg.wheel_offset(side);
-		let mut re_axle = game.wheels[side].axle.unwrap();
+		let 	re_axle = game.wheels[side].axle.unwrap();
 		let mut axle	= re_axle.entity;
 
 		if re_axle.respawn || respawn_body {
@@ -1370,7 +1388,7 @@ pub fn respawn_vehicle_system(
 			println!		("respawned {} axle Entity ID {:?}", side, axle);
 		}
 
-		let mut re_wheel	= game.wheels[side].wheel.unwrap();
+		let 	re_wheel	= game.wheels[side].wheel.unwrap();
 		let mut wheel		= re_wheel.entity;
 		if re_wheel.respawn || respawn_body {
 			let wheel_cfg = q_wheel_cfg.get(wheel).unwrap().clone();

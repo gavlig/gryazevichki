@@ -35,7 +35,7 @@
 24. bug: when typing data into egui we get a conflict of hiding/showing mouse cursor because app also does this independently
 25. (wip)get a working vehicle again
 26. (done!)respawn button
-27. make kinematic button
+27. (done!)make kinematic(fixed) button
 28. adjustable ranges for density, sizes etc
 
 next milestone: fully configurable vehicle with an environment to test it
