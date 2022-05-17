@@ -14,7 +14,7 @@
 13. (wip)ui for different parameters tweaking (see rapier all_examples3)
 13.1. (done!)figure out how to change ColliderMassProps::Density
 13.2. (done! always use Mut< for components from Query)figure out what's wrong with body section and why camera starts pointing to a different object
-13.3. make wheel position adjustable
+13.3. (done!)make wheel position adjustable
 13.4. (done!)make wheel position attached to body size
 13.5. (done!)make motor adjustable
 13.6. make axles adjustable
@@ -37,5 +37,6 @@
 26. (done!)respawn button
 27. (done!)make kinematic(fixed) button
 28. adjustable ranges for density, sizes etc
+29. trailer
 
 next milestone: fully configurable vehicle with an environment to test it
