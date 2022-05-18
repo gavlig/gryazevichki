@@ -1,8 +1,14 @@
-use bevy::prelude::*;
-use bevy_rapier3d::{prelude::*};
-use rapier3d::dynamics::{JointAxis};//, JointLimits, JointMotor, MotorModel};
-use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
-use bevy::app::AppExit;
+use bevy			::	prelude :: *;
+use bevy			::	app::AppExit;
+use bevy_rapier3d	::	{ prelude :: * };
+use bevy_fly_camera	::	{ FlyCamera, FlyCameraPlugin };
+use rapier3d		::	dynamics :: { JointAxis };
+
+use serde			::	{ Deserialize, Serialize };
+
+mod gchki_egui;
+
+//use gchki_egui		:: FileDialog;
 
 use bevy::render::mesh::shape as render_shape;
 
@@ -122,11 +128,14 @@ pub struct Game {
 
 	, wheels					: [Option<RespawnableEntity>; WHEELS_MAX as usize]
 	, axles						: [Option<RespawnableEntity>; WHEELS_MAX as usize]
+
+	, save_vehicle				: bool
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct WheelConfig {
-	  hh						: f32
+	  version					: u32
+	, hh						: f32
 	, r							: f32
 	, density					: f32
 	, mass						: f32
@@ -135,7 +144,8 @@ pub struct WheelConfig {
 impl Default for WheelConfig {
 	fn default() -> Self {
 		Self {
-			  hh				: 0.5
+			  version			: 0
+			, hh				: 0.5
 			, r					: 0.8
 			, density			: 1.0
 			, mass				: 0.0
@@ -150,9 +160,10 @@ pub struct WheelConfigChanged {
 	, density					: bool
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AxleConfig {
-	  half_size					: Vec3
+	  version					: u32
+	, half_size					: Vec3
 	, density					: f32
 	, mass						: f32
 }
@@ -160,7 +171,8 @@ pub struct AxleConfig {
 impl Default for AxleConfig {
 	fn default() -> Self {
 		Self {
-			  half_size			: Vec3::new(0.1, 0.2, 0.1)
+			  version			: 0
+			, half_size			: Vec3::new(0.1, 0.2, 0.1)
 			, density			: 1000.0
 			, mass				: 0.0
 		}
@@ -173,9 +185,10 @@ pub struct AxleConfigChanged {
 	, density					: bool
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct BodyConfig {
-	  half_size					: Vec3
+	  version					: u32
+	, half_size					: Vec3
 	, density					: f32
 	, fixed						: bool
 	, wheel_offset_abs			: Vec3
@@ -184,7 +197,8 @@ pub struct BodyConfig {
 impl Default for BodyConfig {
 	fn default() -> Self {
 		Self {
-			  half_size			: Vec3::new(0.5, 0.5, 1.0)
+			  version			: 0
+			, half_size			: Vec3::new(0.5, 0.5, 1.0)
 			, density			: 2.0
 			, fixed				: false
 			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
@@ -192,7 +206,21 @@ impl Default for BodyConfig {
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
+impl BodyConfig {
+	fn wheel_offset(self, side: WheelSideType) -> Vec3 {
+		let off 				= &self.wheel_offset_abs;
+		match side {
+			FRONT_RIGHT			=> Vec3::new( off.x, -off.y,  off.z),
+			FRONT_LEFT			=> Vec3::new(-off.x, -off.y,  off.z),
+			REAR_RIGHT			=> Vec3::new( off.x, -off.y, -off.z),
+			REAR_LEFT 			=> Vec3::new(-off.x, -off.y, -off.z),
+			WHEELS_MAX			=> panic!("Max shouldn't be used as a wheel side!"),
+			_					=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
+		}
+	}
+}
+
+#[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AcceleratorConfig {
 	  vel_fwd					: f32
 	, vel_bwd					: f32
@@ -213,7 +241,7 @@ impl Default for AcceleratorConfig {
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SteeringConfig {
 	  stiffness					: f32
 	, stiffness_release			: f32
@@ -230,20 +258,6 @@ impl Default for SteeringConfig {
 			, damping			: 300.0
 			, damping_release	: 100.0
 			, angle				: 20.0
-		}
-	}
-}
-
-impl BodyConfig {
-	fn wheel_offset(self, side: WheelSideType) -> Vec3 {
-		let off 				= &self.wheel_offset_abs;
-		match side {
-			FRONT_RIGHT			=> Vec3::new( off.x, -off.y,  off.z),
-			FRONT_LEFT			=> Vec3::new(-off.x, -off.y,  off.z),
-			REAR_RIGHT			=> Vec3::new( off.x, -off.y, -off.z),
-			REAR_LEFT 			=> Vec3::new(-off.x, -off.y, -off.z),
-			WHEELS_MAX			=> panic!("Max shouldn't be used as a wheel side!"),
-			_					=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
 		}
 	}
 }
@@ -278,8 +292,9 @@ fn main() {
 
 		.add_system				(cursor_grab_system)
 		.add_system				(toggle_button_system)
-		.add_system				(accelerate_system)
+		.add_system				(vehicle_controls_system)
 		.add_system				(update_ui_system)
+		.add_system				(save_vehicle_config_system)
 
 		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
 		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)
@@ -786,7 +801,7 @@ fn motor_steer(
 	}
 }
 
-fn accelerate_system(
+fn vehicle_controls_system(
 		key			: Res<Input<KeyCode>>,
 		game		: ResMut<Game>,
 		accel_cfg	: Res<AcceleratorConfig>,
@@ -1410,11 +1425,8 @@ fn update_ui_system(
 			game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
 		}
 
-		// let mut boolean : bool;
-		// ui.add(super::toggle_switch::toggle(boolean)).on_hover_text(
-        //     "It's easy to create your own widgets!\n\
-        //     This toggle switch is just 15 lines of code.",
-        // );
+		let mut boolean : bool = false;
+		ui.add(gchki_egui::toggle_switch::toggle(&mut boolean)).on_hover_text("hovert text");
 	});
 
 // uncomment when we need to catch a closed window
@@ -1424,6 +1436,65 @@ fn update_ui_system(
 //		}
 //		_ => ()
 //	}
+}
+
+use std::io::prelude::*;
+use std::fs::File;
+use std::path::Path;
+use std::any::type_name;
+
+use ron::ser::{to_string_pretty, PrettyConfig};
+
+use directories :: { BaseDirs, UserDirs, ProjectDirs };
+
+fn save_vehicle_config_system(
+	key		: Res	<Input<KeyCode>>,
+	game	: Res	<Game>,
+
+	q_body	: Query	<(Entity, &BodyConfig)>,
+	q_axle	: Query	<(Entity, &AxleConfig)>,
+	q_wheel	: Query	<(Entity, &WheelConfig)>,
+) {
+//	let x: MyStruct = ron::from_str("(boolean: true, float: 1.23)").unwrap();
+
+	if !key.just_released(KeyCode::K) { return; }
+
+	let mut save_content = String::new();
+
+	match game.body {
+		Some(re) => {
+			let (_, body_cfg) = q_body.get(re.entity).unwrap();
+
+			let pretty = PrettyConfig::new().depth_limit(5);
+			let s = to_string_pretty(&body_cfg, pretty).expect("Serialization failed");
+
+			save_content = [ save_content, type_name::<BodyConfig>().to_string(), s ].join("\n"); 
+		},
+		_ => (),
+	};
+
+	let mut save_name = "gchki_vehicle.cfg".to_owned();
+	if let Some(proj_dirs) = ProjectDirs::from("lol", "Gryazevicki Inc",  "Gryazevichki") {
+//		save_name = [ proj_dirs.config_dir(), &save_name ].concat();
+		// Lin: /home/user/.config/gryazevichki
+		// Win: C:\Users\User\AppData\Roaming\Gryazevicki Inc\Gryazevicki\config
+		// Mac: /Users/User/Library/Application Support/lol.Gryazevicki-Inc.Gryazevicki
+	}
+
+	let path = Path::new(&save_name);
+    let display = path.display();
+
+    let mut file = match File::create(&path) {
+        Err(why) => panic!("couldn't create {}: {}", display, why),
+        Ok(file) => file,
+    };
+
+    match file.write_all(save_content.as_bytes()) {
+        Err(why) => panic!("couldn't write to {}: {}", display, why),
+        Ok(_) => println!("successfully wrote to {}", display),
+    }
+
+
 }
 
 pub fn respawn_vehicle_system(
@@ -1492,11 +1563,11 @@ pub fn respawn_vehicle_system(
 		let 	re_wheel	= game.wheels[side].unwrap();
 		let mut wheel		= re_wheel.entity;
 		if re_wheel.respawn || respawn_body {
-			let wheel_cfg = q_wheel_cfg.get(wheel).unwrap().clone();
+			let wheel_cfg 	= q_wheel_cfg.get(wheel).unwrap().clone();
 
 			commands.entity(wheel).despawn_recursive();
 
-			wheel	= spawn_wheel_with_joint(
+			wheel = spawn_wheel_with_joint(
 				  side
 				, axle
 				, *body_pos
