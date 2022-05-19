@@ -8,7 +8,8 @@ use serde			::	{ Deserialize, Serialize };
 
 mod gchki_egui;
 
-//use gchki_egui		:: FileDialog;
+use gchki_egui		:: *;
+use gchki_egui		:: FileDialog;
 
 use bevy::render::mesh::shape as render_shape;
 
@@ -1235,6 +1236,18 @@ fn update_ui_system(
 	let window 					= egui::Window::new("Parameters");
 	//let out = 
 	window.show(ui_context.ctx_mut(), |ui| {
+		ui.horizontal(|ui| {
+			if ui.add(toggle_switch::toggle(&mut body_cfg.fixed))
+				.on_hover_text("Put vehicle in the air and keep it fixed there.")
+				.clicked()
+			{
+				game.body 			= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
+			}
+			ui.label("Lifted Car Mode");
+		});
+		
+		ui.separator();
+
 		draw_acceleration_params_ui	(ui, &mut accel_cfg);
 		draw_steering_params_ui		(ui, &mut steer_cfg);
 
@@ -1421,12 +1434,11 @@ fn update_ui_system(
 			}
 		}
 
+		ui.separator();
+
 		if ui.button("Respawn Vehicle").clicked() {
 			game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
 		}
-
-		let mut boolean : bool = false;
-		ui.add(gchki_egui::toggle_switch::toggle(&mut boolean)).on_hover_text("hovert text");
 	});
 
 // uncomment when we need to catch a closed window
