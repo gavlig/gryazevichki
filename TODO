@@ -39,9 +39,10 @@
 27. (done!)make kinematic(fixed) button
 28. (?)adjustable ranges for density, sizes etc
 29. trailer
-30. serialize configs and save/load
+30. (wip)serialize configs and save/load
 31. more wheels
 32. two wheels
 33. complex wheel shape
+34. turn off vehicle controls when using gui
 
 next milestone: fully configurable vehicle with an environment to test it

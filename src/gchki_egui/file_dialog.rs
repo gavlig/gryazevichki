@@ -1,3 +1,5 @@
+// Copy of file_dialog.rs from Dotrix engine (MIT) (https://github.com/lowenware/dotrix/blob/main/dotrix_egui/src/extras/file_dialog.rs)
+
 use std::{
     env, fs,
     io::Error,
@@ -156,32 +158,32 @@ impl FileDialog {
 
     /// Shows the dialog if it is open. It is also responsible for state management.
     /// Should be called every ui update.
-    // pub fn show(&mut self, ctx: &CtxRef) -> &Self {
-    //     self.state = match self.state {
-    //         State::Open => {
-    //             let mut is_open = true;
-    //             self.ui(ctx, &mut is_open); // may change self.state
-    //             if is_open {
-    //                 self.state
-    //             } else {
-    //                 State::Closed
-    //             }
-    //         }
-    //         _ => State::Closed,
-    //     };
+    pub fn show(&mut self, ctx: &Context) -> &Self {
+        self.state = match self.state {
+            State::Open => {
+                let mut is_open = true;
+                self.ui(ctx, &mut is_open); // may change self.state
+                if is_open {
+                    self.state
+                } else {
+                    State::Closed
+                }
+            }
+            _ => State::Closed,
+        };
 
-    //     self
-    // }
+         self
+    }
 
-    // fn ui(&mut self, ctx: &CtxRef, is_open: &mut bool) {
-    //     Window::new(self.title())
-    //         .open(is_open)
-    //         .default_size(vec2(512.0, 512.0))
-    //         .collapsible(false)
-    //         .resizable(true)
-    //         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
-    //         .show(ctx, |ui| self.ui_in_window(ui));
-    // }
+    fn ui(&mut self, ctx: &Context, is_open: &mut bool) {
+        Window::new(self.title())
+            .open(is_open)
+            .default_size(vec2(512.0, 512.0))
+            .collapsible(false)
+            .resizable(true)
+            .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| self.ui_in_window(ui));
+    }
 
     fn ui_in_window(&mut self, ui: &mut Ui) {
         enum Command {
@@ -199,14 +201,14 @@ impl FileDialog {
 
         // Top directory field with buttons
         ui.horizontal(|ui| {
-            if ui.button("⬆ ").clicked() {
+            if ui.button("⬆ ").on_hover_text("Up Directory").clicked() {
                 command = Some(Command::UpDirectory);
             }
             if ui.text_edit_singleline(&mut self.path_edit).lost_focus() {
                 let path = PathBuf::from(&self.path_edit);
                 command = Some(Command::Open(path));
             };
-            if ui.button("⟲ ").clicked() {
+            if ui.button("⟲ ").on_hover_text("Refresh").clicked() {
                 command = Some(Command::Refresh);
             }
         });

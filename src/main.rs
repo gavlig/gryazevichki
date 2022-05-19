@@ -9,7 +9,8 @@ use serde			::	{ Deserialize, Serialize };
 mod gchki_egui;
 
 use gchki_egui		:: *;
-use gchki_egui		:: FileDialog;
+
+use std				:: { path::PathBuf };
 
 use bevy::render::mesh::shape as render_shape;
 
@@ -122,7 +123,6 @@ impl Default for RespawnableEntity {
 	}
 }
 
-#[derive(Default)]
 pub struct Game {
 	  camera					: Option<Entity>
 	, body 						: Option<RespawnableEntity>
@@ -130,7 +130,25 @@ pub struct Game {
 	, wheels					: [Option<RespawnableEntity>; WHEELS_MAX as usize]
 	, axles						: [Option<RespawnableEntity>; WHEELS_MAX as usize]
 
-	, save_vehicle				: bool
+	, opened_file				: Option<PathBuf>
+    , open_file_dialog			: Option<FileDialog>
+    , save_file_dialog			: Option<FileDialog>
+}
+
+impl Default for Game {
+	fn default() -> Self {
+		Self {
+			  camera			: None
+			, body 				: None
+		
+			, wheels			: [None; WHEELS_MAX as usize]
+			, axles				: [None; WHEELS_MAX as usize]
+		
+			, opened_file		: None
+			, open_file_dialog	: None
+			, save_file_dialog	: None
+		}
+	}
 }
 
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
@@ -1439,6 +1457,62 @@ fn update_ui_system(
 		if ui.button("Respawn Vehicle").clicked() {
 			game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
 		}
+
+		ui.separator();
+
+		ui.horizontal(|ui| {
+			let file_name = match &game.opened_file {
+			 	Some(_) => file_path_to_string(&game.opened_file),
+			 	None 	=> { game.opened_file = Some(PathBuf::from(r"gchki_vehicle.cfg")); file_path_to_string(&game.opened_file) }, //String::from("[DROP FILE HERE]"),
+			};
+
+			// if ui.button(file_name).hovered() {
+			// 	if let Some(file) = egui.ctx.input().raw.dropped_files.first() {
+			// 		game.opened_file = file.path.clone();
+			// 	}
+			// }
+
+			// if (ui.button("Open")).clicked() {
+			// 	let mut dialog = FileDialog::open_file(game.opened_file.clone());
+			// 	dialog.open();
+			// 	game.open_file_dialog = Some(dialog);
+			// }
+
+			// if let Some(dialog) = &mut game.open_file_dialog {
+			// 	if dialog.show(&egui.ctx).selected() {
+			// 		if let Some(file) = dialog.path() {
+			// 			game.opened_file = Some(file);
+			// 		}
+			// 	}
+			// }
+
+			if (ui.button("❌")).clicked() {
+				game.opened_file = None;
+			}
+		});
+
+		// ui.label("Hovering files:");
+		// let hovered_files = &egui.ctx.input().raw.hovered_files;
+		// if !hovered_files.is_empty() {
+		// 	for file in hovered_files.iter() {
+		// 		ui.label(format!("File: {}", file_path_to_string(&file.path)));
+		// 	}
+		// } else {
+		// 	ui.label("Nothing");
+		// }
+		if (ui.button("Save")).clicked() {
+			let mut dialog = FileDialog::save_file(game.opened_file.clone());
+			dialog.open();
+			game.save_file_dialog = Some(dialog);
+		}
+
+		if let Some(dialog) = &mut game.save_file_dialog {
+			if dialog.show(&ui.ctx()).selected() {
+				if let Some(file) = dialog.path() {
+					println!("Should save {:?}", file);
+				}
+			}
+		}
 	});
 
 // uncomment when we need to catch a closed window
@@ -1448,6 +1522,13 @@ fn update_ui_system(
 //		}
 //		_ => ()
 //	}
+}
+
+fn file_path_to_string(buf: &Option<std::path::PathBuf>) -> String {
+    match buf {
+        Some(path) => path.display().to_string(),
+        None => String::from(""),
+    }
 }
 
 use std::io::prelude::*;

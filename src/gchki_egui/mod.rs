@@ -1,4 +1,4 @@
 pub mod file_dialog;
 pub mod toggle_switch;
 
-pub struct FileDialog;
+pub use self::file_dialog::FileDialog;
