@@ -310,6 +310,7 @@ fn main() {
 		.add_system				(vehicle_controls_system)
 		.add_system				(update_ui_system)
 		.add_system				(save_vehicle_config_system)
+		.add_system				(load_vehicle_config_system)
 
 		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
 		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)
@@ -1531,15 +1532,70 @@ fn save_vehicle_config_system(
 }
 
 fn load_vehicle_config_system(
-	mut game: ResMut<Game>,
+	mut game	: ResMut<Game>,
 
-	q_body	: Query	<(Entity, &BodyConfig)>,
-	q_axle	: Query	<(Entity, &AxleConfig)>,
-	q_wheel	: Query	<(Entity, &WheelConfig)>,
+	mut q_body	: Query	<&mut BodyConfig>,
+	mut q_axle	: Query	<&mut AxleConfig>,
+	mut q_wheel	: Query	<&mut WheelConfig>,
+	mut q_accel	: Query <&mut AcceleratorConfig>,
+	mut q_steer	: Query <&mut SteeringConfig>,
 ) {
-//	let x: MyStruct = ron::from_str("(boolean: true, float: 1.23)").unwrap();
-
 	if game.load_veh_file.is_none() { return; }
+
+    let load_name = file_path_to_string(&game.load_veh_file);
+	let path = Path::new(&load_name);
+    let display = path.display();
+
+    let mut file = match File::open(&path) {
+        Err(why) => panic!("couldn't open {}: {}", display, why),
+        Ok(file) => file,
+    };
+
+    let mut save_content = String::new();
+    match file.read_to_string(&mut save_content) {
+        Err(why) => panic!("couldn't read {}: {}", display, why),
+        Ok(_) => print!("Vehicle loaded from file {}", display.to_string()),
+    }
+
+	let veh_cfg: VehicleConfig = ron::from_str(save_content.as_str()).unwrap();
+
+	match game.body {
+		Some(re) => {
+			match q_body.get_mut(re.entity) {
+				Ok(mut body) => *body = veh_cfg.body.unwrap_or_default(), _ => (),
+			}
+			match q_accel.get_mut(re.entity) {
+				Ok(mut accel) => *accel = veh_cfg.accel.unwrap_or_default(), _ => (),
+			}
+			match q_steer.get_mut(re.entity) {
+				Ok(mut steer) => *steer = veh_cfg.steer.unwrap_or_default(), _ => (),
+			}
+		},
+		_ => (),
+	};
+
+	for i in 0..WHEELS_MAX {
+		match game.axles[i] {
+			Some(re) => {
+				match q_axle.get_mut(re.entity) {
+					Ok(mut axle) => *axle = veh_cfg.axles[i].unwrap_or_default(), _ => (),
+				}
+			},
+			_ => ()
+		};
+
+		match game.wheels[i] {
+			Some(re) => {
+				match q_wheel.get_mut(re.entity) {
+					Ok(mut wheel) => *wheel = veh_cfg.wheels[i].unwrap_or_default(), _ => (),
+				}
+			},
+			_ => ()
+		}
+	}
+
+	// respawn
+	game.body = Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
 
 	game.load_veh_file = None;
 }
