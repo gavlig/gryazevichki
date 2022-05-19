@@ -23,6 +23,7 @@
 13.9. add a tab where all parameters of entities with same type are adjustable with one control 
 13.10. auto adjust masses on wheels/axles when changing body?
 13.11. show total mass
+13.12. make friction adjustable
 14. research how to release cursor when hitting breakpoint
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
 16. (done!)update bevy to 0.7
