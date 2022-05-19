@@ -293,8 +293,6 @@ fn main() {
 		)))
 		.insert_resource		(Msaa::default())
 		.insert_resource		(Game::default())
-		.insert_resource		(AcceleratorConfig::default())
-		.insert_resource		(SteeringConfig::default())
 		.insert_resource		(DespawnResource::default())
 		.add_plugins			(DefaultPlugins)
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
@@ -404,7 +402,21 @@ fn setup_physics_system(
 	let body_cfg		= BodyConfig::default();
 	let axle_cfg		= AxleConfig::default();
 	let wheel_cfg		= WheelConfig::default();
-	spawn_vehicle		(&mut game, &mut meshes, &mut materials, body_cfg, axle_cfg, wheel_cfg, body_pos, &mut commands);
+	let accel_cfg		= AcceleratorConfig::default();
+	let steer_cfg		= SteeringConfig::default();
+
+	spawn_vehicle(
+		  &mut game
+		, &mut meshes
+		, &mut materials
+		, body_cfg
+		, accel_cfg
+		, steer_cfg
+		, axle_cfg
+		, wheel_cfg
+		, body_pos
+		, &mut commands
+	);
 }
 
 fn setup_camera_system(
@@ -449,12 +461,14 @@ fn spawn_vehicle(
 	mut _meshes			: &mut ResMut<Assets<Mesh>>,
 	mut _materials		: &mut ResMut<Assets<StandardMaterial>>,
 		body_cfg		: BodyConfig,
+		accel_cfg		: AcceleratorConfig,
+		steer_cfg		: SteeringConfig,
 		axle_cfg		: AxleConfig,
 		wheel_cfg		: WheelConfig,
 		body_pos		: Transform,
 	mut commands		: &mut Commands
 ) {
-	let body 			= spawn_body(body_pos, body_cfg, &mut commands);
+	let body 			= spawn_body(body_pos, body_cfg, accel_cfg, steer_cfg, &mut commands);
 	game.body 			= Some(RespawnableEntity { entity : body, ..Default::default() });
 	println!			("body Entity ID {:?}", body);
 
@@ -648,6 +662,8 @@ fn spawn_wheel_joint(
 fn spawn_body(
 	pos				: Transform,
 	cfg				: BodyConfig,
+	accel_cfg		: AcceleratorConfig,
+	steer_cfg		: SteeringConfig,
 	commands		: &mut Commands,
 ) -> Entity {
 	let body_type	= if cfg.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
@@ -658,6 +674,8 @@ fn spawn_body(
 		.spawn		()
 		.insert		(body_type)
 		.insert		(cfg)
+		.insert		(accel_cfg)
+		.insert		(steer_cfg)
 		.insert		(pos)
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
@@ -821,8 +839,8 @@ fn motor_steer(
 fn vehicle_controls_system(
 		key			: Res<Input<KeyCode>>,
 		game		: ResMut<Game>,
-		accel_cfg	: Res<AcceleratorConfig>,
-		steer_cfg	: Res<SteeringConfig>,
+		q_accel_cfg	: Query<&AcceleratorConfig>,
+		q_steer_cfg	: Query<&SteeringConfig>,
 	mut	query		: Query<&mut ImpulseJoint>,
 ) {
 	let fr_axle_joint = game.axles[FRONT_RIGHT];
@@ -830,6 +848,16 @@ fn vehicle_controls_system(
 
 	let rr_wheel_joint = game.wheels[REAR_RIGHT];
 	let rl_wheel_joint = game.wheels[REAR_LEFT];
+
+	let accel_cfg = match q_accel_cfg.get(game.body.unwrap().entity) {
+		Ok(c) => c,
+		Err(_) => return,
+	};
+
+	let steer_cfg = match q_steer_cfg.get(game.body.unwrap().entity) {
+		Ok(c) => c,
+		Err(_) => return,
+	};
 
 	if key.just_pressed(KeyCode::W) {
 		motor_velocity(accel_cfg.vel_fwd, accel_cfg.damping_fwd, rr_wheel_joint, &mut query);
@@ -939,144 +967,52 @@ fn draw_density_param_ui(
 	).changed()
 }
 
-/* fn draw_density_param_ui(
-	ui					: &mut Ui,
-	name				: &String,
-	range				: [f32; 2],
-mut mass_props_co		: &mut Mut<ColliderMassProperties>,
-	mass_props_rb		: &MassProperties
-) {
-	match &mut mass_props_co as &mut ColliderMassProperties {
-	ColliderMassProperties::Density(density) => {
-		if ui.add(
-			Slider::new(&mut *density, range[0] ..= range[1]).text(format!("{} Density (Mass {:.3})", name, mass_props_rb.mass))
-		).changed() {
-			**mass_props_co = ColliderMassProperties::Density(*density);
-		};
-	},
-	ColliderMassProperties::MassProperties(_) => (),
-};
-} 
-
-fn draw_cylinder_param_ui(
-	ui						: &mut Ui,
-	shared_shape			: &mut Mut<Collider>,
-) {
-	let shape 				= shared_shape.raw.make_mut();
-	let cylinder 			= shape.as_cylinder_mut().unwrap();
-
-	egui::CollapsingHeader::new("Wheel sizes")
-		.default_open(true)
-		.show(ui, |ui| {
-
-	ui.vertical(|ui| {
-	
-	ui.add(
-		Slider::new(&mut cylinder.radius, 0.05 ..= 2.0)
-			.text("Radius"),
-	);
-
-	ui.add(
-		Slider::new(&mut cylinder.half_height, 0.05 ..= 2.0)
-			.text("Half Height"),
-	);
-
-	}); // ui.vertical
-	}); // ui.collapsing
-}
-
-fn draw_single_wheel_params_ui(
-	ui						: &mut Ui,
-	name					: &String,
-	range					: [f32; 2],
-	collider				: &mut Mut<Collider>,
-	density					: &mut f32,
-	mass					: f32,
-) {
-	draw_density_param_ui	(ui, name, range, density, mass);
-
-	match collider.as_cylinder() {
-		Some(_cylinder) 	=> draw_cylinder_param_ui(ui, collider),
-		_ 					=> (),
-	};
-} */
-
 fn draw_body_params_ui_collapsing(
 	ui						: &mut Ui,
 	name					: &String,
 	density_range			: [f32; 2],
-	half_size				: &mut Vec3,
-	wheel_offset			: &mut Vec3,
-	density					: &mut f32,
 	mass					: f32,
-	fixed					: &mut bool,
+	cfg						: &mut BodyConfig,
 	section_name			: String
 ) -> bool {
 	let mut changed			= false;			
 
 	ui.collapsing(section_name, |ui| {
 		ui.vertical(|ui| {
-			changed			|= draw_density_param_ui(ui, name, density_range, density, mass);
+			changed			|= draw_density_param_ui(ui, name, density_range, &mut cfg.density, mass);
 
 			changed 		|= ui.add(
-				Slider::new(&mut half_size[0], 0.05 ..= 5.0).text("Half Size X"),
+				Slider::new(&mut cfg.half_size[0], 0.05 ..= 5.0).text("Half Size X"),
 			).changed();
 			
 			changed 		|= ui.add(
-				Slider::new(&mut half_size[1], 0.05 ..= 5.0).text("Half Size Y"),
+				Slider::new(&mut cfg.half_size[1], 0.05 ..= 5.0).text("Half Size Y"),
 			).changed();
 
 			changed 		|= ui.add(
-				Slider::new(&mut half_size[2], 0.05 ..= 5.0).text("Half Size Z"),
+				Slider::new(&mut cfg.half_size[2], 0.05 ..= 5.0).text("Half Size Z"),
 			).changed();
 
 			ui.separator	();
 
 			changed 		|= ui.add(
-				Slider::new(&mut wheel_offset[0], 0.05 ..= 5.0).text("Wheel Offset X"),
+				Slider::new(&mut cfg.wheel_offset_abs[0], 0.05 ..= 5.0).text("Wheel Offset X"),
 			).changed();
 			
 			changed 		|= ui.add(
-				Slider::new(&mut wheel_offset[1], 0.05 ..= 5.0).text("Wheel Offset Y"),
+				Slider::new(&mut cfg.wheel_offset_abs[1], 0.05 ..= 5.0).text("Wheel Offset Y"),
 			).changed();
 
 			changed 		|= ui.add(
-				Slider::new(&mut wheel_offset[2], 0.05 ..= 5.0).text("Wheel Offset Z"),
+				Slider::new(&mut cfg.wheel_offset_abs[2], 0.05 ..= 5.0).text("Wheel Offset Z"),
 			).changed();
 
-			changed			|= ui.checkbox(fixed, "Fixed (Debug)").changed();
+			changed			|= ui.checkbox(&mut cfg.fixed, "Fixed (Debug)").changed();
 		}); // ui.vertical
 	}); // ui.collapsing
 
 	changed
 }
-
-/* fn draw_single_wheel_params_ui_collapsing(
-	ui				: &mut Ui,
-	density_range	: [f32; 2],
-	wheel: Vec<(
-		&String,
-		Mut<Collider>,
-		Mut<ColliderMassProperties>,
-		&MassProperties
-	)>,
-	section_name: String,
-) {
-	ui.collapsing(section_name, |ui| {
-		ui.vertical(|ui| {
-			for (name, mut coll_shape, mut mass_props_co, mass_props_rb) in wheel {
-				draw_single_wheel_params_ui(
-					ui,
-					name,
-					density_range,
-					&mut coll_shape,
-					&mut density,
-					mass,
-				);
-			}
-		});
-	});
-} */
 
 fn draw_axle_params(
 	ui						: &mut Ui
@@ -1158,69 +1094,76 @@ fn draw_wheel_params(
 
 fn draw_acceleration_params_ui(
 	ui				: &mut Ui,
-	accel_cfg		: &mut ResMut<AcceleratorConfig>,
-) {
+	accel_cfg		: &mut AcceleratorConfig,
+) -> bool {
+	let mut changed = false;
+
 	ui.collapsing("Acceleration".to_string(), |ui| {
 	ui.vertical(|ui| {
 
-	ui.add(
+	changed |= ui.add(
 		Slider::new(&mut accel_cfg.vel_fwd, 0.05 ..= 400.0).text("Target Speed Forward"),
-	);
-	ui.add(
+	).changed();
+
+	changed |= ui.add(
 		Slider::new(&mut accel_cfg.damping_fwd, 0.05 ..= 1000.0).text("Acceleration Damping Forward"),
-	);
+	).changed();
 
 	ui.add_space(1.0);
 	
-	ui.add(
+	changed |= ui.add(
 		Slider::new(&mut accel_cfg.vel_bwd, 0.05 ..= 400.0).text("Target Speed Backward"),
-	);
-	ui.add(
+	).changed();
+	changed |= ui.add(
 		Slider::new(&mut accel_cfg.damping_bwd, 0.05 ..= 1000.0).text("Acceleration Damping Backward"),
-	);
+	).changed();
 
 	ui.add_space(1.0);
 
-	ui.add(
+	changed |= ui.add(
 		Slider::new(&mut accel_cfg.damping_stop, 0.05 ..= 1000.0).text("Stopping Damping"),
-	);
+	).changed();
 
 	}); // ui.vertical
 	}); // ui.collapsing
+
+	changed
 }
 
 fn draw_steering_params_ui(
 	ui				: &mut Ui,
-	steer_cfg		: &mut ResMut<SteeringConfig>,
-) {
+	steer_cfg		: &mut SteeringConfig,
+) -> bool{
+	let mut changed = false;
+
 	ui.collapsing("Steering".to_string(), |ui| {
 	ui.vertical(|ui| {
 
-		ui.add(
-			Slider::new(&mut steer_cfg.angle, 0.05 ..= 180.0).text("Steering Angle"),
-		);
-		ui.add(
-			Slider::new(&mut steer_cfg.damping, 0.05 ..= 10000.0).text("Steering Damping"),
-		);
-		ui.add(
-			Slider::new(&mut steer_cfg.damping_release, 0.05 ..= 10000.0).text("Steering Release Damping"),
-		);
-		ui.add(
-			Slider::new(&mut steer_cfg.stiffness, 0.05 ..= 100000.0).text("Steering Stiffness"),
-		);
-		ui.add(
-			Slider::new(&mut steer_cfg.stiffness_release, 0.05 ..= 100000.0).text("Steering Release Stiffness"),
-		);
+	changed |= ui.add(
+		Slider::new(&mut steer_cfg.angle, 0.05 ..= 180.0).text("Steering Angle"),
+	).changed();
+	changed |= ui.add(
+		Slider::new(&mut steer_cfg.damping, 0.05 ..= 10000.0).text("Steering Damping"),
+	).changed();
+	changed |= ui.add(
+		Slider::new(&mut steer_cfg.damping_release, 0.05 ..= 10000.0).text("Steering Release Damping"),
+	).changed();
+	changed |= ui.add(
+		Slider::new(&mut steer_cfg.stiffness, 0.05 ..= 100000.0).text("Steering Stiffness"),
+	).changed();
+	changed |= ui.add(
+		Slider::new(&mut steer_cfg.stiffness_release, 0.05 ..= 100000.0).text("Steering Release Stiffness"),
+	).changed();
 
 	}); // ui.vertical
 	}); // ui.collapsing
+
+	changed
 }
 
 fn update_ui_system(
 	mut ui_context	: ResMut<EguiContext>,
 	mut	game		: ResMut<Game>,
-	mut accel_cfg	: ResMut<AcceleratorConfig>,
-	mut steer_cfg	: ResMut<SteeringConfig>,
 
 	mut q_child		: Query<(
 		&Parent,
@@ -1245,9 +1188,18 @@ fn update_ui_system(
 		&mut AxleConfig,
 		&SideX,
 		&SideZ
-	)>
+	)>,
+	mut q_accel_cfg	: Query<
+		&mut AcceleratorConfig
+	>,
+	mut q_steer_cfg	: Query<
+		&mut SteeringConfig
+	>,
 ) {
-	let mut body_cfg			= q_body_cfg.get_mut(game.body.unwrap().entity).unwrap();
+	let body					= game.body.unwrap().entity;
+	let mut body_cfg			= q_body_cfg.get_mut(body).unwrap();
+	let mut accel_cfg			= q_accel_cfg.get_mut(body).unwrap();
+	let mut steer_cfg			= q_steer_cfg.get_mut(body).unwrap();
 
 	let window 					= egui::Window::new("Parameters");
 	//let out = 
@@ -1263,9 +1215,6 @@ fn update_ui_system(
 		});
 		
 		ui.separator();
-
-		draw_acceleration_params_ui	(ui, &mut accel_cfg);
-		draw_steering_params_ui		(ui, &mut steer_cfg);
 
 		// ^^
 		let (fl_wheel, _, _)		= q_wheel_cfg.get(game.wheels[FRONT_LEFT].unwrap().entity).unwrap();
@@ -1392,23 +1341,11 @@ fn update_ui_system(
 			let 	body_cfg_cache 	= body_cfg.clone();
 
 			if vp == VehiclePart::Body {
-				// thanks kpreid!
-				let mut half_size	= body_cfg.half_size.clone();
-				let mut wheel_offset= body_cfg.wheel_offset_abs.clone();
-				let mut density		= 1.0;
-				match &mut mass_props_co as &mut ColliderMassProperties {
-					ColliderMassProperties::Density(d) => density = *d,
-					ColliderMassProperties::MassProperties(_) => (),
-				};
+				draw_acceleration_params_ui	(ui, accel_cfg.as_mut());
+				draw_steering_params_ui		(ui, steer_cfg.as_mut());
+
 				let mass			= mass_props_rb.mass;
-				let mut fixed		= body_cfg.fixed;
-
-				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], &mut half_size, &mut wheel_offset, &mut density, mass, &mut fixed, "Body".to_string());
-
-				body_cfg.half_size	= half_size;
-				body_cfg.wheel_offset_abs = wheel_offset;
-				body_cfg.density	= density;
-				body_cfg.fixed		= fixed;
+				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], mass, body_cfg.as_mut(), "Body".to_string());
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front {
 				writeback_wheel_collider(front_wheels_changed, &front_wheel_common, &mut collider, &mut mass_props_co);
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear {
@@ -1505,15 +1442,17 @@ use std::fs::File;
 use std::path::Path;
 use std::any::type_name;
 
-use ron::ser::{to_string_pretty, PrettyConfig};
+use ron::ser::{ to_string_pretty, PrettyConfig };
 
 use directories :: { BaseDirs, UserDirs, ProjectDirs };
 
 #[derive(Default, Serialize, Deserialize)]
 struct VehicleConfig {
-    body 			: BodyConfig
-  , axles			: [AxleConfig; WHEELS_MAX as usize]
-  , wheels			: [WheelConfig; WHEELS_MAX as usize]
+    body 	: Option<BodyConfig>
+  , axles	: [Option<AxleConfig>; WHEELS_MAX as usize]
+  , wheels	: [Option<WheelConfig>; WHEELS_MAX as usize]
+  , accel	: Option<AcceleratorConfig>
+  , steer	: Option<SteeringConfig>
 }
 
 fn save_vehicle_config_system(
@@ -1522,6 +1461,8 @@ fn save_vehicle_config_system(
 	q_body	: Query	<(Entity, &BodyConfig)>,
 	q_axle	: Query	<(Entity, &AxleConfig)>,
 	q_wheel	: Query	<(Entity, &WheelConfig)>,
+	q_accel	: Query <(Entity, &AcceleratorConfig)>,
+	q_steer	: Query <(Entity, &SteeringConfig)>,
 ) {
 	if game.save_veh_file.is_none() { return; }
 
@@ -1530,10 +1471,33 @@ fn save_vehicle_config_system(
 
 	match game.body {
 		Some(re) => {
-			veh_cfg.body = *q_body.get(re.entity).unwrap().1;
+			let (_, body) = q_body.get(re.entity).unwrap();
+			veh_cfg.body = Some(*body);
+			let (_, accel) = q_accel.get(re.entity).unwrap();
+			veh_cfg.accel = Some(*accel);
+			let (_, steer) = q_steer.get(re.entity).unwrap();
+			veh_cfg.steer = Some(*steer);
 		},
 		_ => (),
 	};
+
+	for i in 0..WHEELS_MAX {
+		match game.axles[i] {
+			Some(re) => {
+				let (_, axle) = q_axle.get(re.entity).unwrap();
+				veh_cfg.axles[i] = Some(*axle);
+			},
+			_ => ()
+		};
+
+		match game.wheels[i] {
+			Some(re) => {
+				let (_, wheel) = q_wheel.get(re.entity).unwrap();
+				veh_cfg.wheels[i] = Some(*wheel);
+			},
+			_ => ()
+		}
+	}
 
 	let pretty = PrettyConfig::new()
 		.depth_limit(5)
@@ -1586,28 +1550,26 @@ fn respawn_vehicle_system(
 		&	 BodyConfig,
 		&mut Transform
 	)>,
-		q_axle_cfg	: Query<
-		&mut AxleConfig
-	>,
-		q_wheel_cfg	: Query<
-		&mut WheelConfig
-	>,
-	mut q_camera	: Query<
-		&mut FlyCamera
-	>,
-	mut commands	: Commands,
+		q_accel_cfg	: Query<&AcceleratorConfig>,
+		q_steer_cfg	: Query<&SteeringConfig>,
+		q_axle_cfg	: Query<&AxleConfig>,
+		q_wheel_cfg	: Query<&WheelConfig>,
+	mut	q_camera	: Query<&mut FlyCamera>,
+	mut	commands	: Commands,
 ) {
 	let (mut body, respawn_body) = match game.body {
 		Some(re)		=> (re.entity, re.respawn),
 		_				=> return,
 	};
 	let (body_cfg, mut body_pos) = q_body.get_mut(body).unwrap();
+	let accel_cfg		= q_accel_cfg.get(body).unwrap();
+	let steer_cfg		= q_steer_cfg.get(body).unwrap();
 
 	if true == respawn_body {
 		commands.entity(body).despawn_recursive();
 
 		body_pos.translation = Vec3::new(0.0, 5.5, 0.0);
-		body 			= spawn_body(*body_pos, *body_cfg, &mut commands);
+		body 			= spawn_body(*body_pos, *body_cfg, *accel_cfg, *steer_cfg, &mut commands);
 		game.body 		= Some(RespawnableEntity { entity : body, ..Default::default() });
 		// TODO: is there an event we can attach to? 
 		let mut camera 	= q_camera.get_mut(game.camera.unwrap()).unwrap();
