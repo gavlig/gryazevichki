@@ -130,9 +130,11 @@ pub struct Game {
 	, wheels					: [Option<RespawnableEntity>; WHEELS_MAX as usize]
 	, axles						: [Option<RespawnableEntity>; WHEELS_MAX as usize]
 
-	, opened_file				: Option<PathBuf>
-    , open_file_dialog			: Option<FileDialog>
-    , save_file_dialog			: Option<FileDialog>
+    , load_veh_dialog			: Option<FileDialog>
+    , save_veh_dialog			: Option<FileDialog>
+
+	, save_veh_file				: Option<PathBuf>
+	, load_veh_file				: Option<PathBuf>
 }
 
 impl Default for Game {
@@ -144,9 +146,11 @@ impl Default for Game {
 			, wheels			: [None; WHEELS_MAX as usize]
 			, axles				: [None; WHEELS_MAX as usize]
 		
-			, opened_file		: None
-			, open_file_dialog	: None
-			, save_file_dialog	: None
+			, load_veh_dialog	: None
+			, save_veh_dialog	: None
+
+			, save_veh_file		: None
+			, load_veh_file		: None
 		}
 	}
 }
@@ -1454,65 +1458,36 @@ fn update_ui_system(
 
 		ui.separator();
 
-		if ui.button("Respawn Vehicle").clicked() {
-			game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
+		if (ui.button("Save Vehicle")).clicked() {
+			let mut dialog			= FileDialog::save_file(None);
+			dialog.open				();
+			game.save_veh_dialog	= Some(dialog);
+		}
+
+		if (ui.button("Load Vehicle")).clicked() {
+			let mut dialog			= FileDialog::open_file(None);
+			dialog.open				();
+			game.load_veh_dialog 	= Some(dialog);
+		}
+
+		if let Some(dialog) = &mut game.save_veh_dialog {
+			if dialog.show(&ui.ctx()).selected() {
+				game.save_veh_file 	= dialog.path();
+			}
+		}
+
+		if let Some(dialog) = &mut game.load_veh_dialog {
+			if dialog.show(&ui.ctx()).selected() {
+				game.load_veh_file 	= dialog.path();
+			}
 		}
 
 		ui.separator();
 
-		ui.horizontal(|ui| {
-			let file_name = match &game.opened_file {
-			 	Some(_) => file_path_to_string(&game.opened_file),
-			 	None 	=> { game.opened_file = Some(PathBuf::from(r"gchki_vehicle.cfg")); file_path_to_string(&game.opened_file) }, //String::from("[DROP FILE HERE]"),
-			};
-
-			// if ui.button(file_name).hovered() {
-			// 	if let Some(file) = egui.ctx.input().raw.dropped_files.first() {
-			// 		game.opened_file = file.path.clone();
-			// 	}
-			// }
-
-			// if (ui.button("Open")).clicked() {
-			// 	let mut dialog = FileDialog::open_file(game.opened_file.clone());
-			// 	dialog.open();
-			// 	game.open_file_dialog = Some(dialog);
-			// }
-
-			// if let Some(dialog) = &mut game.open_file_dialog {
-			// 	if dialog.show(&egui.ctx).selected() {
-			// 		if let Some(file) = dialog.path() {
-			// 			game.opened_file = Some(file);
-			// 		}
-			// 	}
-			// }
-
-			if (ui.button("❌")).clicked() {
-				game.opened_file = None;
-			}
-		});
-
-		// ui.label("Hovering files:");
-		// let hovered_files = &egui.ctx.input().raw.hovered_files;
-		// if !hovered_files.is_empty() {
-		// 	for file in hovered_files.iter() {
-		// 		ui.label(format!("File: {}", file_path_to_string(&file.path)));
-		// 	}
-		// } else {
-		// 	ui.label("Nothing");
-		// }
-		if (ui.button("Save")).clicked() {
-			let mut dialog = FileDialog::save_file(game.opened_file.clone());
-			dialog.open();
-			game.save_file_dialog = Some(dialog);
+		if ui.button("Respawn Vehicle").clicked() {
+			game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
 		}
 
-		if let Some(dialog) = &mut game.save_file_dialog {
-			if dialog.show(&ui.ctx()).selected() {
-				if let Some(file) = dialog.path() {
-					println!("Should save {:?}", file);
-				}
-			}
-		}
 	});
 
 // uncomment when we need to catch a closed window
@@ -1524,7 +1499,7 @@ fn update_ui_system(
 //	}
 }
 
-fn file_path_to_string(buf: &Option<std::path::PathBuf>) -> String {
+fn file_path_to_string(buf: &Option<PathBuf>) -> String {
     match buf {
         Some(path) => path.display().to_string(),
         None => String::from(""),
@@ -1541,16 +1516,13 @@ use ron::ser::{to_string_pretty, PrettyConfig};
 use directories :: { BaseDirs, UserDirs, ProjectDirs };
 
 fn save_vehicle_config_system(
-	key		: Res	<Input<KeyCode>>,
-	game	: Res	<Game>,
+	mut game: ResMut<Game>,
 
 	q_body	: Query	<(Entity, &BodyConfig)>,
 	q_axle	: Query	<(Entity, &AxleConfig)>,
 	q_wheel	: Query	<(Entity, &WheelConfig)>,
 ) {
-//	let x: MyStruct = ron::from_str("(boolean: true, float: 1.23)").unwrap();
-
-	if !key.just_released(KeyCode::K) { return; }
+	if game.save_veh_file.is_none() { return; }
 
 	let mut save_content = String::new();
 
@@ -1566,13 +1538,13 @@ fn save_vehicle_config_system(
 		_ => (),
 	};
 
-	let mut save_name = "gchki_vehicle.cfg".to_owned();
-	if let Some(proj_dirs) = ProjectDirs::from("lol", "Gryazevicki Inc",  "Gryazevichki") {
-//		save_name = [ proj_dirs.config_dir(), &save_name ].concat();
-		// Lin: /home/user/.config/gryazevichki
-		// Win: C:\Users\User\AppData\Roaming\Gryazevicki Inc\Gryazevicki\config
-		// Mac: /Users/User/Library/Application Support/lol.Gryazevicki-Inc.Gryazevicki
-	}
+	let mut save_name = file_path_to_string(&game.save_veh_file);
+	// if let Some(proj_dirs) = ProjectDirs::from("lol", "Gryazevicki Inc",  "Gryazevichki") {
+	// 	save_name = [ proj_dirs.config_dir(), &save_name ].concat();
+	// 	// Lin: /home/user/.config/gryazevichki
+	// 	// Win: C:\Users\User\AppData\Roaming\Gryazevicki Inc\Gryazevicki\config
+	// 	// Mac: /Users/User/Library/Application Support/lol.Gryazevicki-Inc.Gryazevicki
+	// }
 
 	let path = Path::new(&save_name);
     let display = path.display();
@@ -1587,7 +1559,21 @@ fn save_vehicle_config_system(
         Ok(_) => println!("successfully wrote to {}", display),
     }
 
+	game.save_veh_file = None;
+}
 
+fn load_vehicle_config_system(
+	mut game: ResMut<Game>,
+
+	q_body	: Query	<(Entity, &BodyConfig)>,
+	q_axle	: Query	<(Entity, &AxleConfig)>,
+	q_wheel	: Query	<(Entity, &WheelConfig)>,
+) {
+//	let x: MyStruct = ron::from_str("(boolean: true, float: 1.23)").unwrap();
+
+	if game.load_veh_file.is_none() { return; }
+
+	game.load_veh_file = None;
 }
 
 pub fn respawn_vehicle_system(
