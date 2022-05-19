@@ -15,12 +15,12 @@ use std				:: { path::PathBuf };
 use bevy::render::mesh::shape as render_shape;
 
 #[derive(Component)]
-pub struct NameComponent {
-	pub name : String
+struct NameComponent {
+	name : String
 }
 
 #[derive(Component, Debug, Copy, Clone, PartialEq)]
-pub enum VehiclePart {
+enum VehiclePart {
 	Wheel,
 	Axle,
 	Body,
@@ -29,21 +29,21 @@ pub enum VehiclePart {
 }
 
 #[derive(Component, Debug, Copy, Clone, PartialEq)]
-pub enum SideX {
+enum SideX {
 	Left,
 	Center,
 	Right
 }
 
 #[derive(Component, Debug, Copy, Clone, PartialEq)]
-pub enum SideY {
+enum SideY {
 	Top,
 	Center,
 	Bottom
 }
 
 #[derive(Component, Debug, Copy, Clone, PartialEq)]
-pub enum SideZ {
+enum SideZ {
 	Front,
 	Center,
 	Rear
@@ -51,15 +51,15 @@ pub enum SideZ {
 
 // TODO: all this looks like a bad design, most likely i need a different approach
 use usize as WheelSideType;
-pub const FRONT_RIGHT		: WheelSideType = 0;
-pub const FRONT_LEFT		: WheelSideType = 1;
-pub const FRONT_SPLIT		: WheelSideType	= 2;
+const FRONT_RIGHT			: WheelSideType = 0;
+const FRONT_LEFT			: WheelSideType = 1;
+const FRONT_SPLIT			: WheelSideType	= 2;
 
-pub const REAR_RIGHT		: WheelSideType = 2;
-pub const REAR_LEFT			: WheelSideType = 3;
-pub const REAR_SPLIT		: WheelSideType = 4;
+const REAR_RIGHT			: WheelSideType = 2;
+const REAR_LEFT				: WheelSideType = 3;
+const REAR_SPLIT			: WheelSideType = 4;
 
-pub const WHEELS_MAX		: WheelSideType = 4;
+const WHEELS_MAX			: WheelSideType = 4;
 
 fn wheel_side_name(side: WheelSideType) -> &'static str {
 	match side {
@@ -123,7 +123,7 @@ impl Default for RespawnableEntity {
 	}
 }
 
-pub struct Game {
+struct Game {
 	  camera					: Option<Entity>
 	, body 						: Option<RespawnableEntity>
 
@@ -156,9 +156,8 @@ impl Default for Game {
 }
 
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct WheelConfig {
-	  version					: u32
-	, hh						: f32
+struct WheelConfig {
+	  hh						: f32
 	, r							: f32
 	, density					: f32
 	, mass						: f32
@@ -167,8 +166,7 @@ pub struct WheelConfig {
 impl Default for WheelConfig {
 	fn default() -> Self {
 		Self {
-			  version			: 0
-			, hh				: 0.5
+			  hh				: 0.5
 			, r					: 0.8
 			, density			: 1.0
 			, mass				: 0.0
@@ -177,16 +175,15 @@ impl Default for WheelConfig {
 }
 
 #[derive(Default, Debug, Clone, Copy)]
-pub struct WheelConfigChanged {
+struct WheelConfigChanged {
 	  hh						: bool
 	, r							: bool
 	, density					: bool
 }
 
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct AxleConfig {
-	  version					: u32
-	, half_size					: Vec3
+struct AxleConfig {
+	  half_size					: Vec3
 	, density					: f32
 	, mass						: f32
 }
@@ -194,8 +191,7 @@ pub struct AxleConfig {
 impl Default for AxleConfig {
 	fn default() -> Self {
 		Self {
-			  version			: 0
-			, half_size			: Vec3::new(0.1, 0.2, 0.1)
+			  half_size			: Vec3::new(0.1, 0.2, 0.1)
 			, density			: 1000.0
 			, mass				: 0.0
 		}
@@ -203,15 +199,14 @@ impl Default for AxleConfig {
 }
 
 #[derive(Default, Debug, Clone, Copy)]
-pub struct AxleConfigChanged {
+struct AxleConfigChanged {
 	  half_size					: bool
 	, density					: bool
 }
 
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct BodyConfig {
-	  version					: u32
-	, half_size					: Vec3
+struct BodyConfig {
+	  half_size					: Vec3
 	, density					: f32
 	, fixed						: bool
 	, wheel_offset_abs			: Vec3
@@ -220,8 +215,7 @@ pub struct BodyConfig {
 impl Default for BodyConfig {
 	fn default() -> Self {
 		Self {
-			  version			: 0
-			, half_size			: Vec3::new(0.5, 0.5, 1.0)
+			  half_size			: Vec3::new(0.5, 0.5, 1.0)
 			, density			: 2.0
 			, fixed				: false
 			, wheel_offset_abs	: Vec3::new(0.8, 0.8, 1.4)
@@ -244,7 +238,7 @@ impl BodyConfig {
 }
 
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct AcceleratorConfig {
+struct AcceleratorConfig {
 	  vel_fwd					: f32
 	, vel_bwd					: f32
 	, damping_fwd				: f32
@@ -265,7 +259,7 @@ impl Default for AcceleratorConfig {
 }
 
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct SteeringConfig {
+struct SteeringConfig {
 	  stiffness					: f32
 	, stiffness_release			: f32
 	, damping					: f32
@@ -286,7 +280,7 @@ impl Default for SteeringConfig {
 }
 
 #[derive(Default)]
-pub struct DespawnResource {
+struct DespawnResource {
     entities: Vec<Entity>,
 }
 
@@ -391,7 +385,7 @@ fn spawn_camera(
 	println!			("camera Entity ID {:?}", camera);
 }
 
-pub fn setup_physics_system(
+fn setup_physics_system(
 	mut _configuration	: ResMut<RapierConfiguration>,
 	mut game			: ResMut<Game>,
 	mut	meshes			: ResMut<Assets<Mesh>>,
@@ -1515,6 +1509,13 @@ use ron::ser::{to_string_pretty, PrettyConfig};
 
 use directories :: { BaseDirs, UserDirs, ProjectDirs };
 
+#[derive(Default, Serialize, Deserialize)]
+struct VehicleConfig {
+    body 			: BodyConfig
+  , axles			: [AxleConfig; WHEELS_MAX as usize]
+  , wheels			: [WheelConfig; WHEELS_MAX as usize]
+}
+
 fn save_vehicle_config_system(
 	mut game: ResMut<Game>,
 
@@ -1524,19 +1525,22 @@ fn save_vehicle_config_system(
 ) {
 	if game.save_veh_file.is_none() { return; }
 
+	let mut veh_cfg = VehicleConfig::default();
 	let mut save_content = String::new();
 
 	match game.body {
 		Some(re) => {
-			let (_, body_cfg) = q_body.get(re.entity).unwrap();
-
-			let pretty = PrettyConfig::new().depth_limit(5);
-			let s = to_string_pretty(&body_cfg, pretty).expect("Serialization failed");
-
-			save_content = [ save_content, type_name::<BodyConfig>().to_string(), s ].join("\n"); 
+			veh_cfg.body = *q_body.get(re.entity).unwrap().1;
 		},
 		_ => (),
 	};
+
+	let pretty = PrettyConfig::new()
+		.depth_limit(5)
+		.enumerate_arrays(true)
+		.separate_tuple_members(true);
+
+	save_content = to_string_pretty(&veh_cfg, pretty).expect("Serialization failed");
 
 	let mut save_name = file_path_to_string(&game.save_veh_file);
 	// if let Some(proj_dirs) = ProjectDirs::from("lol", "Gryazevicki Inc",  "Gryazevichki") {
@@ -1576,7 +1580,7 @@ fn load_vehicle_config_system(
 	game.load_veh_file = None;
 }
 
-pub fn respawn_vehicle_system(
+fn respawn_vehicle_system(
 	mut	game		: ResMut<Game>,
 	mut	q_body		: Query<(
 		&	 BodyConfig,
@@ -1662,7 +1666,7 @@ pub fn respawn_vehicle_system(
 	}
 }
 
-pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
+fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
     if time.seconds_since_startup() > 5.0 {
         for entity in &despawn.entities {
             println!("Despawning entity {:?}", entity);
