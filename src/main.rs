@@ -6,13 +6,14 @@ use rapier3d		::	dynamics :: { JointAxis };
 
 use serde			::	{ Deserialize, Serialize };
 
-mod gchki_egui;
+use std				:: 	{ path::PathBuf };
 
-use gchki_egui		:: *;
-
-use std				:: { path::PathBuf };
+#[macro_use(defer)] extern crate scopeguard;
 
 use bevy::render::mesh::shape as render_shape;
+
+mod gchki_egui;
+use gchki_egui		:: *;
 
 #[derive(Component)]
 struct NameComponent {
@@ -974,7 +975,7 @@ fn draw_body_params_ui_collapsing(
 	density_range			: [f32; 2],
 	mass					: f32,
 	cfg						: &mut BodyConfig,
-	section_name			: String
+	section_name			: &str
 ) -> bool {
 	let mut changed			= false;			
 
@@ -1342,11 +1343,11 @@ fn update_ui_system(
 			let 	body_cfg_cache 	= body_cfg.clone();
 
 			if vp == VehiclePart::Body {
+				let mass			= mass_props_rb.mass;
+				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], mass, body_cfg.as_mut(), "Body");
+
 				draw_acceleration_params_ui	(ui, accel_cfg.as_mut());
 				draw_steering_params_ui		(ui, steer_cfg.as_mut());
-
-				let mass			= mass_props_rb.mass;
-				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], mass, body_cfg.as_mut(), "Body".to_string());
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front {
 				writeback_wheel_collider(front_wheels_changed, &front_wheel_common, &mut collider, &mut mass_props_co);
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear {
@@ -1441,7 +1442,6 @@ fn file_path_to_string(buf: &Option<PathBuf>) -> String {
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::Path;
-use std::any::type_name;
 
 use ron::ser::{ to_string_pretty, PrettyConfig };
 
@@ -1456,6 +1456,12 @@ struct VehicleConfig {
   , steer	: Option<SteeringConfig>
 }
 
+impl VehicleConfig {
+	fn version() -> u32 { return 0; }
+}
+
+const VERSION_STR : &str = "version";
+
 fn save_vehicle_config_system(
 	mut game: ResMut<Game>,
 
@@ -1468,7 +1474,6 @@ fn save_vehicle_config_system(
 	if game.save_veh_file.is_none() { return; }
 
 	let mut veh_cfg = VehicleConfig::default();
-	let mut save_content = String::new();
 
 	match game.body {
 		Some(re) => {
@@ -1505,7 +1510,12 @@ fn save_vehicle_config_system(
 		.enumerate_arrays(true)
 		.separate_tuple_members(true);
 
-	save_content = to_string_pretty(&veh_cfg, pretty).expect("Serialization failed");
+	let version_str = format!("{}: {}\n", VERSION_STR, VehicleConfig::version());
+	let serialized	= to_string_pretty(&veh_cfg, pretty).expect("Serialization failed");
+	let save_content = [
+		  version_str
+		, serialized
+	].concat();
 
 	let mut save_name = file_path_to_string(&game.save_veh_file);
 	// if let Some(proj_dirs) = ProjectDirs::from("lol", "Gryazevicki Inc",  "Gryazevichki") {
@@ -1542,21 +1552,55 @@ fn load_vehicle_config_system(
 ) {
 	if game.load_veh_file.is_none() { return; }
 
-    let load_name = file_path_to_string(&game.load_veh_file);
-	let path = Path::new(&load_name);
-    let display = path.display();
+    let load_name 	= file_path_to_string(&game.load_veh_file);
+	let path 		= Path::new(&load_name);
+    let display 	= path.display();
+
+	game.load_veh_file = None;
 
     let mut file = match File::open(&path) {
-        Err(why) => panic!("couldn't open {}: {}", display, why),
-        Ok(file) => file,
+        Err(why) 	=> { println!("couldn't open {}: {}", display, why); return; },
+        Ok(file) 	=> file,
     };
 
     let mut save_content = String::new();
     match file.read_to_string(&mut save_content) {
-        Err(why) => panic!("couldn't read {}: {}", display, why),
-        Ok(_) => print!("Vehicle loaded from file {}", display.to_string()),
+        Err(why)	=> { println!("couldn't read {}: {}", display, why); return; },
+        Ok(_) 		=> println!("Opened file {} for reading", display.to_string()),
     }
 
+	let mut lines	= save_content.lines();
+	let line 		= match lines.next() {
+		Some(l)		=> l,
+		None		=> { println!("{0} not found! Config should start with {0}", VERSION_STR); return; }
+	};
+	
+	let version_value : String = match line.split_terminator(':').last() {
+		Some(v)		=> v.chars().filter(|c| c.is_digit(10)).collect(),
+		None		=> { println!("{0} value not found! Config should start with \"{0}: {1}\"", VERSION_STR, VehicleConfig::version()); return; }
+	};
+	let version 	= match version_value.parse::<u32>() {
+		Ok(v) 		=> v,
+		Err(why) 	=> { println!("Failed to parse version value ({})! Reason: {}", version_value, why); return; },
+	};
+
+	if version > VehicleConfig::version() {
+		println!	("Invalid config version! Expected: <={} found: {}", VehicleConfig::version(), version);
+		return;
+	}
+
+	let pos			= match save_content.find('(') {
+		Some(p)		=> p - 1, // -1 to capture the brace as well lower, see save_content.get
+		None		=> { println!("Failed to find first opening brace \"(\". Most likely invalid format or corrupted file!"); return; }
+	};
+
+	save_content	= match save_content.get(pos..) {
+		Some(c)		=> c.to_string(),
+		None		=> { return; }
+	};
+
+	println!		("{}", save_content);
+  
 	let veh_cfg: VehicleConfig = ron::from_str(save_content.as_str()).unwrap();
 
 	match game.body {
@@ -1596,8 +1640,6 @@ fn load_vehicle_config_system(
 
 	// respawn
 	game.body = Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
-
-	game.load_veh_file = None;
 }
 
 fn respawn_vehicle_system(

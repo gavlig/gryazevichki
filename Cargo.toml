@@ -16,6 +16,7 @@ opt-level = 0
 
 [dependencies]
 
+scopeguard = "1.1.0"
 directories = "4.0"
 ron = "0.7"
 serde = { version = "1", features = ["derive"] }

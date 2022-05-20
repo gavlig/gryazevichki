@@ -45,5 +45,6 @@
 32. two wheels
 33. complex wheel shape
 34. turn off vehicle controls when using gui
+35. show gui dialog instead of println error messages
 
 next milestone: fully configurable vehicle with an environment to test it
