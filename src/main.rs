@@ -375,7 +375,7 @@ fn spawn_camera(
 			},
 			..Default::default()
 		})
-		.insert			(Collider::ball(1.0))
+//		.insert			(Collider::ball(1.0))
 		.insert			(FlyCamera::default())
 		.insert			(NameComponent{ name: "Camera".to_string() })
 		.id				();
@@ -1228,17 +1228,17 @@ fn update_ui_system(
 		let mut front_axle_common 	= fl_axle.clone();
 		let mut rear_axle_common 	= rl_axle.clone();
 
-		let front_axles_changed 	=
-			draw_axle_params		(ui, &mut front_axle_common, String::from("Front Axles"));
-
 		let front_wheels_changed 	=
 			draw_wheel_params		(ui, &mut front_wheel_common, String::from("Front Wheels"));
 
-		let rear_axles_changed		=
-			draw_axle_params		(ui, &mut rear_axle_common, String::from("Rear Axles"));
-
 		let rear_wheels_changed		=
 			draw_wheel_params		(ui, &mut rear_wheel_common, String::from("Rear Wheels"));
+
+		let front_axles_changed 	=
+			draw_axle_params		(ui, &mut front_axle_common, String::from("Front Axles"));
+
+		let rear_axles_changed		=
+			draw_axle_params		(ui, &mut rear_axle_common, String::from("Rear Axles"));
 
 		let writeback_axle_cfg = |
 			  changed				: AxleConfigChanged
