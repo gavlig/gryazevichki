@@ -767,11 +767,6 @@ fn cursor_grab_system(
 ) {
 	let window = windows.get_primary_mut().unwrap();
 
-	if key.just_pressed(KeyCode::Return) {
-		window.set_cursor_lock_mode(true);
-		window.set_cursor_visibility(false);
-	}
-
 	if key.just_pressed(KeyCode::Escape) {
 		let toggle = !window.cursor_visible();
 		window.set_cursor_visibility(toggle);
