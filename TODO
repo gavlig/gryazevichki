@@ -7,8 +7,11 @@
 6. friction tests
 7. center of mass tests
 8. (done!)damping/stiffness tests
-9. add salva?
+9. (when it gets rapier 0.12 support)add salva?
 10. try models?
+10.1. load models in places of body/axle/wheel. axle optional
+10.2. adjust collision to loaded models
+10.3. scale models with collision
 11. (done!)bug: wheels collision doesnt correspond to visual!
 12. suspension
 13. (wip)ui for different parameters tweaking (see rapier all_examples3)
@@ -47,5 +50,10 @@
 33. complex wheel shape
 34. turn off vehicle controls when using gui
 35. show gui dialog instead of println error messages
+36. controller support
+37. pick objects around
+38. spawn objects around
+39. try circuis rides in circle on walls
+30. indicate car front,right,left
 
 next milestone: fully configurable vehicle with an environment to test it

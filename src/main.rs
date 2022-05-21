@@ -402,6 +402,10 @@ fn setup_physics_system(
 		spawn_cubes		(&mut commands);
 	}
 
+	if true {
+		spawn_friction_tests(&mut commands);
+	}
+
 	let body_pos 		= Transform::from_xyz(0.0, 5.5, 0.0);
 	let body_cfg		= BodyConfig::default();
 	let axle_cfg		= AxleConfig::default();
@@ -619,6 +623,7 @@ fn spawn_wheel(
 			.insert	(Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)))
 			.insert	(Collider::cylinder(cfg.hh, cfg.r))
 			.insert	(ColliderMassProperties::Density(cfg.density))
+			.insert	(Friction::new(1.0))
 			.insert	(ActiveEvents::COLLISION_EVENTS);
 		})
 		.insert		(NameComponent{ name: format!("{} Wheel", side_name) })
@@ -732,6 +737,28 @@ fn spawn_cubes(commands: &mut Commands) {
 		}
 
 		offset -= 0.05 * rad * (num as f32 - 1.0);
+	}
+}
+
+fn spawn_friction_tests(commands: &mut Commands) {
+	let num = 5;
+	let offset = Vec3::new(0.0, 0.0, 3.0);
+	let line_hsize = Vec3::new(5.0, 0.025, 30.0);
+
+	for i in 0..num {
+		let mut pos = offset.clone();
+		pos.x = i as f32 * ((line_hsize.x * 2.0) + 0.5);
+
+		let friction = (i + 1) as f32 * 0.2;
+
+		commands
+			.spawn()
+			.insert(RigidBody::Fixed)
+			.insert(Transform::from_translation(pos))
+			.insert(GlobalTransform::default())
+			.insert(Collider::cuboid(line_hsize.x, line_hsize.y, line_hsize.z))
+			.insert(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average })
+			.insert(ColliderDebugColor(Color::rgb_linear(1.0 / friction, 0.0, friction)));
 	}
 }
 
