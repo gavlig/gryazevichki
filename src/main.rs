@@ -773,7 +773,7 @@ fn spawn_body(
 	let density		= cfg.density;
 
 	let body_model	= ass.load("corvette/body/corvette_body.gltf#Scene0");
-   
+
 	commands
 		.spawn		()
 		.insert		(body_type)
@@ -794,7 +794,7 @@ fn spawn_body(
 			.insert	(ColliderMassProperties::Density(density)) // joints like it when there is an hierarchy of masses and we want body to be the heaviest
 			.insert	(Friction::default())
 			.insert	(Restitution::default());
-		})	
+		})
 		.with_children(|children| {
 		children.spawn_bundle(
 			TransformBundle {
@@ -1187,6 +1187,16 @@ fn draw_body_params_ui_collapsing(
 
 			ui.separator	();
 
+			changed |= ui.add(
+				Slider::new(&mut cfg.lin_damping, 0.0 ..= 100.0).text("Linear Damping"),
+			).changed();
+		
+			changed |= ui.add(
+				Slider::new(&mut cfg.ang_damping, 0.0 ..= 100.0).text("Angular Damping"),
+			).changed();
+
+			ui.separator	();
+
 			changed			|= ui.checkbox(&mut cfg.lifted, "Lifted").changed();
 		}); // ui.vertical
 	}); // ui.collapsing
@@ -1288,11 +1298,11 @@ fn draw_wheel_params_ui(
 	).changed();
 
 	changed |= ui.add(
-		Slider::new(&mut cfg.lin_damping, 0.0 ..= 1.0).text("Linear Damping"),
+		Slider::new(&mut cfg.lin_damping, 0.0 ..= 100.0).text("Linear Damping"),
 	).changed();
 
 	changed |= ui.add(
-		Slider::new(&mut cfg.ang_damping, 0.0 ..= 1.0).text("Angular Damping"),
+		Slider::new(&mut cfg.ang_damping, 0.0 ..= 100.0).text("Angular Damping"),
 	).changed();
 
 	}); // ui.vertical
@@ -1541,6 +1551,9 @@ fn update_ui_system(
 			if body_changed {
 				*mass_props_co	 	= ColliderMassProperties::Density(body_cfg.density);
 
+				damping.as_mut().linear_damping = body_cfg.lin_damping;
+				damping.as_mut().angular_damping = body_cfg.ang_damping;
+
 				let cuboid 			= collider.as_cuboid_mut().unwrap();
 				cuboid.raw.half_extents = body_cfg.half_size.into();
 
@@ -1766,8 +1779,6 @@ fn load_vehicle_config_system(
 		None		=> { return; }
 	};
 
-	println!		("{}", save_content);
-  
 	let veh_cfg: VehicleConfig = ron::from_str(save_content.as_str()).unwrap();
 
 	match game.body {
