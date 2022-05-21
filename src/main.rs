@@ -173,6 +173,8 @@ struct WheelConfig {
 	, r							: f32
 	, density					: f32
 	, mass						: f32
+	, friction					: f32
+	, restitution				: f32
 }
 
 impl Default for WheelConfig {
@@ -181,7 +183,9 @@ impl Default for WheelConfig {
 			  hh				: 0.5
 			, r					: 0.8
 			, density			: 1.0
-			, mass				: 0.0
+			, mass				: 0.0 // calculated at runtime
+			, friction			: 0.5
+			, restitution		: 0.0
 		}
 	}
 }
@@ -623,7 +627,8 @@ fn spawn_wheel(
 			.insert	(Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)))
 			.insert	(Collider::cylinder(cfg.hh, cfg.r))
 			.insert	(ColliderMassProperties::Density(cfg.density))
-			.insert	(Friction::new(1.0))
+			.insert	(Friction::new(cfg.friction))
+			.insert	(Restitution::new(cfg.restitution))
 			.insert	(ActiveEvents::COLLISION_EVENTS);
 		})
 		.insert		(NameComponent{ name: format!("{} Wheel", side_name) })
@@ -982,6 +987,20 @@ fn set_density(
 	};
 }
 
+fn set_friction(
+		friction_in			: f32,
+	mut friction			: &mut Mut<Friction>,
+) {
+	friction.as_mut().coefficient = friction_in;
+}
+
+fn set_restitution(
+		restitution_in		: f32,
+	mut restitution			: &mut Mut<Restitution>,
+) {
+	restitution.as_mut().coefficient = restitution_in;
+}
+
 fn draw_density_param_ui(
 		ui					: &mut Ui,
 		name				: &String,
@@ -1116,32 +1135,40 @@ fn draw_axle_params_ui(
 
 fn draw_wheel_params_ui(
 	  ui					: &mut Ui
-	, wheel_cfg				: &mut WheelConfig
+	, cfg					: &mut WheelConfig
 	, section_name			: String
 ) -> bool {
 
-	let mut wheel_changed	= false;
+	let mut changed	= false;
 
 	ui.collapsing(section_name, |ui| {
 	ui.vertical(|ui| {
 
-	wheel_changed |= ui.add(
-		Slider::new(&mut wheel_cfg.r, 0.05 ..= 2.0).text("Radius"),
+	changed |= ui.add(
+		Slider::new(&mut cfg.r, 0.05 ..= 2.0).text("Radius"),
 	).changed();
 
-	wheel_changed |= ui.add(
-		Slider::new(&mut wheel_cfg.hh, 0.05 ..= 2.0).text("Half Height"),
+	changed |= ui.add(
+		Slider::new(&mut cfg.hh, 0.05 ..= 2.0).text("Half Height"),
 	).changed();
 
-	wheel_changed |= ui.add(
-		Slider::new(&mut wheel_cfg.density, 0.05 ..= 100.0)
-			.text(format!("Wheel Density (Mass: {:.3})", wheel_cfg.mass)),
+	changed |= ui.add(
+		Slider::new(&mut cfg.density, 0.05 ..= 100.0)
+			.text(format!("Wheel Density (Mass: {:.3})", cfg.mass)),
+	).changed();
+
+	changed |= ui.add(
+		Slider::new(&mut cfg.friction, 0.0 ..= 1.0).text("Friction"),
+	).changed();
+
+	changed |= ui.add(
+		Slider::new(&mut cfg.restitution, 0.0 ..= 1.0).text("Restitution"),
 	).changed();
 
 	}); // ui.vertical
 	}); // ui.collapsing
 
-	wheel_changed
+	changed
 }
 
 fn draw_acceleration_params_ui(
@@ -1220,7 +1247,9 @@ fn update_ui_system(
 	mut q_child		: Query<(
 		&Parent,
 		&mut Collider,
-		&mut ColliderMassProperties
+		&mut ColliderMassProperties,
+		&mut Friction,
+		&mut Restitution,
 	)>,
     	q_parent	: Query<(
 		&VehiclePart,
@@ -1268,6 +1297,7 @@ fn update_ui_system(
 		
 		ui.separator();
 
+		// common wheel/axle configs
 		// ^^
 		let (fl_wheel, _, _)		= q_wheel_cfg.get(game.wheels[FRONT_LEFT].unwrap().entity).unwrap();
 		let (rl_wheel, _, _)		= q_wheel_cfg.get(game.wheels[REAR_LEFT].unwrap().entity).unwrap();
@@ -1308,28 +1338,33 @@ fn update_ui_system(
 			}
 		}
 
-		for (parent, mut collider, mut mass_props_co) in q_child.iter_mut() {
+		// write changes back to physics + per component ui 
+		for (parent, mut collider, mut mass_props_co, mut friction, mut restitution) in q_child.iter_mut() {
 			let (vehicle_part, sidez, name_comp, mass_props_rb) = q_parent.get(parent.0).unwrap();
 			let name 				= &name_comp.name;
 			let vp 					= *vehicle_part;
 
 			let writeback_axle_collider = |
-				  cfg		: &AxleConfig
-				, collider	: &mut Mut<Collider>
-				, mass_props_co	: &mut Mut<ColliderMassProperties>,
+				  cfg				: &AxleConfig
+				, collider			: &mut Mut<Collider>
+				, mass_props_co		: &mut Mut<ColliderMassProperties>
 			| {
 				set_box_half_size	(cfg.half_size, collider);
 				set_density			(cfg.density, mass_props_co);
 			};
 
 			let writeback_wheel_collider = |
-				  cfg		: &WheelConfig
-				, collider	: &mut Mut<Collider>
-				, mass_props_co	: &mut Mut<ColliderMassProperties>,
+				  cfg				: &WheelConfig
+				, collider			: &mut Mut<Collider>
+				, mass_props_co		: &mut Mut<ColliderMassProperties>
+				, friction			: &mut Mut<Friction>
+				, restitution		: &mut Mut<Restitution>
 			| {
 				set_cylinder_hh		(cfg.hh, collider);
 				set_cylinder_r		(cfg.r, collider);
 				set_density			(cfg.density, mass_props_co);
+				set_friction		(cfg.friction, friction);
+				set_restitution		(cfg.restitution, restitution);
 			};
 
 			let mut body_changed	= false;
@@ -1342,9 +1377,9 @@ fn update_ui_system(
 				draw_acceleration_params_ui	(ui, accel_cfg.as_mut());
 				draw_steering_params_ui		(ui, steer_cfg.as_mut());
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front && front_wheels_changed {
-				writeback_wheel_collider(&front_wheel_common, &mut collider, &mut mass_props_co);
+				writeback_wheel_collider(&front_wheel_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution);
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear && rear_wheels_changed {
-				writeback_wheel_collider(&rear_wheel_common, &mut collider, &mut mass_props_co);
+				writeback_wheel_collider(&rear_wheel_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution);
 			} else if vp == VehiclePart::Axle && *sidez == SideZ::Front && front_axles_changed {
 				writeback_axle_collider(&front_axle_common, &mut collider, &mut mass_props_co);
 			} else if vp == VehiclePart::Axle && *sidez == SideZ::Rear && rear_axles_changed {
