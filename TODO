@@ -4,7 +4,7 @@
 4. (done!)steering: try using two joints with two body instead of just one wheel
 4.1. (done!)stabilize steering
 5. more terrain for test: angles, bumps
-6. friction tests
+6. (done!)friction tests
 7. center of mass tests
 8. (done!)damping/stiffness tests
 9. (when it gets rapier 0.12 support)add salva?

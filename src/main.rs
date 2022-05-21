@@ -175,6 +175,8 @@ struct WheelConfig {
 	, mass						: f32
 	, friction					: f32
 	, restitution				: f32
+	, lin_damping				: f32
+	, ang_damping				: f32
 }
 
 impl Default for WheelConfig {
@@ -186,6 +188,8 @@ impl Default for WheelConfig {
 			, mass				: 0.0 // calculated at runtime
 			, friction			: 0.5
 			, restitution		: 0.0
+			, lin_damping		: 0.0
+			, ang_damping		: 0.0
 		}
 	}
 }
@@ -197,6 +201,10 @@ struct AxleConfig {
 	, mass						: f32
 	, wheel_offset				: Vec3
 	, auto_offset				: bool
+	, friction					: f32
+	, restitution				: f32
+	, lin_damping				: f32
+	, ang_damping				: f32
 }
 
 impl Default for AxleConfig {
@@ -224,6 +232,10 @@ struct BodyConfig {
 	, lifted					: bool
 	, axle_offset				: Vec3
 	, auto_offset				: bool
+	, friction					: f32
+	, restitution				: f32
+	, lin_damping				: f32
+	, ang_damping				: f32
 }
 
 impl Default for BodyConfig {
@@ -407,7 +419,7 @@ fn setup_physics_system(
 	}
 
 	if true {
-		spawn_friction_tests(&mut commands);
+		spawn_friction_tests(&mut meshes, &mut materials, &mut commands);
 	}
 
 	let body_pos 		= Transform::from_xyz(0.0, 5.5, 0.0);
@@ -582,13 +594,16 @@ fn spawn_axle(
 		.insert		(pos)
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
+		.insert		(Damping::default())
 		.with_children(|children| {
 			children
 			.spawn	()
 			.insert	(Transform::from_translation(Vec3::new(0.0, 0.3, 0.0)))
 			.insert	(GlobalTransform::default())
 			.insert	(Collider::cuboid(cfg.half_size.x, cfg.half_size.y, cfg.half_size.z))
-			.insert	(ColliderMassProperties::Density(cfg.density));
+			.insert	(ColliderMassProperties::Density(cfg.density))
+			.insert	(Friction::default())
+			.insert	(Restitution::default());
 		})
 		.insert		(NameComponent{ name: format!("{} Axle", side_name) })
 		.insert		(VehiclePart::Axle)
@@ -622,6 +637,7 @@ fn spawn_wheel(
 		.insert		(pos)
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
+		.insert		(Damping{ linear_damping: cfg.lin_damping, angular_damping: cfg.ang_damping })
 		.with_children(|children| {
 			children.spawn()
 			.insert	(Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)))
@@ -694,10 +710,13 @@ fn spawn_body(
 		.insert		(pos)
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
+		.insert		(Damping::default())
 		.with_children(|children| {
 		children.spawn()
 			.insert	(Collider::cuboid(half_size.x, half_size.y, half_size.z))
-			.insert	(ColliderMassProperties::Density(density)); // joints like it when there is an hierarchy of masses and we want body to be the heaviest
+			.insert	(ColliderMassProperties::Density(density)) // joints like it when there is an hierarchy of masses and we want body to be the heaviest
+			.insert	(Friction::default())
+			.insert	(Restitution::default());
 		})	
 		.insert		(NameComponent{ name: "Body".to_string() })
 		.insert		(VehiclePart::Body)
@@ -745,25 +764,37 @@ fn spawn_cubes(commands: &mut Commands) {
 	}
 }
 
-fn spawn_friction_tests(commands: &mut Commands) {
+fn spawn_friction_tests(
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	commands			: &mut Commands
+) {
 	let num = 5;
 	let offset = Vec3::new(0.0, 0.0, 3.0);
 	let line_hsize = Vec3::new(5.0, 0.025, 30.0);
 
-	for i in 0..num {
+	for i in 0..=num {
 		let mut pos = offset.clone();
 		pos.x = i as f32 * ((line_hsize.x * 2.0) + 0.5);
 
-		let friction = (i + 1) as f32 * 0.2;
+		let friction = i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
+		let friction_inv = 1.0 - friction;
+		let color = Color::rgb(friction_inv, friction_inv, friction_inv);
+
+		println!("fr {} fri {} c {:?}", friction, friction_inv, color);
 
 		commands
-			.spawn()
+			.spawn_bundle(PbrBundle {
+				mesh		: meshes.add			(Mesh::from(render_shape::Box::new(line_hsize.x * 2.0, line_hsize.y * 2.0, line_hsize.z * 2.0))),
+				material	: materials.add			(color.into()),
+				..Default::default()
+			})
 			.insert(RigidBody::Fixed)
 			.insert(Transform::from_translation(pos))
 			.insert(GlobalTransform::default())
 			.insert(Collider::cuboid(line_hsize.x, line_hsize.y, line_hsize.z))
-			.insert(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average })
-			.insert(ColliderDebugColor(Color::rgb_linear(1.0 / friction, 0.0, friction)));
+			.insert(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+//			.insert(ColliderDebugColor(color));
 	}
 }
 
@@ -1001,6 +1032,15 @@ fn set_restitution(
 	restitution.as_mut().coefficient = restitution_in;
 }
 
+fn set_damping(
+	lin_damping_in			: f32,
+	ang_damping_in			: f32,
+mut damping					: &mut Mut<Damping>,
+) {
+	damping.as_mut().linear_damping = lin_damping_in;
+	damping.as_mut().angular_damping = ang_damping_in;
+}
+
 fn draw_density_param_ui(
 		ui					: &mut Ui,
 		name				: &String,
@@ -1165,6 +1205,14 @@ fn draw_wheel_params_ui(
 		Slider::new(&mut cfg.restitution, 0.0 ..= 1.0).text("Restitution"),
 	).changed();
 
+	changed |= ui.add(
+		Slider::new(&mut cfg.lin_damping, 0.0 ..= 1.0).text("Linear Damping"),
+	).changed();
+
+	changed |= ui.add(
+		Slider::new(&mut cfg.ang_damping, 0.0 ..= 1.0).text("Angular Damping"),
+	).changed();
+
 	}); // ui.vertical
 	}); // ui.collapsing
 
@@ -1251,11 +1299,12 @@ fn update_ui_system(
 		&mut Friction,
 		&mut Restitution,
 	)>,
-    	q_parent	: Query<(
+    mut	q_parent	: Query<(
 		&VehiclePart,
 		&SideZ,
 		&NameComponent,
-		&MassProperties
+		&MassProperties,
+		&mut Damping,
 	)>,
 	mut q_body_cfg	: Query<
 		&mut BodyConfig
@@ -1277,12 +1326,12 @@ fn update_ui_system(
 		&mut SteeringConfig
 	>,
 ) {
-	let body					= game.body.unwrap().entity;
-	let mut body_cfg			= q_body_cfg.get_mut(body).unwrap();
-	let mut accel_cfg			= q_accel_cfg.get_mut(body).unwrap();
-	let mut steer_cfg			= q_steer_cfg.get_mut(body).unwrap();
+	let body			= game.body.unwrap().entity;
+	let mut body_cfg	= q_body_cfg.get_mut(body).unwrap();
+	let mut accel_cfg	= q_accel_cfg.get_mut(body).unwrap();
+	let mut steer_cfg	= q_steer_cfg.get_mut(body).unwrap();
 
-	let window 					= egui::Window::new("Parameters");
+	let window 			= egui::Window::new("Parameters");
 	//let out = 
 	window.show(ui_context.ctx_mut(), |ui| {
 		ui.horizontal(|ui| {
@@ -1338,34 +1387,36 @@ fn update_ui_system(
 			}
 		}
 
+		let writeback_axle_collider = |
+			  cfg					: &AxleConfig
+			, collider				: &mut Mut<Collider>
+			, mass_props_co			: &mut Mut<ColliderMassProperties>
+		| {
+			set_box_half_size		(cfg.half_size, collider);
+			set_density				(cfg.density, mass_props_co);
+		};
+
+		let writeback_wheel_collider = |
+			  cfg					: &WheelConfig
+			, collider				: &mut Mut<Collider>
+			, mass_props_co			: &mut Mut<ColliderMassProperties>
+			, friction				: &mut Mut<Friction>
+			, restitution			: &mut Mut<Restitution>
+			, damping				: &mut Mut<Damping>
+		| {
+			set_cylinder_hh			(cfg.hh, collider);
+			set_cylinder_r			(cfg.r, collider);
+			set_density				(cfg.density, mass_props_co);
+			set_friction			(cfg.friction, friction);
+			set_restitution			(cfg.restitution, restitution);
+			set_damping				(cfg.lin_damping, cfg.ang_damping, damping);
+		};
+
 		// write changes back to physics + per component ui 
 		for (parent, mut collider, mut mass_props_co, mut friction, mut restitution) in q_child.iter_mut() {
-			let (vehicle_part, sidez, name_comp, mass_props_rb) = q_parent.get(parent.0).unwrap();
+			let (vehicle_part, sidez, name_comp, mass_props_rb, mut damping) = q_parent.get_mut(parent.0).unwrap();
 			let name 				= &name_comp.name;
 			let vp 					= *vehicle_part;
-
-			let writeback_axle_collider = |
-				  cfg				: &AxleConfig
-				, collider			: &mut Mut<Collider>
-				, mass_props_co		: &mut Mut<ColliderMassProperties>
-			| {
-				set_box_half_size	(cfg.half_size, collider);
-				set_density			(cfg.density, mass_props_co);
-			};
-
-			let writeback_wheel_collider = |
-				  cfg				: &WheelConfig
-				, collider			: &mut Mut<Collider>
-				, mass_props_co		: &mut Mut<ColliderMassProperties>
-				, friction			: &mut Mut<Friction>
-				, restitution		: &mut Mut<Restitution>
-			| {
-				set_cylinder_hh		(cfg.hh, collider);
-				set_cylinder_r		(cfg.r, collider);
-				set_density			(cfg.density, mass_props_co);
-				set_friction		(cfg.friction, friction);
-				set_restitution		(cfg.restitution, restitution);
-			};
 
 			let mut body_changed	= false;
 			let 	body_cfg_cache 	= body_cfg.clone();
@@ -1377,9 +1428,9 @@ fn update_ui_system(
 				draw_acceleration_params_ui	(ui, accel_cfg.as_mut());
 				draw_steering_params_ui		(ui, steer_cfg.as_mut());
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front && front_wheels_changed {
-				writeback_wheel_collider(&front_wheel_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution);
+				writeback_wheel_collider(&front_wheel_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear && rear_wheels_changed {
-				writeback_wheel_collider(&rear_wheel_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution);
+				writeback_wheel_collider(&rear_wheel_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
 			} else if vp == VehiclePart::Axle && *sidez == SideZ::Front && front_axles_changed {
 				writeback_axle_collider(&front_axle_common, &mut collider, &mut mass_props_co);
 			} else if vp == VehiclePart::Axle && *sidez == SideZ::Rear && rear_axles_changed {
