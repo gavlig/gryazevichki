@@ -769,23 +769,23 @@ fn spawn_world_axis(
 ) {
 	// X
 	commands.spawn_bundle(PbrBundle {
-		mesh: meshes.add(Mesh::from(render_shape::Box::new(1.0, 0.1, 0.1))),
-		material: materials.add(Color::rgb(0.8, 0.1, 0.1).into()),
-		transform: Transform::from_xyz(0.5, 0.0 + 0.05, 0.0),
+		mesh		: meshes.add			(Mesh::from(render_shape::Box::new(1.0, 0.1, 0.1))),
+		material	: materials.add			(Color::rgb(0.8, 0.1, 0.1).into()),
+		transform	: Transform::from_xyz	(0.5, 0.0 + 0.05, 0.0),
 		..Default::default()
 	});
 	// Y
 	commands.spawn_bundle(PbrBundle {
-		mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 1.0, 0.1))),
-		material: materials.add(Color::rgb(0.1, 0.8, 0.1).into()),
-		transform: Transform::from_xyz(0.0, 0.5 + 0.05, 0.0),
+		mesh		: meshes.add			(Mesh::from(render_shape::Box::new(0.1, 1.0, 0.1))),
+		material	: materials.add			(Color::rgb(0.1, 0.8, 0.1).into()),
+		transform	: Transform::from_xyz	(0.0, 0.5 + 0.05, 0.0),
 		..Default::default()
 	});
 	// Z
 	commands.spawn_bundle(PbrBundle {
-		mesh: meshes.add(Mesh::from(render_shape::Box::new(0.1, 0.1, 1.0))),
-		material: materials.add(Color::rgb(0.1, 0.1, 0.8).into()),
-		transform: Transform::from_xyz(0.0, 0.0 + 0.05, 0.5),
+		mesh		: meshes.add			(Mesh::from(render_shape::Box::new(0.1, 0.1, 1.0))),
+		material	: materials.add			(Color::rgb(0.1, 0.1, 0.8).into()),
+		transform	: Transform::from_xyz	(0.0, 0.0 + 0.05, 0.5),
 		..Default::default()
 	});
 }
@@ -798,7 +798,7 @@ fn cursor_grab_system(
 	let window = windows.get_primary_mut().unwrap();
 
 	if key.just_pressed(KeyCode::Escape) {
-		let toggle = !window.cursor_visible();
+		let toggle 	= !window.cursor_visible();
 		window.set_cursor_visibility(toggle);
 		window.set_cursor_lock_mode(!toggle);
 	}
@@ -870,11 +870,11 @@ fn vehicle_controls_system(
 		q_steer_cfg	: Query<&SteeringConfig>,
 	mut	query		: Query<&mut ImpulseJoint>,
 ) {
-	let fr_axle_joint = game.axles[FRONT_RIGHT];
-	let fl_axle_joint = game.axles[FRONT_LEFT];
+	let fr_axle_joint	= game.axles[FRONT_RIGHT];
+	let fl_axle_joint	= game.axles[FRONT_LEFT];
 
-	let rr_wheel_joint = game.wheels[REAR_RIGHT];
-	let rl_wheel_joint = game.wheels[REAR_LEFT];
+	let rr_wheel_joint	= game.wheels[REAR_RIGHT];
+	let rl_wheel_joint	= game.wheels[REAR_LEFT];
 
 	let accel_cfg = match q_accel_cfg.get(game.body.unwrap().entity) {
 		Ok(c) => c,
@@ -887,40 +887,40 @@ fn vehicle_controls_system(
 	};
 
 	if key.just_pressed(KeyCode::W) {
-		motor_velocity(accel_cfg.vel_fwd, accel_cfg.damping_fwd, rr_wheel_joint, &mut query);
-		motor_velocity(accel_cfg.vel_fwd, accel_cfg.damping_fwd, rl_wheel_joint, &mut query);
+		motor_velocity	(accel_cfg.vel_fwd, accel_cfg.damping_fwd, rr_wheel_joint, &mut query);
+		motor_velocity	(accel_cfg.vel_fwd, accel_cfg.damping_fwd, rl_wheel_joint, &mut query);
 	} else if key.just_released(KeyCode::W) {
-		motor_velocity(0.0, accel_cfg.damping_stop, rr_wheel_joint, &mut query);
-		motor_velocity(0.0, accel_cfg.damping_stop, rl_wheel_joint, &mut query);
+		motor_velocity	(0.0, accel_cfg.damping_stop, rr_wheel_joint, &mut query);
+		motor_velocity	(0.0, accel_cfg.damping_stop, rl_wheel_joint, &mut query);
 	}
 	
 	if key.just_pressed(KeyCode::S) {
-		motor_velocity(-accel_cfg.vel_bwd, accel_cfg.damping_bwd, rr_wheel_joint, &mut query);
-		motor_velocity(-accel_cfg.vel_bwd, accel_cfg.damping_bwd, rl_wheel_joint, &mut query);
+		motor_velocity	(-accel_cfg.vel_bwd, accel_cfg.damping_bwd, rr_wheel_joint, &mut query);
+		motor_velocity	(-accel_cfg.vel_bwd, accel_cfg.damping_bwd, rl_wheel_joint, &mut query);
 	} else if key.just_released(KeyCode::S) {
-		motor_velocity(0.0, accel_cfg.damping_stop, rr_wheel_joint, &mut query);
-		motor_velocity(0.0, accel_cfg.damping_stop, rl_wheel_joint, &mut query);
+		motor_velocity	(0.0, accel_cfg.damping_stop, rr_wheel_joint, &mut query);
+		motor_velocity	(0.0, accel_cfg.damping_stop, rl_wheel_joint, &mut query);
 	}
  
-	let steer_angle = steer_cfg.angle;
-	let stiffness 	= steer_cfg.stiffness;
+	let steer_angle 	= steer_cfg.angle;
+	let stiffness 		= steer_cfg.stiffness;
 	let stiffness_release = steer_cfg.stiffness_release;
-	let damping 	= steer_cfg.damping;
+	let damping 		= steer_cfg.damping;
 	let damping_release = steer_cfg.damping_release;
 	if key.just_pressed(KeyCode::D) {
-		motor_steer(-steer_angle, stiffness, damping, fr_axle_joint, &mut query);
-		motor_steer(-steer_angle, stiffness, damping, fl_axle_joint, &mut query);
+		motor_steer		(-steer_angle, stiffness, damping, fr_axle_joint, &mut query);
+		motor_steer		(-steer_angle, stiffness, damping, fl_axle_joint, &mut query);
 	} else if key.just_released(KeyCode::D) {
-		motor_steer(0.0, stiffness_release, damping_release, fr_axle_joint, &mut query);
-		motor_steer(0.0, stiffness_release, damping_release, fl_axle_joint, &mut query);
+		motor_steer		(0.0, stiffness_release, damping_release, fr_axle_joint, &mut query);
+		motor_steer		(0.0, stiffness_release, damping_release, fl_axle_joint, &mut query);
 	}
 
  	if key.just_pressed(KeyCode::A) {
-		motor_steer(steer_angle, stiffness, damping, fr_axle_joint, &mut query);
-		motor_steer(steer_angle, stiffness, damping, fl_axle_joint, &mut query);
+		motor_steer		(steer_angle, stiffness, damping, fr_axle_joint, &mut query);
+		motor_steer		(steer_angle, stiffness, damping, fl_axle_joint, &mut query);
 	} else if key.just_released(KeyCode::A) {
-		motor_steer(0.0, stiffness_release, damping_release, fr_axle_joint, &mut query);
-		motor_steer(0.0, stiffness_release, damping_release, fl_axle_joint, &mut query);
+		motor_steer		(0.0, stiffness_release, damping_release, fr_axle_joint, &mut query);
+		motor_steer		(0.0, stiffness_release, damping_release, fl_axle_joint, &mut query);
 	}
 }
 
