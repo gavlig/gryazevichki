@@ -167,6 +167,30 @@ impl Default for Game {
 	}
 }
 
+// TODO: 41. refactor config: separate physics into a VehiclePhysicsConfig
+#[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
+struct PhysicsConfig {
+	  density					: f32
+	, mass						: f32
+	, friction					: f32
+	, restitution				: f32
+	, lin_damping				: f32
+	, ang_damping				: f32
+}
+
+impl Default for PhysicsConfig {
+	fn default() -> Self {
+		Self {
+			  density			: 1.0
+			, mass				: 0.0 // calculated at runtime
+			, friction			: 0.5
+			, restitution		: 0.0
+			, lin_damping		: 0.0
+			, ang_damping		: 0.0
+		}
+	}
+}
+
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 struct WheelConfig {
 	  hh						: f32
@@ -327,9 +351,9 @@ fn main() {
 		.add_plugin				(FlyCameraPlugin)
 		.add_plugin				(bevy_egui::EguiPlugin)
 
-		.add_startup_system		(setup_graphics_system)
-		.add_startup_system		(setup_physics_system)
 		.add_startup_system		(setup_grab_system)
+		.add_startup_system		(setup_graphics_system)
+		.add_startup_system		(spawn_world_system)
 		.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
 
 		.add_system				(cursor_grab_system)
@@ -411,11 +435,24 @@ fn spawn_camera(
 	println!			("camera Entity ID {:?}", camera);
 }
 
-fn setup_physics_system(
+fn setup_camera_system(
+		game			: ResMut<Game>,
+	mut query			: Query<&mut FlyCamera>
+) {
+	// initialize camera with target to look at
+	if game.camera.is_some() && game.body.is_some() {
+		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
+		camera.target 	= Some(game.body.unwrap().entity);
+		println!		("camera.target Entity ID {:?}", camera.target);
+	}
+}
+
+fn spawn_world_system(
 	mut _configuration	: ResMut<RapierConfiguration>,
 	mut game			: ResMut<Game>,
 	mut	meshes			: ResMut<Assets<Mesh>>,
 	mut	materials		: ResMut<Assets<StandardMaterial>>,
+		ass				: Res<AssetServer>,
 	mut commands		: Commands
 ) {
 //	configuration.timestep_mode = TimestepMode::VariableTimestep;
@@ -447,20 +484,9 @@ fn setup_physics_system(
 		, axle_cfg
 		, wheel_cfg
 		, body_pos
+		, &ass
 		, &mut commands
 	);
-}
-
-fn setup_camera_system(
-		 game			: ResMut<Game>,
-	mut query			: Query<&mut FlyCamera>
-) {
-	// initialize camera with target to look at
-	if game.camera.is_some() && game.body.is_some() {
-		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
-		camera.target 	= Some(game.body.unwrap().entity);
-		println!		("camera.target Entity ID {:?}", camera.target);
-	}
 }
 
 fn spawn_ground(
@@ -492,15 +518,16 @@ fn spawn_vehicle(
 		game			: &mut ResMut<Game>,
 	mut _meshes			: &mut ResMut<Assets<Mesh>>,
 	mut _materials		: &mut ResMut<Assets<StandardMaterial>>,
-		body_cfg		: BodyConfig,
+		body_cfg		: BodyConfig, // TODO: use VehicleConfig instead
 		accel_cfg		: AcceleratorConfig,
 		steer_cfg		: SteeringConfig,
 		axle_cfg		: AxleConfig,
 		wheel_cfg		: WheelConfig,
 		body_pos		: Transform,
+		ass				: &Res<AssetServer>,
 	mut commands		: &mut Commands
 ) {
-	let body 			= spawn_body(body_pos, body_cfg, accel_cfg, steer_cfg, &mut commands);
+	let body 			= spawn_body(body_pos, body_cfg, accel_cfg, steer_cfg, ass, &mut commands);
 	game.body 			= Some(RespawnableEntity { entity : body, ..Default::default() });
 	println!			("body Entity ID {:?}", body);
 
@@ -703,12 +730,15 @@ fn spawn_body(
 	cfg				: BodyConfig,
 	accel_cfg		: AcceleratorConfig,
 	steer_cfg		: SteeringConfig,
+	ass				: &Res<AssetServer>,
 	commands		: &mut Commands,
 ) -> Entity {
 	let body_type	= if cfg.lifted { RigidBody::Fixed } else { RigidBody::Dynamic };
 	let half_size	= cfg.half_size;
 	let density		= cfg.density;
 
+	let body_model	= ass.load("corvette/body/corvette_body.gltf#Scene0");
+   
 	commands
 		.spawn		()
 		.insert		(body_type)
@@ -719,6 +749,10 @@ fn spawn_body(
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
 		.insert		(Damping::default())
+		.insert		(NameComponent{ name: "Body".to_string() })
+		.insert		(VehiclePart::Body)
+		.insert		(SideX::Center)
+		.insert		(SideZ::Center)
 		.with_children(|children| {
 		children.spawn()
 			.insert	(Collider::cuboid(half_size.x, half_size.y, half_size.z))
@@ -726,10 +760,9 @@ fn spawn_body(
 			.insert	(Friction::default())
 			.insert	(Restitution::default());
 		})	
-		.insert		(NameComponent{ name: "Body".to_string() })
-		.insert		(VehiclePart::Body)
-		.insert		(SideX::Center)
-		.insert		(SideZ::Center)
+		.with_children(|children| {
+		children.spawn_scene(body_model);
+		})
 		.id			()
 }
 
@@ -1746,6 +1779,7 @@ fn respawn_vehicle_system(
 		q_axle_cfg	: Query<&AxleConfig>,
 		q_wheel_cfg	: Query<&WheelConfig>,
 	mut	q_camera	: Query<&mut FlyCamera>,
+		ass			: Res<AssetServer>,
 	mut	commands	: Commands,
 ) {
 	let (mut body, respawn_body) = match game.body {
@@ -1761,7 +1795,7 @@ fn respawn_vehicle_system(
 
 		body_pos.translation = Vec3::new(0.0, 5.5, 0.0);
 		body_pos.rotation = Quat::IDENTITY;
-		body 			= spawn_body(*body_pos, *body_cfg, *accel_cfg, *steer_cfg, &mut commands);
+		body 			= spawn_body(*body_pos, *body_cfg, *accel_cfg, *steer_cfg, &ass, &mut commands);
 		game.body 		= Some(RespawnableEntity { entity : body, ..Default::default() });
 		// TODO: is there an event we can attach to? 
 		let mut camera 	= q_camera.get_mut(game.camera.unwrap()).unwrap();
