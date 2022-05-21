@@ -215,6 +215,10 @@ impl Default for AxleConfig {
 			, mass				: 0.0
 			, wheel_offset		: Vec3::new(0.8, 0.0, 0.0)
 			, auto_offset		: true
+			, friction			: 0.5
+			, restitution		: 0.0
+			, lin_damping		: 0.0
+			, ang_damping		: 0.0
 		}
 	}
 }
@@ -246,6 +250,10 @@ impl Default for BodyConfig {
 			, lifted			: false
 			, axle_offset		: Vec3::new(0.8, 0.8, 1.4)
 			, auto_offset		: true
+			, friction			: 0.5
+			, restitution		: 0.0
+			, lin_damping		: 0.0
+			, ang_damping		: 0.0
 		}
 	}
 }

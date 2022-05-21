@@ -54,6 +54,8 @@
 37. pick objects around
 38. spawn objects around
 39. try circuis rides in circle on walls
-30. indicate car front,right,left
+40. indicate car front,right,left
+41. refactor config: separate physics into a VehiclePhysicsConfig
+42. refactor: use VehicleConfig in spawn_vehicle instead of numerous cfgs
 
 next milestone: fully configurable vehicle with an environment to test it
