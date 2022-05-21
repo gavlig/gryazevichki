@@ -447,6 +447,24 @@ fn setup_camera_system(
 	}
 }
 
+fn _spawn_gltf(
+    mut commands: Commands,
+    ass: Res<AssetServer>,
+) {
+    // note that we have to include the `Scene0` label
+    let my_gltf = ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
+
+    // to be able to position our 3d model:
+    // spawn a parent entity with a TransformBundle
+    // and spawn our gltf as a scene under it
+    commands.spawn_bundle(TransformBundle {
+        local: Transform::from_xyz(0.0, 0.0, 0.0),
+        global: GlobalTransform::identity(),
+    }).with_children(|parent| {
+        parent.spawn_scene(my_gltf);
+    });
+}
+
 fn spawn_world_system(
 	mut _configuration	: ResMut<RapierConfiguration>,
 	mut game			: ResMut<Game>,
@@ -535,7 +553,7 @@ fn spawn_vehicle(
 	for side_ref in WHEEL_SIDES {
 		let side 		= *side_ref;
 		let axle_offset = body_cfg.axle_offset(side);
-		let (axle, wheel) = spawn_attached_wheel(side, body, body_pos, axle_offset, axle_cfg, wheel_cfg, &mut commands);
+		let (axle, wheel) = spawn_attached_wheel(side, body, body_pos, axle_offset, axle_cfg, wheel_cfg, ass, &mut commands);
 		game.axles[side] = Some(axle);
 		game.wheels[side] = Some(wheel);
 			
@@ -550,13 +568,14 @@ fn spawn_attached_wheel(
 	axle_offset		: Vec3,
 	axle_cfg		: AxleConfig,
 	wheel_cfg		: WheelConfig,
+	ass				: &Res<AssetServer>,
 	commands		: &mut Commands
 ) -> (RespawnableEntity, RespawnableEntity) { // axle + wheel 
 	let (axle, axle_pos) = spawn_axle_with_joint(side, body, body_pos, axle_offset, axle_cfg, commands);
 
 	let wheel_offset = axle_cfg.wheel_offset(side);
 
-	let wheel		= spawn_wheel_with_joint(side, axle, axle_pos, wheel_offset, wheel_cfg, commands);
+	let wheel		= spawn_wheel_with_joint(side, axle, axle_pos, wheel_offset, wheel_cfg, ass, commands);
 
 	(
 	RespawnableEntity{ entity : axle,	..Default::default() },
@@ -588,6 +607,7 @@ fn spawn_wheel_with_joint(
 	axle_pos		: Transform,
 	offset			: Vec3,
 	cfg				: WheelConfig,
+	ass				: &Res<AssetServer>,
 	mut	commands	: &mut Commands
 ) -> Entity {
 	let wheel_pos 	= axle_pos * Transform::from_translation(offset);
@@ -597,6 +617,7 @@ fn spawn_wheel_with_joint(
 		, wheel_pos
 		, RigidBody::Dynamic
 		, cfg
+		, ass
 		, &mut commands
 	);
 
@@ -656,12 +677,15 @@ fn spawn_wheel(
 	pos				: Transform,
 	body_type		: RigidBody,
 	cfg				: WheelConfig,
+	ass				: &Res<AssetServer>,
 	commands		: &mut Commands,
 ) -> Entity {
 	let side_name	= wheel_side_name(side);
 	let (sidez, sidex) = wheel_side_to_zx(side);
 	let mut wheel_id = Entity::from_bits(0);
-	// by default cylinder spawns with its flat surface on the ground and we want the round part
+
+	let wheel_model	= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
+
 	commands
 	.entity			(axle)
 	.with_children	(|children| {
@@ -673,19 +697,30 @@ fn spawn_wheel(
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
 		.insert		(Damping{ linear_damping: cfg.lin_damping, angular_damping: cfg.ang_damping })
+		.insert		(NameComponent{ name: format!("{} Wheel", side_name) })
+		.insert		(VehiclePart::Wheel)
+		.insert		(sidex)
+		.insert		(sidez)
+		// collider
 		.with_children(|children| {
 			children.spawn()
-			.insert	(Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2)))
+			.insert	(Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2))) // by default cylinder spawns with its flat surface on the ground and we want the round part
 			.insert	(Collider::cylinder(cfg.hh, cfg.r))
 			.insert	(ColliderMassProperties::Density(cfg.density))
 			.insert	(Friction::new(cfg.friction))
 			.insert	(Restitution::new(cfg.restitution))
 			.insert	(ActiveEvents::COLLISION_EVENTS);
 		})
-		.insert		(NameComponent{ name: format!("{} Wheel", side_name) })
-		.insert		(VehiclePart::Wheel)
-		.insert		(sidex)
-		.insert		(sidez)
+		// render model
+		.with_children(|children| {
+			children.spawn_bundle(
+				TransformBundle {
+					local: Transform::identity(),
+					global: GlobalTransform::identity(),
+			}).with_children(|parent| {
+				parent.spawn_scene(wheel_model);
+			});
+		})
 		.id			()
 	});
 
@@ -761,7 +796,13 @@ fn spawn_body(
 			.insert	(Restitution::default());
 		})	
 		.with_children(|children| {
-		children.spawn_scene(body_model);
+		children.spawn_bundle(
+			TransformBundle {
+				local: Transform::from_xyz(0.0, -1.0, 0.0),
+				global: GlobalTransform::identity(),
+			}).with_children(|parent| {
+				parent.spawn_scene(body_model);
+			});
 		})
 		.id			()
 }
@@ -1847,6 +1888,7 @@ fn respawn_vehicle_system(
 			, axle_pos
 			, wheel_offset
 			, wheel_cfg
+			, &ass
 			, &mut commands
 		);
 
