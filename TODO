@@ -17,13 +17,14 @@
 13.3. (done!)make wheel position adjustable
 13.4. (done!)make wheel position attached to body size
 13.5. (done!)make motor adjustable
-13.6. (wip)make axles adjustable
+13.6. (done!)make axles adjustable
 13.7. make center of mass adjustable
 13.8. (done!)make mass adjustable
 13.9. add a tab where all parameters of entities with same type are adjustable with one control 
 13.10. auto adjust masses on wheels/axles when changing body?
-13.11. show total mass
-13.12. make friction adjustable
+13.11. (done!)auto adjust offset on wheels/axles when changing body/axles
+13.12. show total mass
+13.13. make friction adjustable
 14. research how to release cursor when hitting breakpoint
 15. (done!)bug: joints with wheels fall asleep too fast and we cant wake them up with motor
 16. (done!)update bevy to 0.7
