@@ -684,7 +684,7 @@ fn spawn_wheel(
 	let (sidez, sidex) = wheel_side_to_zx(side);
 	let mut wheel_id = Entity::from_bits(0);
 
-	let wheel_model	= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
+//	let wheel_model	= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
 
 	commands
 	.entity			(axle)
@@ -712,15 +712,15 @@ fn spawn_wheel(
 			.insert	(ActiveEvents::COLLISION_EVENTS);
 		})
 		// render model
-		.with_children(|children| {
-			children.spawn_bundle(
-				TransformBundle {
-					local: Transform::identity(),
-					global: GlobalTransform::identity(),
-			}).with_children(|parent| {
-				parent.spawn_scene(wheel_model);
-			});
-		})
+		// .with_children(|children| {
+		// 	children.spawn_bundle(
+		// 		TransformBundle {
+		// 			local: Transform::identity(),
+		// 			global: GlobalTransform::identity(),
+		// 	}).with_children(|parent| {
+		// 		parent.spawn_scene(wheel_model);
+		// 	});
+		// })
 		.id			()
 	});
 
@@ -773,6 +773,7 @@ fn spawn_body(
 	let density		= cfg.density;
 
 	let body_model	= ass.load("corvette/body/corvette_body.gltf#Scene0");
+	let wheel_model	= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
 
 	commands
 		.spawn		()
@@ -804,6 +805,16 @@ fn spawn_body(
 				parent.spawn_scene(body_model);
 			});
 		})
+		.with_children(|children| {
+			children.spawn_bundle(
+				TransformBundle {
+					local: Transform::from_xyz(0.0, 5.0, 0.0),
+					global: GlobalTransform::identity(),
+			}).with_children(|parent| {
+				parent.spawn_scene(wheel_model);
+			});
+		})
+
 		.id			()
 }
 
