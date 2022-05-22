@@ -57,5 +57,6 @@
 40. indicate car front,right,left
 41. refactor config: separate physics into a VehiclePhysicsConfig
 42. refactor: use VehicleConfig in spawn_vehicle instead of numerous cfgs
+43. make ui work with any random amount of missing parts
 
 next milestone: fully configurable vehicle with an environment to test it
