@@ -115,6 +115,20 @@ fn wheel_side_offset(side: WheelSideType, off: Vec3) -> Vec3 {
 	}
 }
 
+fn wheel_side_rotation(side: WheelSideType) -> Quat {
+	let default_rotation	= Quat::IDENTITY;
+	let flip_side			= Quat::from_rotation_y(std::f32::consts::PI);
+
+	match side {
+		FRONT_RIGHT			=> default_rotation,
+		FRONT_LEFT			=> flip_side,
+		REAR_RIGHT			=> default_rotation,
+		REAR_LEFT 			=> flip_side,
+		WHEELS_MAX			=> panic!("Max shouldn't be used as a wheel side!"),
+		_					=> panic!("Only 4 sides are supported currently: 0 - 3 or FrontRight FrontLeft RearRight RearLeft"),
+	}
+}
+
 const WHEEL_SIDES: &'static [WheelSideType] = &[
 	  FRONT_RIGHT
 	, FRONT_LEFT
@@ -240,7 +254,7 @@ impl Default for AxleConfig {
 	fn default() -> Self {
 		Self {
 			  half_size			: Vec3::new(0.1, 0.2, 0.1)
-			, fixed				: true
+			, fixed				: false
 			, density			: 1000.0
 			, mass				: 0.0
 			, wheel_offset		: Vec3::new(0.8, 0.0, 0.0)
@@ -277,7 +291,7 @@ impl Default for BodyConfig {
 		Self {
 			  half_size			: Vec3::new(0.5, 0.5, 1.0)
 			, density			: 2.0
-			, fixed				: true
+			, fixed				: false
 			, axle_offset		: Vec3::new(0.8, 0.8, 1.4)
 			, auto_offset		: true
 			, friction			: 0.5
@@ -351,17 +365,18 @@ fn main() {
 		.insert_resource		(Msaa::default())
 		.insert_resource		(Game::default())
 		.insert_resource		(DespawnResource::default())
-		.insert_resource		(AtmosphereMat::default()) // Default Earth sky
+//		.insert_resource		(AtmosphereMat::default()) // Default Earth sky
 
 		.add_plugins			(DefaultPlugins)
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugin				(RapierDebugRenderPlugin::default())
 		.add_plugin				(FlyCameraPlugin)
 		.add_plugin				(EguiPlugin)
-		.add_plugin				(AtmospherePlugin {
-            dynamic				: false,  // Set to false since we aren't changing the sky's appearance
-            sky_radius			: 10.0,
-        })
+		// it glitches and hides the ground
+//		.add_plugin				(AtmospherePlugin {
+//			dynamic				: false,  // Set to false since we aren't changing the sky's appearance
+//            sky_radius			: 10.0,
+//        })
 
 		.add_startup_system		(setup_grab_system)
 		.add_startup_system		(setup_graphics_system)
@@ -748,15 +763,13 @@ fn spawn_axle(
 	let mut axle_id = Entity::from_bits(0);
 	let 	axle_pos= body_pos * Transform::from_translation(offset);
 
+	axle_id 		=
 	commands
-	.entity			(body)
-	.with_children(|parent| {
-		axle_id = parent
 		.spawn		()
 
 		.insert		(if cfg.fixed { RigidBody::Fixed } else { RigidBody::Dynamic })
 		.insert		(cfg)
-		.insert		(Transform::default())
+		.insert		(axle_pos)
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
 		.insert		(Damping::default())
@@ -764,29 +777,27 @@ fn spawn_axle(
 		.insert		(VehiclePart::Axle)
 		.insert		(sidex)
 		.insert		(sidez)
-		
 
 		.with_children(|parent| {
 			parent
 			.spawn	()
-			.insert	(axle_pos) // Collider requires Transfrom in world space
+			.insert	(Transform::default())
 			.insert	(GlobalTransform::default())
 			.insert	(Collider::cuboid(cfg.half_size.x, cfg.half_size.y, cfg.half_size.z))
 			.insert	(ColliderMassProperties::Density(cfg.density))
 			.insert	(Friction::default())
 			.insert	(Restitution::default());
 		})
-		.id			()
-	});
-
-	let axis_cube	= _ass.load("utils/axis_cube.gltf#Scene0");
-	commands.spawn_bundle(
-		TransformBundle {
-			local: axle_pos,
-			global: GlobalTransform::default(),
-	}).with_children(|parent| {
-		parent.spawn_scene(axis_cube);
-	});
+		.id			();
+	
+	// let axis_cube	= _ass.load("utils/axis_cube.gltf#Scene0");
+	// commands.spawn_bundle(
+	// 	TransformBundle {
+	// 		local: axle_pos,
+	// 		global: GlobalTransform::default(),
+	// }).with_children(|parent| {
+	// 	parent.spawn_scene(axis_cube);
+	// });
 
 	axle_id
 }
@@ -804,22 +815,17 @@ fn spawn_wheel(
 	let (sidez, sidex) = wheel_side_to_zx(side);
 	let mut wheel_id = Entity::from_bits(0);
 
-	let local_pos	= Transform {
-		  translation : offset
-		, rotation 	: Quat::from_rotation_z(std::f32::consts::FRAC_PI_2) // by default cylinder spawns with its flat surface on the ground and we want the round part
-		,..Default::default()
-	}; 
-	let wheel_pos 	= axle_pos * local_pos;
+	let wheel_phys_rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2); // by default cylinder spawns with its flat surface on the ground and we want the round part
+	let wheel_render_rotation = wheel_side_rotation(side);
 
-//	let wheel_model	= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
+	let wheel_pos 	= axle_pos * Transform::from_translation(offset);//local_pos;
+	let wheel_model	= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
 
-	commands
-	.entity			(axle)
-	.with_children	(|parent| {
-		wheel_id = parent.spawn()
+	wheel_id 		=
+	commands.spawn()
 		.insert		(if cfg.fixed { RigidBody::Fixed } else { RigidBody::Dynamic })
 		.insert		(cfg)
-		.insert		(Transform::default())//from_translation(offset))
+		.insert		(wheel_pos)
 		.insert		(GlobalTransform::default())
 		.insert		(MassProperties::default())
 		.insert		(Damping{ linear_damping: cfg.lin_damping, angular_damping: cfg.ang_damping })
@@ -830,7 +836,7 @@ fn spawn_wheel(
 		// collider
 		.with_children(|parent| {
 			parent.spawn()
-			.insert	(wheel_pos)
+			.insert	(Transform::from_rotation(wheel_phys_rotation))
 			.insert (GlobalTransform::default())
 			.insert	(Collider::cylinder(cfg.hh, cfg.r))
 			.insert	(ColliderMassProperties::Density(cfg.density))
@@ -839,26 +845,24 @@ fn spawn_wheel(
 			.insert	(ActiveEvents::COLLISION_EVENTS);
 		})
 		// render model
-		// .with_children(|parent| {
-		// 	parent.spawn_bundle(
-		// 		TransformBundle {
-		// 			local: Transform::default(),
-		// 			global: GlobalTransform::default(),
-		// 	}).with_children(|parent| {
-		// 		parent.spawn_scene(wheel_model);
-		// 	});
-		// })
-		.id			()
-	});
+		.with_children(|parent| {
+			parent.spawn()
+			.insert	(Transform::from_rotation(wheel_render_rotation))
+			.insert	(GlobalTransform::default())
+			.with_children(|parent| {
+				parent.spawn_scene(wheel_model);
+			});
+		})
+		.id			();
 
-	let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
-	commands.spawn_bundle(
-		TransformBundle {
-			local: wheel_pos,
-			global: GlobalTransform::default(),
-	}).with_children(|parent| {
-		parent.spawn_scene(axis_cube);
-	});
+	// let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
+	// commands.spawn_bundle(
+	// 	TransformBundle {
+	// 		local: wheel_pos,
+	// 		global: GlobalTransform::default(),
+	// }).with_children(|parent| {
+	// 	parent.spawn_scene(axis_cube);
+	// });
 
 	wheel_id
 }
@@ -908,39 +912,41 @@ fn spawn_body(
 	let half_size	= cfg.half_size;
 	let density		= cfg.density;
 
-//	let body_model	= ass.load("corvette/body/corvette_body.gltf#Scene0");
+	let body_model	= ass.load("corvette/body/corvette_body.gltf#Scene0");
 
 	commands
 		.spawn		()
-		.insert_bundle(TransformBundle::default())
-		.insert		(body_type)
+		.insert		(pos)
+		.insert		(GlobalTransform::default())
 		.insert		(cfg)
 		.insert		(accel_cfg)
 		.insert		(steer_cfg)
+		.insert		(body_type)
 		.insert		(MassProperties::default())
 		.insert		(Damping::default())
 		.insert		(NameComponent{ name: "Body".to_string() })
 		.insert		(VehiclePart::Body)
 		.insert		(SideX::Center)
 		.insert		(SideZ::Center)
+		// collider
 		.with_children(|children| {
 		children.spawn()
-			.insert	(pos)
-			.insert	(GlobalTransform::default())
+			.insert_bundle(TransformBundle::default())
 			.insert	(Collider::cuboid(half_size.x, half_size.y, half_size.z))
 			.insert	(ColliderMassProperties::Density(density)) // joints like it when there is an hierarchy of masses and we want body to be the heaviest
 			.insert	(Friction::default())
 			.insert	(Restitution::default());
 		})
-		// .with_children(|children| {
-		// children.spawn_bundle(
-		// 	TransformBundle {
-		// 		local: Transform::from_xyz(0.0, -1.0, 0.0),
-		// 		global: GlobalTransform::default(),
-		// 	}).with_children(|parent| {
-		// 		parent.spawn_scene(body_model);
-		// 	});
-		// })
+		// render model
+		.with_children(|children| {
+		children.spawn_bundle(
+			TransformBundle {
+				local: Transform::from_xyz(0.0, -1.0, 0.0),
+				global: GlobalTransform::default(),
+			}).with_children(|parent| {
+				parent.spawn_scene(body_model);
+			});
+		})
 		.id			()
 }
 
@@ -1311,15 +1317,15 @@ fn draw_body_params_ui_collapsing(
 			ui.separator	();
 
 			changed 		|= ui.add(
-				Slider::new(&mut cfg.axle_offset[0], 0.05 ..= 5.0).text("Axle Offset X"),
+				Slider::new(&mut cfg.axle_offset[0], -5.0 ..= 5.0).text("Axle Offset X"),
 			).changed();
 			
 			changed 		|= ui.add(
-				Slider::new(&mut cfg.axle_offset[1], 0.05 ..= 5.0).text("Axle Offset Y"),
+				Slider::new(&mut cfg.axle_offset[1], -5.0 ..= 5.0).text("Axle Offset Y"),
 			).changed();
 
 			changed 		|= ui.add(
-				Slider::new(&mut cfg.axle_offset[2], 0.05 ..= 5.0).text("Axle Offset Z"),
+				Slider::new(&mut cfg.axle_offset[2],-5.0 ..= 5.0).text("Axle Offset Z"),
 			).changed();
 
 			ui.separator	();
@@ -1378,15 +1384,15 @@ fn draw_axle_params_ui(
 	ui.separator();
 
 	changed |= ui.add(
-		Slider::new(&mut cfg.wheel_offset[0], 0.05 ..= 5.0).text("Wheel Offset X"),
+		Slider::new(&mut cfg.wheel_offset[0], -5.0 ..= 5.0).text("Wheel Offset X"),
 	).changed();
 	
 	changed |= ui.add(
-		Slider::new(&mut cfg.wheel_offset[1], 0.05 ..= 5.0).text("Wheel Offset Y"),
+		Slider::new(&mut cfg.wheel_offset[1], -5.0 ..= 5.0).text("Wheel Offset Y"),
 	).changed();
 
 	changed |= ui.add(
-		Slider::new(&mut cfg.wheel_offset[2], 0.05 ..= 5.0).text("Wheel Offset Z"),
+		Slider::new(&mut cfg.wheel_offset[2], -5.0 ..= 5.0).text("Wheel Offset Z"),
 	).changed();
 
 	ui.separator();
@@ -1574,7 +1580,6 @@ fn update_ui_system(
 		});
 		
 		ui.separator();
-		return;
 
 		// common wheel/axle configs
 		// ^^
@@ -1996,7 +2001,7 @@ fn respawn_vehicle_system(
 
 		println!		("respawned body Entity ID {:?}", body);
 	}
-	return;
+
 	for side_ref in WHEEL_SIDES {
 		let side 		= *side_ref;
 		let re_axle 	= game.axles[side].unwrap();
