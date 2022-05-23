@@ -186,7 +186,8 @@ impl Default for Game {
 // TODO: 41. refactor config: separate physics into a VehiclePhysicsConfig
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 struct PhysicsConfig {
-	  density					: f32
+	  fixed						: bool
+	, density					: f32
 	, mass						: f32
 	, friction					: f32
 	, restitution				: f32
@@ -197,7 +198,8 @@ struct PhysicsConfig {
 impl Default for PhysicsConfig {
 	fn default() -> Self {
 		Self {
-			  density			: 1.0
+			  fixed				: false
+			, density			: 1.0
 			, mass				: 0.0 // calculated at runtime
 			, friction			: 0.5
 			, restitution		: 0.0
@@ -211,13 +213,7 @@ impl Default for PhysicsConfig {
 struct WheelConfig {
 	  hh						: f32
 	, r							: f32
-	, fixed						: bool
-	, density					: f32
-	, mass						: f32
-	, friction					: f32
-	, restitution				: f32
-	, lin_damping				: f32
-	, ang_damping				: f32
+//	, model_path				: Option<&'static str>
 }
 
 impl Default for WheelConfig {
@@ -225,13 +221,7 @@ impl Default for WheelConfig {
 		Self {
 			  hh				: 0.5
 			, r					: 0.8
-			, fixed				: false
-			, density			: 1.0
-			, mass				: 0.0 // calculated at runtime
-			, friction			: 0.5
-			, restitution		: 0.0
-			, lin_damping		: 0.0
-			, ang_damping		: 0.0
+//			, model_path		: Some("corvette/wheel/corvette_wheel.gltf#Scene0")
 		}
 	}
 }
@@ -515,7 +505,9 @@ fn spawn_world_system(
 	let body_pos 		= Transform::from_xyz(0.0, 5.5, 0.0);
 	let body_cfg		= BodyConfig::default();
 	let axle_cfg		= AxleConfig::default();
+	let axle_phys_cfg	= PhysicsConfig::default();
 	let wheel_cfg		= WheelConfig::default();
+	let wheel_phys_cfg	= PhysicsConfig::default();
 	let accel_cfg		= AcceleratorConfig::default();
 	let steer_cfg		= SteeringConfig::default();
 
@@ -527,7 +519,9 @@ fn spawn_world_system(
 		, accel_cfg
 		, steer_cfg
 		, axle_cfg
+		, axle_phys_cfg
 		, wheel_cfg
+		, wheel_phys_cfg
 		, body_pos
 		, &ass
 		, &mut commands
@@ -567,7 +561,9 @@ fn spawn_vehicle(
 		accel_cfg		: AcceleratorConfig,
 		steer_cfg		: SteeringConfig,
 		axle_cfg		: AxleConfig,
+		axle_phys_cfg	: PhysicsConfig,
 		wheel_cfg		: WheelConfig,
+		wheel_phys_cfg	: PhysicsConfig,
 		body_pos		: Transform,
 		ass				: &Res<AssetServer>,
 	mut commands		: &mut Commands
@@ -583,7 +579,9 @@ fn spawn_vehicle(
 		let side 		= *side_ref;
 		let axle_offset = body_cfg.axle_offset(side);
 		let wheel_offset= axle_cfg.wheel_offset(side);
-		let (axle, wheel) = spawn_attached_wheel(side, body, body_pos, axle_offset, axle_cfg, wheel_cfg, ass, &mut commands);
+
+		let (axle, wheel) = spawn_attached_wheel(side, body, body_pos, axle_offset, axle_cfg, axle_phys_cfg, wheel_cfg, wheel_phys_cfg, ass, &mut commands);
+
 		game.axles[side] = Some(axle);
 		game.wheels[side] = Some(wheel);
 
@@ -682,7 +680,9 @@ fn spawn_attached_wheel(
 	body_pos		: Transform,
 	axle_offset		: Vec3,
 	axle_cfg		: AxleConfig,
+	axle_physics_cfg: PhysicsConfig,
 	wheel_cfg		: WheelConfig,
+	wheel_phys_cfg	: PhysicsConfig,
 	ass				: &Res<AssetServer>,
 	commands		: &mut Commands
 ) -> (RespawnableEntity, RespawnableEntity) { // axle + wheel 
@@ -690,7 +690,7 @@ fn spawn_attached_wheel(
 
 	let wheel_offset = axle_cfg.wheel_offset(side);
 
-	let wheel		= spawn_wheel_with_joint(side, axle, axle_pos, wheel_offset, wheel_cfg, ass, commands);
+	let wheel		= spawn_wheel_with_joint(side, axle, axle_pos, wheel_offset, &wheel_cfg, &wheel_phys_cfg, ass, commands);
 
 	let wheel_pos	= axle_pos * wheel_offset;
 
@@ -727,16 +727,17 @@ fn spawn_wheel_with_joint(
 	axle			: Entity,
 	axle_pos		: Transform,
 	offset			: Vec3,
-	cfg				: WheelConfig,
+	wheel_cfg		: &WheelConfig,
+	phys_cfg		: &PhysicsConfig,
 	ass				: &Res<AssetServer>,
 	mut	commands	: &mut Commands
 ) -> Entity {
 	let wheel 		= spawn_wheel(
 		  side
-		, axle
 		, axle_pos
 		, offset
-		, cfg
+		, wheel_cfg
+		, phys_cfg
 		, ass
 		, &mut commands
 	);
@@ -804,10 +805,10 @@ fn spawn_axle(
 
 fn spawn_wheel(
 	side			: WheelSideType,
-	axle			: Entity,
 	axle_pos		: Transform,
 	offset			: Vec3,
-	cfg				: WheelConfig,
+	wheel_cfg		: &WheelConfig,
+	phys_cfg		: &PhysicsConfig,
 	ass				: &Res<AssetServer>,
 	commands		: &mut Commands,
 ) -> Entity {
@@ -823,12 +824,15 @@ fn spawn_wheel(
 
 	wheel_id 		=
 	commands.spawn()
-		.insert		(if cfg.fixed { RigidBody::Fixed } else { RigidBody::Dynamic })
-		.insert		(cfg)
+		.insert		(*wheel_cfg)
+		.insert		(*phys_cfg)
+
 		.insert		(wheel_pos)
 		.insert		(GlobalTransform::default())
+		// physics
+		.insert		(if phys_cfg.fixed { RigidBody::Fixed } else { RigidBody::Dynamic })
 		.insert		(MassProperties::default())
-		.insert		(Damping{ linear_damping: cfg.lin_damping, angular_damping: cfg.ang_damping })
+		.insert		(Damping{ linear_damping: phys_cfg.lin_damping, angular_damping: phys_cfg.ang_damping })
 		.insert		(NameComponent{ name: format!("{} Wheel", side_name) })
 		.insert		(VehiclePart::Wheel)
 		.insert		(sidex)
@@ -838,11 +842,11 @@ fn spawn_wheel(
 			parent.spawn()
 			.insert	(Transform::from_rotation(wheel_phys_rotation))
 			.insert (GlobalTransform::default())
-			.insert	(Collider::cylinder(cfg.hh, cfg.r))
-			.insert	(ColliderMassProperties::Density(cfg.density))
-			.insert	(Friction::new(cfg.friction))
-			.insert	(Restitution::new(cfg.restitution))
-			.insert	(ActiveEvents::COLLISION_EVENTS);
+			.insert	(Collider::cylinder(wheel_cfg.hh, wheel_cfg.r))
+			.insert	(ColliderMassProperties::Density(phys_cfg.density))
+			.insert	(Friction::new(phys_cfg.friction))
+			.insert	(Restitution::new(phys_cfg.restitution));
+//			.insert	(ActiveEvents::COLLISION_EVENTS);
 		})
 		// render model
 		.with_children(|parent| {
@@ -1268,7 +1272,7 @@ mut damping					: &mut Mut<Damping>,
 
 fn draw_density_param_ui(
 		ui					: &mut Ui,
-		name				: &String,
+		name				: &str,
 		range				: [f32; 2],
 		density				: &mut f32,
 		mass				: f32,
@@ -1276,6 +1280,40 @@ fn draw_density_param_ui(
 	ui.add(
 		Slider::new			(density, std::ops::RangeInclusive::new(range[0], range[1])).text(format!("{} Density (Mass {:.3})", name, mass))
 	).changed()
+}
+
+fn draw_phys_params_ui(
+	  ui					: &mut Ui
+	, cfg					: &mut PhysicsConfig
+) -> bool {
+
+  let mut changed	= false;
+
+  ui.collapsing("Physics", |ui| {
+  ui.vertical(|ui| {
+
+  changed |= draw_density_param_ui(ui, "Wheel", [0.05, 100.0], &mut cfg.density, cfg.mass);
+
+  changed |= ui.add(
+	  Slider::new(&mut cfg.friction, 0.0 ..= 1.0).text("Friction"),
+  ).changed();
+
+  changed |= ui.add(
+	  Slider::new(&mut cfg.restitution, 0.0 ..= 1.0).text("Restitution"),
+  ).changed();
+
+  changed |= ui.add(
+	  Slider::new(&mut cfg.lin_damping, 0.0 ..= 100.0).text("Linear Damping"),
+  ).changed();
+
+  changed |= ui.add(
+	  Slider::new(&mut cfg.ang_damping, 0.0 ..= 100.0).text("Angular Damping"),
+  ).changed();
+
+  }); // ui.vertical
+  }); // ui.collapsing
+
+  changed
 }
 
 fn draw_body_params_ui_collapsing(
@@ -1411,6 +1449,7 @@ fn draw_axle_params_ui(
 fn draw_wheel_params_ui(
 	  ui					: &mut Ui
 	, cfg					: &mut WheelConfig
+	, cfg_phys				: &mut PhysicsConfig
 	, section_name			: String
 ) -> bool {
 
@@ -1427,26 +1466,7 @@ fn draw_wheel_params_ui(
 		Slider::new(&mut cfg.hh, 0.05 ..= 2.0).text("Half Height"),
 	).changed();
 
-	changed |= ui.add(
-		Slider::new(&mut cfg.density, 0.05 ..= 100.0)
-			.text(format!("Wheel Density (Mass: {:.3})", cfg.mass)),
-	).changed();
-
-	changed |= ui.add(
-		Slider::new(&mut cfg.friction, 0.0 ..= 1.0).text("Friction"),
-	).changed();
-
-	changed |= ui.add(
-		Slider::new(&mut cfg.restitution, 0.0 ..= 1.0).text("Restitution"),
-	).changed();
-
-	changed |= ui.add(
-		Slider::new(&mut cfg.lin_damping, 0.0 ..= 100.0).text("Linear Damping"),
-	).changed();
-
-	changed |= ui.add(
-		Slider::new(&mut cfg.ang_damping, 0.0 ..= 100.0).text("Angular Damping"),
-	).changed();
+	changed |= draw_phys_params_ui(ui, cfg_phys);
 
 	}); // ui.vertical
 	}); // ui.collapsing
@@ -1546,6 +1566,7 @@ fn update_ui_system(
 	>,
 	mut q_wheel_cfg	: Query<(
 		&mut WheelConfig,
+		&mut PhysicsConfig,
 		&SideX,
 		&SideZ
 	)>,
@@ -1583,21 +1604,23 @@ fn update_ui_system(
 
 		// common wheel/axle configs
 		// ^^
-		let (fl_wheel, _, _)		= q_wheel_cfg.get(game.wheels[FRONT_LEFT].unwrap().entity).unwrap();
-		let (rl_wheel, _, _)		= q_wheel_cfg.get(game.wheels[REAR_LEFT].unwrap().entity).unwrap();
+		let (fl_wheel, fl_wheel_phys, _, _)	= q_wheel_cfg.get(game.wheels[FRONT_LEFT].unwrap().entity).unwrap();
+		let (rl_wheel, rl_wheel_phys, _, _)	= q_wheel_cfg.get(game.wheels[REAR_LEFT].unwrap().entity).unwrap();
 		let (fl_axle, _, _)			= q_axle_cfg.get(game.axles[FRONT_LEFT].unwrap().entity).unwrap();
 		let (rl_axle, _, _)			= q_axle_cfg.get(game.axles[REAR_LEFT].unwrap().entity).unwrap();
 
 		let mut front_wheel_common 	= fl_wheel.clone();
 		let mut rear_wheel_common 	= rl_wheel.clone();
+		let mut front_wheel_phys_common = fl_wheel_phys.clone();
+		let mut rear_wheel_phys_common = rl_wheel_phys.clone();
 		let mut front_axle_common 	= fl_axle.clone();
 		let mut rear_axle_common 	= rl_axle.clone();
 
 		let front_wheels_changed 	=
-			draw_wheel_params_ui	(ui, &mut front_wheel_common, String::from("Front Wheels"));
+			draw_wheel_params_ui	(ui, &mut front_wheel_common, &mut front_wheel_phys_common, String::from("Front Wheels"));
 
 		let rear_wheels_changed		=
-			draw_wheel_params_ui	(ui, &mut rear_wheel_common, String::from("Rear Wheels"));
+			draw_wheel_params_ui	(ui, &mut rear_wheel_common, &mut rear_wheel_phys_common, String::from("Rear Wheels"));
 
 		let front_axles_changed 	=
 			draw_axle_params_ui		(ui, &mut front_axle_common, String::from("Front Axles"));
@@ -1605,11 +1628,15 @@ fn update_ui_system(
 		let rear_axles_changed		=
 			draw_axle_params_ui		(ui, &mut rear_axle_common, String::from("Rear Axles"));
 
-		for (mut wheel_cfg, _sidex, sidez) in q_wheel_cfg.iter_mut() {
-			if *sidez == SideZ::Front {
+		let wheels_changed			= front_wheels_changed || rear_wheels_changed;
+
+		for (mut wheel_cfg, mut phys_cfg, _sidex, sidez) in q_wheel_cfg.iter_mut() {
+			if *sidez == SideZ::Front && front_wheels_changed {
 				*wheel_cfg.as_mut() = front_wheel_common;
-			} else if *sidez == SideZ::Rear {
+				*phys_cfg.as_mut() = front_wheel_phys_common;
+			} else if *sidez == SideZ::Rear && rear_wheels_changed {
 				*wheel_cfg.as_mut() = rear_wheel_common;
+				*phys_cfg.as_mut() = rear_wheel_phys_common;
 			}
 		}
 
@@ -1633,6 +1660,7 @@ fn update_ui_system(
 
 		let writeback_wheel_collider = |
 			  cfg					: &WheelConfig
+			, phys					: &PhysicsConfig
 			, collider				: &mut Mut<Collider>
 			, mass_props_co			: &mut Mut<ColliderMassProperties>
 			, friction				: &mut Mut<Friction>
@@ -1641,10 +1669,10 @@ fn update_ui_system(
 		| {
 			set_cylinder_hh			(cfg.hh, collider);
 			set_cylinder_r			(cfg.r, collider);
-			set_density				(cfg.density, mass_props_co);
-			set_friction			(cfg.friction, friction);
-			set_restitution			(cfg.restitution, restitution);
-			set_damping				(cfg.lin_damping, cfg.ang_damping, damping);
+			set_density				(phys.density, mass_props_co);
+			set_friction			(phys.friction, friction);
+			set_restitution			(phys.restitution, restitution);
+			set_damping				(phys.lin_damping, phys.ang_damping, damping);
 		};
 
 		// write changes back to physics + per component ui 
@@ -1663,21 +1691,21 @@ fn update_ui_system(
 				draw_acceleration_params_ui	(ui, accel_cfg.as_mut());
 				draw_steering_params_ui		(ui, steer_cfg.as_mut());
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front && front_wheels_changed {
-				writeback_wheel_collider(&front_wheel_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
+				writeback_wheel_collider(&front_wheel_common, &front_wheel_phys_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
 			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear && rear_wheels_changed {
-				writeback_wheel_collider(&rear_wheel_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
+				writeback_wheel_collider(&rear_wheel_common, &rear_wheel_phys_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
 			} else if vp == VehiclePart::Axle && *sidez == SideZ::Front && front_axles_changed {
 				writeback_axle_collider(&front_axle_common, &mut collider, &mut mass_props_co);
 			} else if vp == VehiclePart::Axle && *sidez == SideZ::Rear && rear_axles_changed {
 				writeback_axle_collider(&rear_axle_common, &mut collider, &mut mass_props_co);
 			}
 
-			// FIXME: dont rewrite every frame here and below
-			if vp == VehiclePart::Wheel {
-				let (mut wheel_cfg, _, _) = q_wheel_cfg.get_mut(parent.0).unwrap();
-				wheel_cfg.mass		= mass_props_rb.mass;
+			if vp == VehiclePart::Wheel && wheels_changed {
+				let (_, mut phys, _, _) = q_wheel_cfg.get_mut(parent.0).unwrap();
+				phys.mass			= mass_props_rb.mass;
 			}
 
+			// FIXME: dont rewrite every frame here
 			if vp == VehiclePart::Axle {
 				let (mut axle_cfg, _, _) = q_axle_cfg.get_mut(parent.0).unwrap();
 				axle_cfg.mass		= mass_props_rb.mass;
@@ -1775,10 +1803,11 @@ use directories :: { BaseDirs, UserDirs, ProjectDirs };
 #[derive(Default, Serialize, Deserialize)]
 struct VehicleConfig {
     body 	: Option<BodyConfig>
+  ,	accel	: Option<AcceleratorConfig>
+  , steer	: Option<SteeringConfig>
   , axles	: [Option<AxleConfig>; WHEELS_MAX as usize]
   , wheels	: [Option<WheelConfig>; WHEELS_MAX as usize]
-  , accel	: Option<AcceleratorConfig>
-  , steer	: Option<SteeringConfig>
+  , whphys	: [Option<PhysicsConfig>; WHEELS_MAX as usize]
 }
 
 impl VehicleConfig {
@@ -1792,7 +1821,7 @@ fn save_vehicle_config_system(
 
 	q_body	: Query	<(Entity, &BodyConfig)>,
 	q_axle	: Query	<(Entity, &AxleConfig)>,
-	q_wheel	: Query	<(Entity, &WheelConfig)>,
+	q_wheel	: Query	<(Entity, &WheelConfig, &PhysicsConfig)>,
 	q_accel	: Query <(Entity, &AcceleratorConfig)>,
 	q_steer	: Query <(Entity, &SteeringConfig)>,
 ) {
@@ -1823,8 +1852,9 @@ fn save_vehicle_config_system(
 
 		match game.wheels[i] {
 			Some(re) => {
-				let (_, wheel) = q_wheel.get(re.entity).unwrap();
+				let (_, wheel, phys) = q_wheel.get(re.entity).unwrap();
 				veh_cfg.wheels[i] = Some(*wheel);
+				veh_cfg.whphys[i] = Some(*phys)
 			},
 			_ => ()
 		}
@@ -1871,7 +1901,7 @@ fn load_vehicle_config_system(
 
 	mut q_body	: Query	<&mut BodyConfig>,
 	mut q_axle	: Query	<&mut AxleConfig>,
-	mut q_wheel	: Query	<&mut WheelConfig>,
+	mut q_wheel	: Query<(&mut WheelConfig, &mut PhysicsConfig)>,
 	mut q_accel	: Query <&mut AcceleratorConfig>,
 	mut q_steer	: Query <&mut SteeringConfig>,
 ) {
@@ -1954,7 +1984,10 @@ fn load_vehicle_config_system(
 		match game.wheels[i] {
 			Some(re) => {
 				match q_wheel.get_mut(re.entity) {
-					Ok(mut wheel) => *wheel = veh_cfg.wheels[i].unwrap_or_default(), _ => (),
+					Ok((mut wheel, mut phys)) => {
+						*wheel = veh_cfg.wheels[i].unwrap_or_default();
+						*phys = veh_cfg.whphys[i].unwrap_or_default();
+					}, _ => (),
 				}
 			},
 			_ => ()
@@ -1974,7 +2007,7 @@ fn respawn_vehicle_system(
 		q_accel_cfg	: Query<&AcceleratorConfig>,
 		q_steer_cfg	: Query<&SteeringConfig>,
 		q_axle_cfg	: Query<&AxleConfig>,
-		q_wheel_cfg	: Query<&WheelConfig>,
+		q_wheel_cfg	: Query<(&WheelConfig, &PhysicsConfig)>,
 	mut	q_camera	: Query<&mut FlyCamera>,
 		ass			: Res<AssetServer>,
 	mut	commands	: Commands,
@@ -2034,7 +2067,7 @@ fn respawn_vehicle_system(
 		println!		("respawned {} axle Entity ID {:?}", side, axle);
 		
 		let mut wheel	= re_wheel.entity;
-		let wheel_cfg 	= q_wheel_cfg.get(wheel).unwrap().clone();
+		let (wheel_cfg, wheel_phys_cfg)	= q_wheel_cfg.get(wheel).unwrap().clone();
 
 		commands.entity(wheel).despawn_recursive();
 
@@ -2045,6 +2078,7 @@ fn respawn_vehicle_system(
 			, axle_pos
 			, wheel_offset
 			, wheel_cfg
+			, wheel_phys_cfg
 			, &ass
 			, &mut commands
 		);
