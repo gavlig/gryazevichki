@@ -229,30 +229,25 @@ impl Default for WheelConfig {
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 struct AxleConfig {
 	  half_size					: Vec3
-	, fixed						: bool
-	, density					: f32
-	, mass						: f32
 	, wheel_offset				: Vec3
 	, auto_offset				: bool
-	, friction					: f32
-	, restitution				: f32
-	, lin_damping				: f32
-	, ang_damping				: f32
 }
 
 impl Default for AxleConfig {
 	fn default() -> Self {
 		Self {
 			  half_size			: Vec3::new(0.1, 0.2, 0.1)
-			, fixed				: false
-			, density			: 1000.0
-			, mass				: 0.0
 			, wheel_offset		: Vec3::new(0.8, 0.0, 0.0)
 			, auto_offset		: true
-			, friction			: 0.5
-			, restitution		: 0.0
-			, lin_damping		: 0.0
-			, ang_damping		: 0.0
+			// , fixed				: false
+			// , density			: 1000.0
+			// , mass				: 0.0
+			// 
+			// 
+			// , friction			: 0.5
+			// , restitution		: 0.0
+			// , lin_damping		: 0.0
+			// , ang_damping		: 0.0
 		}
 	}
 }
@@ -266,28 +261,23 @@ impl AxleConfig {
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 struct BodyConfig {
 	  half_size					: Vec3
-	, density					: f32
-	, fixed						: bool
 	, axle_offset				: Vec3
 	, auto_offset				: bool
-	, friction					: f32
-	, restitution				: f32
-	, lin_damping				: f32
-	, ang_damping				: f32
 }
 
 impl Default for BodyConfig {
 	fn default() -> Self {
 		Self {
 			  half_size			: Vec3::new(0.5, 0.5, 1.0)
-			, density			: 2.0
-			, fixed				: false
 			, axle_offset		: Vec3::new(0.8, 0.8, 1.4)
 			, auto_offset		: true
-			, friction			: 0.5
-			, restitution		: 0.0
-			, lin_damping		: 0.0
-			, ang_damping		: 0.0
+			// , density			: 2.0
+			// , fixed				: false
+			
+			// , friction			: 0.5
+			// , restitution		: 0.0
+			// , lin_damping		: 0.0
+			// , ang_damping		: 0.0
 		}
 	}
 }
@@ -504,6 +494,7 @@ fn spawn_world_system(
 
 	let body_pos 		= Transform::from_xyz(0.0, 5.5, 0.0);
 	let body_cfg		= BodyConfig::default();
+	let body_phys_cfg	= PhysicsConfig::default();
 	let axle_cfg		= AxleConfig::default();
 	let axle_phys_cfg	= PhysicsConfig::default();
 	let wheel_cfg		= WheelConfig::default();
@@ -515,13 +506,14 @@ fn spawn_world_system(
 		  &mut game
 		, &mut meshes
 		, &mut materials
-		, body_cfg
-		, accel_cfg
-		, steer_cfg
-		, axle_cfg
-		, axle_phys_cfg
-		, wheel_cfg
-		, wheel_phys_cfg
+		, &body_cfg
+		, &body_phys_cfg
+		, &accel_cfg
+		, &steer_cfg
+		, &axle_cfg
+		, &axle_phys_cfg
+		, &wheel_cfg
+		, &wheel_phys_cfg
 		, body_pos
 		, &ass
 		, &mut commands
@@ -557,18 +549,19 @@ fn spawn_vehicle(
 		game			: &mut ResMut<Game>,
 	mut _meshes			: &mut ResMut<Assets<Mesh>>,
 	mut _materials		: &mut ResMut<Assets<StandardMaterial>>,
-		body_cfg		: BodyConfig, // TODO: use VehicleConfig instead
-		accel_cfg		: AcceleratorConfig,
-		steer_cfg		: SteeringConfig,
-		axle_cfg		: AxleConfig,
-		axle_phys_cfg	: PhysicsConfig,
-		wheel_cfg		: WheelConfig,
-		wheel_phys_cfg	: PhysicsConfig,
+		body_cfg		: &BodyConfig, // TODO: use VehicleConfig instead
+		body_phys_cfg	: &PhysicsConfig,
+		accel_cfg		: &AcceleratorConfig,
+		steer_cfg		: &SteeringConfig,
+		axle_cfg		: &AxleConfig,
+		axle_phys_cfg	: &PhysicsConfig,
+		wheel_cfg		: &WheelConfig,
+		wheel_phys_cfg	: &PhysicsConfig,
 		body_pos		: Transform,
 		ass				: &Res<AssetServer>,
 	mut commands		: &mut Commands
 ) {
-	let body 			= spawn_body(body_pos, body_cfg, accel_cfg, steer_cfg, ass, &mut commands);
+	let body 			= spawn_body(body_pos, body_cfg, body_phys_cfg, accel_cfg, steer_cfg, ass, &mut commands);
 	game.body 			= Some(RespawnableEntity { entity : body, ..Default::default() });
 	println!			("body Entity ID {:?}", body);
 
@@ -679,18 +672,18 @@ fn spawn_attached_wheel(
 	body			: Entity,
 	body_pos		: Transform,
 	axle_offset		: Vec3,
-	axle_cfg		: AxleConfig,
-	axle_physics_cfg: PhysicsConfig,
-	wheel_cfg		: WheelConfig,
-	wheel_phys_cfg	: PhysicsConfig,
+	axle_cfg		: &AxleConfig,
+	axle_phys_cfg	: &PhysicsConfig,
+	wheel_cfg		: &WheelConfig,
+	wheel_phys_cfg	: &PhysicsConfig,
 	ass				: &Res<AssetServer>,
 	commands		: &mut Commands
 ) -> (RespawnableEntity, RespawnableEntity) { // axle + wheel 
-	let (axle, axle_pos) = spawn_axle_with_joint(side, body, body_pos, axle_offset, axle_cfg, ass, commands);
+	let (axle, axle_pos) = spawn_axle_with_joint(side, body, body_pos, axle_offset, axle_cfg, axle_phys_cfg, ass, commands);
 
 	let wheel_offset = axle_cfg.wheel_offset(side);
 
-	let wheel		= spawn_wheel_with_joint(side, axle, axle_pos, wheel_offset, &wheel_cfg, &wheel_phys_cfg, ass, commands);
+	let wheel		= spawn_wheel_with_joint(side, axle, axle_pos, wheel_offset, wheel_cfg, wheel_phys_cfg, ass, commands);
 
 	let wheel_pos	= axle_pos * wheel_offset;
 
@@ -708,11 +701,12 @@ fn spawn_axle_with_joint(
 	body			: Entity,
 	body_pos		: Transform,
 	offset			: Vec3,
-	cfg				: AxleConfig,
+	cfg				: &AxleConfig,
+	phys			: &PhysicsConfig,
 	ass				: &Res<AssetServer>,
 	mut	commands	: &mut Commands
 ) -> (Entity, Transform) {
-	let axle		= spawn_axle(side, body, body_pos, offset, cfg, ass, &mut commands);
+	let axle		= spawn_axle(side, body, body_pos, offset, cfg, phys, ass, &mut commands);
 	let axle_pos	= body_pos * Transform::from_translation(offset);
 
 	let anchor1		= offset;
@@ -754,7 +748,8 @@ fn spawn_axle(
 	body			: Entity,
 	body_pos		: Transform,
 	offset			: Vec3,
-	cfg				: AxleConfig,
+	cfg				: &AxleConfig,
+	phys			: &PhysicsConfig,
 	_ass			: &Res<AssetServer>,
 	commands		: &mut Commands,
 ) -> Entity {
@@ -763,17 +758,22 @@ fn spawn_axle(
 
 	let mut axle_id = Entity::from_bits(0);
 	let 	axle_pos= body_pos * Transform::from_translation(offset);
+	let		body_type = if phys.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
 
 	axle_id 		=
 	commands
 		.spawn		()
+		
+		.insert		(*cfg)
+		.insert		(*phys)
 
-		.insert		(if cfg.fixed { RigidBody::Fixed } else { RigidBody::Dynamic })
-		.insert		(cfg)
 		.insert		(axle_pos)
 		.insert		(GlobalTransform::default())
+
+		.insert		(body_type)
 		.insert		(MassProperties::default())
 		.insert		(Damping::default())
+		
 		.insert		(NameComponent{ name: format!("{} Axle", side_name) })
 		.insert		(VehiclePart::Axle)
 		.insert		(sidex)
@@ -785,7 +785,7 @@ fn spawn_axle(
 			.insert	(Transform::default())
 			.insert	(GlobalTransform::default())
 			.insert	(Collider::cuboid(cfg.half_size.x, cfg.half_size.y, cfg.half_size.z))
-			.insert	(ColliderMassProperties::Density(cfg.density))
+			.insert	(ColliderMassProperties::Density(phys.density))
 			.insert	(Friction::default())
 			.insert	(Restitution::default());
 		})
@@ -807,32 +807,33 @@ fn spawn_wheel(
 	side			: WheelSideType,
 	axle_pos		: Transform,
 	offset			: Vec3,
-	wheel_cfg		: &WheelConfig,
-	phys_cfg		: &PhysicsConfig,
+	cfg				: &WheelConfig,
+	phys			: &PhysicsConfig,
 	ass				: &Res<AssetServer>,
 	commands		: &mut Commands,
 ) -> Entity {
 	let side_name	= wheel_side_name(side);
 	let (sidez, sidex) = wheel_side_to_zx(side);
 	let mut wheel_id = Entity::from_bits(0);
+	let body_type	= if phys.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
 
-	let wheel_phys_rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2); // by default cylinder spawns with its flat surface on the ground and we want the round part
-	let wheel_render_rotation = wheel_side_rotation(side);
+	let phys_rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2); // by default cylinder spawns with its flat surface on the ground and we want the round part
+	let render_rotation = wheel_side_rotation(side);
 
 	let wheel_pos 	= axle_pos * Transform::from_translation(offset);//local_pos;
-	let wheel_model	= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
+	let model		= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
 
 	wheel_id 		=
 	commands.spawn()
-		.insert		(*wheel_cfg)
-		.insert		(*phys_cfg)
+		.insert		(*cfg)
+		.insert		(*phys)
 
 		.insert		(wheel_pos)
 		.insert		(GlobalTransform::default())
 		// physics
-		.insert		(if phys_cfg.fixed { RigidBody::Fixed } else { RigidBody::Dynamic })
+		.insert		(body_type)
 		.insert		(MassProperties::default())
-		.insert		(Damping{ linear_damping: phys_cfg.lin_damping, angular_damping: phys_cfg.ang_damping })
+		.insert		(Damping{ linear_damping: phys.lin_damping, angular_damping: phys.ang_damping })
 		.insert		(NameComponent{ name: format!("{} Wheel", side_name) })
 		.insert		(VehiclePart::Wheel)
 		.insert		(sidex)
@@ -840,21 +841,21 @@ fn spawn_wheel(
 		// collider
 		.with_children(|parent| {
 			parent.spawn()
-			.insert	(Transform::from_rotation(wheel_phys_rotation))
+			.insert	(Transform::from_rotation(phys_rotation))
 			.insert (GlobalTransform::default())
-			.insert	(Collider::cylinder(wheel_cfg.hh, wheel_cfg.r))
-			.insert	(ColliderMassProperties::Density(phys_cfg.density))
-			.insert	(Friction::new(phys_cfg.friction))
-			.insert	(Restitution::new(phys_cfg.restitution));
+			.insert	(Collider::cylinder(cfg.hh, cfg.r))
+			.insert	(ColliderMassProperties::Density(phys.density))
+			.insert	(Friction::new(phys.friction))
+			.insert	(Restitution::new(phys.restitution));
 //			.insert	(ActiveEvents::COLLISION_EVENTS);
 		})
 		// render model
 		.with_children(|parent| {
 			parent.spawn()
-			.insert	(Transform::from_rotation(wheel_render_rotation))
+			.insert	(Transform::from_rotation(render_rotation))
 			.insert	(GlobalTransform::default())
 			.with_children(|parent| {
-				parent.spawn_scene(wheel_model);
+				parent.spawn_scene(model);
 			});
 		})
 		.id			();
@@ -906,15 +907,16 @@ fn spawn_wheel_joint(
 
 fn spawn_body(
 	pos				: Transform,
-	cfg				: BodyConfig,
-	accel_cfg		: AcceleratorConfig,
-	steer_cfg		: SteeringConfig,
+	cfg				: &BodyConfig,
+	phys			: &PhysicsConfig,
+	accel_cfg		: &AcceleratorConfig,
+	steer_cfg		: &SteeringConfig,
 	ass				: &Res<AssetServer>,
 	commands		: &mut Commands,
 ) -> Entity {
-	let body_type	= if cfg.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
+	let body_type	= if phys.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
 	let half_size	= cfg.half_size;
-	let density		= cfg.density;
+	let density		= phys.density;
 
 	let body_model	= ass.load("corvette/body/corvette_body.gltf#Scene0");
 
@@ -922,16 +924,20 @@ fn spawn_body(
 		.spawn		()
 		.insert		(pos)
 		.insert		(GlobalTransform::default())
-		.insert		(cfg)
-		.insert		(accel_cfg)
-		.insert		(steer_cfg)
-		.insert		(body_type)
-		.insert		(MassProperties::default())
-		.insert		(Damping::default())
+
+		.insert		(*cfg)
+		.insert		(*phys)
+		.insert		(*accel_cfg)
+		.insert		(*steer_cfg)
+
 		.insert		(NameComponent{ name: "Body".to_string() })
 		.insert		(VehiclePart::Body)
 		.insert		(SideX::Center)
 		.insert		(SideZ::Center)
+
+		.insert		(body_type)
+		.insert		(MassProperties::default())
+		.insert		(Damping::default())
 		// collider
 		.with_children(|children| {
 		children.spawn()
@@ -1322,6 +1328,7 @@ fn draw_body_params_ui_collapsing(
 	density_range			: [f32; 2],
 	mass					: f32,
 	cfg						: &mut BodyConfig,
+	phys					: &mut PhysicsConfig,
 	section_name			: &str
 ) -> bool {
 	let mut changed			= false;		
@@ -1329,10 +1336,6 @@ fn draw_body_params_ui_collapsing(
 
 	ui.collapsing(section_name, |ui| {
 		ui.vertical(|ui| {
-			changed			|= draw_density_param_ui(ui, name, density_range, &mut cfg.density, mass);
-
-			ui.separator	();
-
 			changed 		|= ui.add(
 				Slider::new(&mut cfg.half_size[0], 0.05 ..= 5.0).text("Half Size X"),
 			).changed();
@@ -1368,17 +1371,7 @@ fn draw_body_params_ui_collapsing(
 
 			ui.separator	();
 
-			changed |= ui.add(
-				Slider::new(&mut cfg.lin_damping, 0.0 ..= 100.0).text("Linear Damping"),
-			).changed();
-		
-			changed |= ui.add(
-				Slider::new(&mut cfg.ang_damping, 0.0 ..= 100.0).text("Angular Damping"),
-			).changed();
-
-			ui.separator	();
-
-			changed			|= ui.checkbox(&mut cfg.fixed, "Fixed").changed();
+			changed 		|= draw_phys_params_ui(ui, phys);
 		}); // ui.vertical
 	}); // ui.collapsing
 
@@ -1388,7 +1381,8 @@ fn draw_body_params_ui_collapsing(
 fn draw_axle_params_ui(
 	ui						: &mut Ui
   , cfg						: &mut AxleConfig
-  , section_name			: String
+  , phys					: &mut PhysicsConfig
+  , section_name			: &str
 ) -> bool {
 
 	let mut changed			= false;
@@ -1435,10 +1429,7 @@ fn draw_axle_params_ui(
 
 	ui.separator();
 
-	changed |= ui.add(
-		Slider::new(&mut cfg.density, 0.05 ..= 10000.0)
-			.text(format!("Axle Density (Mass: {:.3})", cfg.mass)),
-	).changed();
+	changed |= draw_phys_params_ui(ui, phys);
 
 	}); // ui.vertical
 	}); // ui.collapsing
@@ -1450,7 +1441,7 @@ fn draw_wheel_params_ui(
 	  ui					: &mut Ui
 	, cfg					: &mut WheelConfig
 	, cfg_phys				: &mut PhysicsConfig
-	, section_name			: String
+	, section_name			: &str
 ) -> bool {
 
 	let mut changed	= false;
@@ -1547,234 +1538,244 @@ fn update_ui_system(
 	mut ui_context	: ResMut<EguiContext>,
 	mut	game		: ResMut<Game>,
 
-	mut q_child		: Query<(
-		&Parent,
-		&mut Collider,
-		&mut ColliderMassProperties,
-		&mut Friction,
-		&mut Restitution,
+	// mut q_child		: Query<(
+	// 	&Parent,
+	// 	&mut Collider,
+	// 	&mut ColliderMassProperties,
+	// 	&mut Friction,
+	// 	&mut Restitution,
+	// )>,
+    // mut	q_parent	: Query<(
+	// 	&VehiclePart,
+	// 	&SideZ,
+	// 	&NameComponent,
+	// 	&MassProperties,
+	// 	&mut Damping,
+	// )>,
+	mut q_body_cfg	: Query<(
+		&mut BodyConfig,
+		&mut PhysicsConfig
 	)>,
-    mut	q_parent	: Query<(
-		&VehiclePart,
-		&SideZ,
-		&NameComponent,
-		&MassProperties,
-		&mut Damping,
-	)>,
-	mut q_body_cfg	: Query<
-		&mut BodyConfig
-	>,
-	mut q_wheel_cfg	: Query<(
-		&mut WheelConfig,
-		&mut PhysicsConfig,
-		&SideX,
-		&SideZ
-	)>,
-	mut q_axle_cfg	: Query<(
-		&mut AxleConfig,
-		&SideX,
-		&SideZ
-	)>,
-	mut q_accel_cfg	: Query<
-		&mut AcceleratorConfig
-	>,
-	mut q_steer_cfg	: Query<
-		&mut SteeringConfig
-	>,
+	// mut q_wheel_cfg	: Query<(
+	// 	&mut WheelConfig,
+	// 	&mut PhysicsConfig,
+	// 	&SideX,
+	// 	&SideZ
+	// )>,
+	// mut q_axle_cfg	: Query<(
+	// 	&mut AxleConfig,
+	// 	&mut PhysicsConfig,
+	// 	&SideX,
+	// 	&SideZ
+	// )>,
+	// mut q_accel_cfg	: Query<
+	// 	&mut AcceleratorConfig
+	// >,
+	// mut q_steer_cfg	: Query<
+	// 	&mut SteeringConfig
+	// >,
 ) {
-	let body			= game.body.unwrap().entity;
-	let mut body_cfg	= q_body_cfg.get_mut(body).unwrap();
-	let mut accel_cfg	= q_accel_cfg.get_mut(body).unwrap();
-	let mut steer_cfg	= q_steer_cfg.get_mut(body).unwrap();
+	// let body			= game.body.unwrap().entity;
+	// let (mut body_cfg, mut body_phys_cfg) = q_body_cfg.get_mut(body).unwrap();
 
-	let window 			= egui::Window::new("Parameters");
-	//let out = 
-	window.show(ui_context.ctx_mut(), |ui| {
-		ui.horizontal(|ui| {
-			if ui.add(toggle_switch::toggle(&mut body_cfg.fixed))
-				.on_hover_text("Put vehicle in the air and keep it fixed there.")
-				.clicked()
-			{
-				game.body 			= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
-			}
-			ui.label("Lifted Car Mode");
-		});
+	// let mut accel_cfg	= q_accel_cfg.get_mut(body).unwrap();
+	// let mut steer_cfg	= q_steer_cfg.get_mut(body).unwrap();
+
+	// let window 			= egui::Window::new("Parameters");
+	// //let out = 
+	// window.show(ui_context.ctx_mut(), |ui| {
+	// 	ui.horizontal(|ui| {
+	// 		if ui.add(toggle_switch::toggle(&mut body_phys_cfg.fixed))
+	// 			.on_hover_text("Put vehicle in the air and keep it fixed there.")
+	// 			.clicked()
+	// 		{
+	// 			game.body 			= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
+	// 		}
+	// 		ui.label("Lifted Car Mode");
+	// 	});
 		
-		ui.separator();
+	// 	ui.separator();
 
-		// common wheel/axle configs
-		// ^^
-		let (fl_wheel, fl_wheel_phys, _, _)	= q_wheel_cfg.get(game.wheels[FRONT_LEFT].unwrap().entity).unwrap();
-		let (rl_wheel, rl_wheel_phys, _, _)	= q_wheel_cfg.get(game.wheels[REAR_LEFT].unwrap().entity).unwrap();
-		let (fl_axle, _, _)			= q_axle_cfg.get(game.axles[FRONT_LEFT].unwrap().entity).unwrap();
-		let (rl_axle, _, _)			= q_axle_cfg.get(game.axles[REAR_LEFT].unwrap().entity).unwrap();
+	// 	// common wheel/axle configs
+	// 	// ^^
+	// 	let (fl_wheel, fl_wheel_phys, _, _)	= q_wheel_cfg.get(game.wheels[FRONT_LEFT].unwrap().entity).unwrap();
+	// 	let (rl_wheel, rl_wheel_phys, _, _)	= q_wheel_cfg.get(game.wheels[REAR_LEFT].unwrap().entity).unwrap();
+	// 	let (fl_axle, fl_axle_phys, _, _)	= q_axle_cfg.get(game.axles[FRONT_LEFT].unwrap().entity).unwrap();
+	// 	let (rl_axle, rl_axle_phys, _, _)	= q_axle_cfg.get(game.axles[REAR_LEFT].unwrap().entity).unwrap();
 
-		let mut front_wheel_common 	= fl_wheel.clone();
-		let mut rear_wheel_common 	= rl_wheel.clone();
-		let mut front_wheel_phys_common = fl_wheel_phys.clone();
-		let mut rear_wheel_phys_common = rl_wheel_phys.clone();
-		let mut front_axle_common 	= fl_axle.clone();
-		let mut rear_axle_common 	= rl_axle.clone();
+	// 	let mut front_wheel_common 	= fl_wheel.clone();
+	// 	let mut rear_wheel_common 	= rl_wheel.clone();
+	// 	let mut front_wheel_phys_common = fl_wheel_phys.clone();
+	// 	let mut rear_wheel_phys_common = rl_wheel_phys.clone();
 
-		let front_wheels_changed 	=
-			draw_wheel_params_ui	(ui, &mut front_wheel_common, &mut front_wheel_phys_common, String::from("Front Wheels"));
+	// 	let mut front_axle_common 	= fl_axle.clone();
+	// 	let mut rear_axle_common 	= rl_axle.clone();
+	// 	let mut front_axle_phys_common = fl_axle_phys.clone();
+	// 	let mut rear_axle_phys_common = rl_axle_phys.clone();
 
-		let rear_wheels_changed		=
-			draw_wheel_params_ui	(ui, &mut rear_wheel_common, &mut rear_wheel_phys_common, String::from("Rear Wheels"));
+	// 	let front_wheels_changed 	=
+	// 		draw_wheel_params_ui	(ui, &mut front_wheel_common, &mut front_wheel_phys_common, "Front Wheels");
 
-		let front_axles_changed 	=
-			draw_axle_params_ui		(ui, &mut front_axle_common, String::from("Front Axles"));
+	// 	let rear_wheels_changed		=
+	// 		draw_wheel_params_ui	(ui, &mut rear_wheel_common, &mut rear_wheel_phys_common, "Rear Wheels");
 
-		let rear_axles_changed		=
-			draw_axle_params_ui		(ui, &mut rear_axle_common, String::from("Rear Axles"));
+	// 	let front_axles_changed 	=
+	// 		draw_axle_params_ui		(ui, &mut front_axle_common, &mut front_axle_phys_common, "Front Axles");
 
-		let wheels_changed			= front_wheels_changed || rear_wheels_changed;
+	// 	let rear_axles_changed		=
+	// 		draw_axle_params_ui		(ui, &mut rear_axle_common, &mut rear_axle_phys_common, "Rear Axles");
 
-		for (mut wheel_cfg, mut phys_cfg, _sidex, sidez) in q_wheel_cfg.iter_mut() {
-			if *sidez == SideZ::Front && front_wheels_changed {
-				*wheel_cfg.as_mut() = front_wheel_common;
-				*phys_cfg.as_mut() = front_wheel_phys_common;
-			} else if *sidez == SideZ::Rear && rear_wheels_changed {
-				*wheel_cfg.as_mut() = rear_wheel_common;
-				*phys_cfg.as_mut() = rear_wheel_phys_common;
-			}
-		}
+	// 	let wheels_changed			= front_wheels_changed || rear_wheels_changed;
+	// 	let axles_changed			= front_axles_changed || rear_axles_changed;
 
-		for (mut axle_cfg, _sidex, sidez) in q_axle_cfg.iter_mut() {
-			if *sidez == SideZ::Front {
-				*axle_cfg.as_mut() = front_axle_common;
-			}
-			if *sidez == SideZ::Rear {
-				*axle_cfg.as_mut() = rear_axle_common;
-			}
-		}
+	// 	for (mut wheel_cfg, mut phys_cfg, _sidex, sidez) in q_wheel_cfg.iter_mut() {
+	// 		if *sidez == SideZ::Front && front_wheels_changed {
+	// 			*wheel_cfg.as_mut() = front_wheel_common;
+	// 			*phys_cfg.as_mut() = front_wheel_phys_common;
+	// 		} else if *sidez == SideZ::Rear && rear_wheels_changed {
+	// 			*wheel_cfg.as_mut() = rear_wheel_common;
+	// 			*phys_cfg.as_mut() = rear_wheel_phys_common;
+	// 		}
+	// 	}
 
-		let writeback_axle_collider = |
-			  cfg					: &AxleConfig
-			, collider				: &mut Mut<Collider>
-			, mass_props_co			: &mut Mut<ColliderMassProperties>
-		| {
-			set_box_half_size		(cfg.half_size, collider);
-			set_density				(cfg.density, mass_props_co);
-		};
+	// 	for (mut axle_cfg, mut phys_cfg, _sidex, sidez) in q_axle_cfg.iter_mut() {
+	// 		if *sidez == SideZ::Front && front_axles_changed {
+	// 			*axle_cfg.as_mut() = front_axle_common;
+	// 			*phys_cfg.as_mut() = front_axle_phys_common;
+	// 		}
+	// 		if *sidez == SideZ::Rear && rear_axles_changed {
+	// 			*axle_cfg.as_mut() = rear_axle_common;
+	// 			*phys_cfg.as_mut() = rear_axle_phys_common;
+	// 		}
+	// 	}
 
-		let writeback_wheel_collider = |
-			  cfg					: &WheelConfig
-			, phys					: &PhysicsConfig
-			, collider				: &mut Mut<Collider>
-			, mass_props_co			: &mut Mut<ColliderMassProperties>
-			, friction				: &mut Mut<Friction>
-			, restitution			: &mut Mut<Restitution>
-			, damping				: &mut Mut<Damping>
-		| {
-			set_cylinder_hh			(cfg.hh, collider);
-			set_cylinder_r			(cfg.r, collider);
-			set_density				(phys.density, mass_props_co);
-			set_friction			(phys.friction, friction);
-			set_restitution			(phys.restitution, restitution);
-			set_damping				(phys.lin_damping, phys.ang_damping, damping);
-		};
+	// 	let writeback_axle_collider = |
+	// 		  cfg					: &AxleConfig
+	// 		, phys					: &PhysicsConfig
+	// 		, collider				: &mut Mut<Collider>
+	// 		, mass_props_co			: &mut Mut<ColliderMassProperties>
+	// 	| {
+	// 		set_box_half_size		(cfg.half_size, collider);
+	// 		set_density				(phys.density, mass_props_co);
+	// 	};
 
-		// write changes back to physics + per component ui 
-		for (parent, mut collider, mut mass_props_co, mut friction, mut restitution) in q_child.iter_mut() {
-			let (vehicle_part, sidez, name_comp, mass_props_rb, mut damping) = q_parent.get_mut(parent.0).unwrap();
-			let name 				= &name_comp.name;
-			let vp 					= *vehicle_part;
+	// 	let writeback_wheel_collider = |
+	// 		  cfg					: &WheelConfig
+	// 		, phys					: &PhysicsConfig
+	// 		, collider				: &mut Mut<Collider>
+	// 		, mass_props_co			: &mut Mut<ColliderMassProperties>
+	// 		, friction				: &mut Mut<Friction>
+	// 		, restitution			: &mut Mut<Restitution>
+	// 		, damping				: &mut Mut<Damping>
+	// 	| {
+	// 		set_cylinder_hh			(cfg.hh, collider);
+	// 		set_cylinder_r			(cfg.r, collider);
+	// 		set_density				(phys.density, mass_props_co);
+	// 		set_friction			(phys.friction, friction);
+	// 		set_restitution			(phys.restitution, restitution);
+	// 		set_damping				(phys.lin_damping, phys.ang_damping, damping);
+	// 	};
 
-			let mut body_changed	= false;
-			let 	body_cfg_cache 	= body_cfg.clone();
+	// 	// write changes back to physics + per component ui 
+	// 	for (parent, mut collider, mut mass_props_co, mut friction, mut restitution) in q_child.iter_mut() {
+	// 		let (vehicle_part, sidez, name_comp, mass_props_rb, mut damping) = q_parent.get_mut(parent.0).unwrap();
+	// 		let name 				= &name_comp.name;
+	// 		let vp 					= *vehicle_part;
 
-			if vp == VehiclePart::Body {
-				let mass			= mass_props_rb.mass;
-				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], mass, body_cfg.as_mut(), "Body");
+	// 		let mut body_changed	= false;
+	// 		let 	body_cfg_cache 	= body_cfg.clone();
+	// 		let		body_phys_cfg_cache = body_phys_cfg.clone();
 
-				draw_acceleration_params_ui	(ui, accel_cfg.as_mut());
-				draw_steering_params_ui		(ui, steer_cfg.as_mut());
-			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front && front_wheels_changed {
-				writeback_wheel_collider(&front_wheel_common, &front_wheel_phys_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
-			} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear && rear_wheels_changed {
-				writeback_wheel_collider(&rear_wheel_common, &rear_wheel_phys_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
-			} else if vp == VehiclePart::Axle && *sidez == SideZ::Front && front_axles_changed {
-				writeback_axle_collider(&front_axle_common, &mut collider, &mut mass_props_co);
-			} else if vp == VehiclePart::Axle && *sidez == SideZ::Rear && rear_axles_changed {
-				writeback_axle_collider(&rear_axle_common, &mut collider, &mut mass_props_co);
-			}
+	// 		if vp == VehiclePart::Body {
+	// 			let mass			= mass_props_rb.mass;
+	// 			body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], mass, body_cfg.as_mut(), body_phys_cfg.as_mut(), "Body");
 
-			if vp == VehiclePart::Wheel && wheels_changed {
-				let (_, mut phys, _, _) = q_wheel_cfg.get_mut(parent.0).unwrap();
-				phys.mass			= mass_props_rb.mass;
-			}
+	// 			draw_acceleration_params_ui	(ui, accel_cfg.as_mut());
+	// 			draw_steering_params_ui		(ui, steer_cfg.as_mut());
+	// 		} else if vp == VehiclePart::Wheel && *sidez == SideZ::Front && front_wheels_changed {
+	// 			writeback_wheel_collider(&front_wheel_common, &front_wheel_phys_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
+	// 		} else if vp == VehiclePart::Wheel && *sidez == SideZ::Rear && rear_wheels_changed {
+	// 			writeback_wheel_collider(&rear_wheel_common, &rear_wheel_phys_common, &mut collider, &mut mass_props_co, &mut friction, &mut restitution, &mut damping);
+	// 		} else if vp == VehiclePart::Axle && *sidez == SideZ::Front && front_axles_changed {
+	// 			writeback_axle_collider(&front_axle_common, &front_axle_phys_common, &mut collider, &mut mass_props_co);
+	// 		} else if vp == VehiclePart::Axle && *sidez == SideZ::Rear && rear_axles_changed {
+	// 			writeback_axle_collider(&rear_axle_common, &rear_axle_phys_common, &mut collider, &mut mass_props_co);
+	// 		}
 
-			// FIXME: dont rewrite every frame here
-			if vp == VehiclePart::Axle {
-				let (mut axle_cfg, _, _) = q_axle_cfg.get_mut(parent.0).unwrap();
-				axle_cfg.mass		= mass_props_rb.mass;
-			}
+	// 		if vp == VehiclePart::Wheel && wheels_changed {
+	// 			let (_, mut phys, _, _) = q_wheel_cfg.get_mut(parent.0).unwrap();
+	// 			phys.mass			= mass_props_rb.mass;
+	// 		}
 
-			if front_axles_changed || rear_axles_changed {
-				// respawn child wheel
-				for side_ref in WHEEL_SIDES {
-					let side 		= *side_ref;
-					game.wheels[side] = Some(RespawnableEntity{ entity : game.wheels[side].unwrap().entity, respawn: true });
-				}
-			}
+	// 		if vp == VehiclePart::Axle && axles_changed {
+	// 			let (_, mut phys, _, _) = q_axle_cfg.get_mut(parent.0).unwrap();
+	// 			phys.mass			= mass_props_rb.mass;
+	// 		}
 
-			if body_changed {
-				*mass_props_co	 	= ColliderMassProperties::Density(body_cfg.density);
+	// 		if axles_changed {
+	// 			// respawn child wheel
+	// 			for side_ref in WHEEL_SIDES {
+	// 				let side 		= *side_ref;
+	// 				game.wheels[side] = Some(RespawnableEntity{ entity : game.wheels[side].unwrap().entity, respawn: true });
+	// 			}
+	// 		}
 
-				damping.as_mut().linear_damping = body_cfg.lin_damping;
-				damping.as_mut().angular_damping = body_cfg.ang_damping;
+	// 		if body_changed {
+	// 			*mass_props_co	 	= ColliderMassProperties::Density(body_phys_cfg.density);
 
-				let cuboid 			= collider.as_cuboid_mut().unwrap();
-				cuboid.raw.half_extents = body_cfg.half_size.into();
+	// 			damping.as_mut().linear_damping = body_phys_cfg.lin_damping;
+	// 			damping.as_mut().angular_damping = body_phys_cfg.ang_damping;
 
-				for side_ref in WHEEL_SIDES {
-					let side 		= *side_ref;
-					// respawn
-					game.axles[side] = Some(RespawnableEntity{ entity : game.axles[side].unwrap().entity, respawn: true }); // TODO: hide the ugly
-					game.wheels[side] = Some(RespawnableEntity{ entity : game.wheels[side].unwrap().entity, respawn: true });
-				}
+	// 			let cuboid 			= collider.as_cuboid_mut().unwrap();
+	// 			cuboid.raw.half_extents = body_cfg.half_size.into();
 
-				// respawn
-				if body_cfg_cache.fixed != body_cfg.fixed {
-					game.body 		= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true })
-				}
-			}
-		}
+	// 			for side_ref in WHEEL_SIDES {
+	// 				let side 		= *side_ref;
+	// 				// respawn
+	// 				game.axles[side] = Some(RespawnableEntity{ entity : game.axles[side].unwrap().entity, respawn: true }); // TODO: hide the ugly
+	// 				game.wheels[side] = Some(RespawnableEntity{ entity : game.wheels[side].unwrap().entity, respawn: true });
+	// 			}
 
-		ui.separator();
+	// 			// respawn
+	// 			if body_phys_cfg_cache.fixed != body_phys_cfg.fixed {
+	// 				game.body 		= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true })
+	// 			}
+	// 		}
+	// 	}
 
-		if (ui.button("Save Vehicle")).clicked() {
-			let mut dialog			= FileDialog::save_file(None);
-			dialog.open				();
-			game.save_veh_dialog	= Some(dialog);
-		}
+	// 	ui.separator();
 
-		if (ui.button("Load Vehicle")).clicked() {
-			let mut dialog			= FileDialog::open_file(None);
-			dialog.open				();
-			game.load_veh_dialog 	= Some(dialog);
-		}
+	// 	if (ui.button("Save Vehicle")).clicked() {
+	// 		let mut dialog			= FileDialog::save_file(None);
+	// 		dialog.open				();
+	// 		game.save_veh_dialog	= Some(dialog);
+	// 	}
 
-		if let Some(dialog) = &mut game.save_veh_dialog {
-			if dialog.show(&ui.ctx()).selected() {
-				game.save_veh_file 	= dialog.path();
-			}
-		}
+	// 	if (ui.button("Load Vehicle")).clicked() {
+	// 		let mut dialog			= FileDialog::open_file(None);
+	// 		dialog.open				();
+	// 		game.load_veh_dialog 	= Some(dialog);
+	// 	}
 
-		if let Some(dialog) = &mut game.load_veh_dialog {
-			if dialog.show(&ui.ctx()).selected() {
-				game.load_veh_file 	= dialog.path();
-			}
-		}
+	// 	if let Some(dialog) = &mut game.save_veh_dialog {
+	// 		if dialog.show(&ui.ctx()).selected() {
+	// 			game.save_veh_file 	= dialog.path();
+	// 		}
+	// 	}
 
-		ui.separator();
+	// 	if let Some(dialog) = &mut game.load_veh_dialog {
+	// 		if dialog.show(&ui.ctx()).selected() {
+	// 			game.load_veh_file 	= dialog.path();
+	// 		}
+	// 	}
 
-		if ui.button("Respawn Vehicle").clicked() {
-			game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
-		}
+	// 	ui.separator();
 
-	});
+	// 	if ui.button("Respawn Vehicle").clicked() {
+	// 		game.body 				= Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
+	// 	}
+
+	// });
 
 // uncomment when we need to catch a closed window
 //	match out {
@@ -1802,12 +1803,14 @@ use directories :: { BaseDirs, UserDirs, ProjectDirs };
 
 #[derive(Default, Serialize, Deserialize)]
 struct VehicleConfig {
-    body 	: Option<BodyConfig>
-  ,	accel	: Option<AcceleratorConfig>
-  , steer	: Option<SteeringConfig>
-  , axles	: [Option<AxleConfig>; WHEELS_MAX as usize]
-  , wheels	: [Option<WheelConfig>; WHEELS_MAX as usize]
-  , whphys	: [Option<PhysicsConfig>; WHEELS_MAX as usize]
+	  accel		: Option<AcceleratorConfig>
+	, steer		: Option<SteeringConfig>
+    , body 		: Option<BodyConfig>
+	, bophys	: Option<PhysicsConfig>
+	, axles		: [Option<AxleConfig>; WHEELS_MAX as usize]
+	, axphys	: [Option<PhysicsConfig>; WHEELS_MAX as usize]
+	, wheels	: [Option<WheelConfig>; WHEELS_MAX as usize]
+	, whphys	: [Option<PhysicsConfig>; WHEELS_MAX as usize]
 }
 
 impl VehicleConfig {
@@ -1819,8 +1822,8 @@ const VERSION_STR : &str = "version";
 fn save_vehicle_config_system(
 	mut game: ResMut<Game>,
 
-	q_body	: Query	<(Entity, &BodyConfig)>,
-	q_axle	: Query	<(Entity, &AxleConfig)>,
+	q_body	: Query	<(Entity, &BodyConfig, &PhysicsConfig)>,
+	q_axle	: Query	<(Entity, &AxleConfig, &PhysicsConfig)>,
 	q_wheel	: Query	<(Entity, &WheelConfig, &PhysicsConfig)>,
 	q_accel	: Query <(Entity, &AcceleratorConfig)>,
 	q_steer	: Query <(Entity, &SteeringConfig)>,
@@ -1831,12 +1834,14 @@ fn save_vehicle_config_system(
 
 	match game.body {
 		Some(re) => {
-			let (_, body) = q_body.get(re.entity).unwrap();
-			veh_cfg.body = Some(*body);
 			let (_, accel) = q_accel.get(re.entity).unwrap();
 			veh_cfg.accel = Some(*accel);
 			let (_, steer) = q_steer.get(re.entity).unwrap();
 			veh_cfg.steer = Some(*steer);
+
+			let (_, body, phys) = q_body.get(re.entity).unwrap();
+			veh_cfg.body = Some(*body);
+			veh_cfg.bophys = Some(*phys);
 		},
 		_ => (),
 	};
@@ -1844,8 +1849,9 @@ fn save_vehicle_config_system(
 	for i in 0..WHEELS_MAX {
 		match game.axles[i] {
 			Some(re) => {
-				let (_, axle) = q_axle.get(re.entity).unwrap();
+				let (_, axle, phys) = q_axle.get(re.entity).unwrap();
 				veh_cfg.axles[i] = Some(*axle);
+				veh_cfg.axphys[i] = Some(*phys)
 			},
 			_ => ()
 		};
@@ -1899,9 +1905,9 @@ fn save_vehicle_config_system(
 fn load_vehicle_config_system(
 	mut game	: ResMut<Game>,
 
-	mut q_body	: Query	<&mut BodyConfig>,
-	mut q_axle	: Query	<&mut AxleConfig>,
-	mut q_wheel	: Query<(&mut WheelConfig, &mut PhysicsConfig)>,
+	mut q_body	: Query	<(&mut BodyConfig, &mut PhysicsConfig)>,
+	mut q_axle	: Query	<(&mut AxleConfig, &mut PhysicsConfig)>,
+	mut q_wheel	: Query <(&mut WheelConfig, &mut PhysicsConfig)>,
 	mut q_accel	: Query <&mut AcceleratorConfig>,
 	mut q_steer	: Query <&mut SteeringConfig>,
 ) {
@@ -1959,7 +1965,10 @@ fn load_vehicle_config_system(
 	match game.body {
 		Some(re) => {
 			match q_body.get_mut(re.entity) {
-				Ok(mut body) => *body = veh_cfg.body.unwrap_or_default(), _ => (),
+				Ok((mut body, mut phys)) => { 
+					*body = veh_cfg.body.unwrap_or_default();
+					*phys = veh_cfg.bophys.unwrap_or_default();
+				}, _ => (),
 			}
 			match q_accel.get_mut(re.entity) {
 				Ok(mut accel) => *accel = veh_cfg.accel.unwrap_or_default(), _ => (),
@@ -1975,7 +1984,10 @@ fn load_vehicle_config_system(
 		match game.axles[i] {
 			Some(re) => {
 				match q_axle.get_mut(re.entity) {
-					Ok(mut axle) => *axle = veh_cfg.axles[i].unwrap_or_default(), _ => (),
+					Ok((mut axle, mut phys)) => { 
+						*axle = veh_cfg.axles[i].unwrap_or_default();
+						*phys = veh_cfg.axphys[i].unwrap_or_default();
+					}, _ => (),
 				}
 			},
 			_ => ()
@@ -2000,13 +2012,15 @@ fn load_vehicle_config_system(
 
 fn respawn_vehicle_system(
 	mut	game		: ResMut<Game>,
+
 	mut	q_body		: Query<(
 		&	 BodyConfig,
+		&	 PhysicsConfig,
 		&mut Transform
 	)>,
 		q_accel_cfg	: Query<&AcceleratorConfig>,
 		q_steer_cfg	: Query<&SteeringConfig>,
-		q_axle_cfg	: Query<&AxleConfig>,
+		q_axle_cfg	: Query<(&AxleConfig, &PhysicsConfig)>,
 		q_wheel_cfg	: Query<(&WheelConfig, &PhysicsConfig)>,
 	mut	q_camera	: Query<&mut FlyCamera>,
 		ass			: Res<AssetServer>,
@@ -2016,7 +2030,7 @@ fn respawn_vehicle_system(
 		Some(re)		=> (re.entity, re.respawn),
 		_				=> return,
 	};
-	let (body_cfg, mut body_pos) = q_body.get_mut(body).unwrap();
+	let (body_cfg, body_phys_cfg, mut body_pos) = q_body.get_mut(body).unwrap();
 	let accel_cfg		= q_accel_cfg.get(body).unwrap();
 	let steer_cfg		= q_steer_cfg.get(body).unwrap();
 
@@ -2025,7 +2039,7 @@ fn respawn_vehicle_system(
 
 		body_pos.translation = Vec3::new(0.0, 5.5, 0.0);
 		body_pos.rotation = Quat::IDENTITY;
-		body 			= spawn_body(*body_pos, *body_cfg, *accel_cfg, *steer_cfg, &ass, &mut commands);
+		body 			= spawn_body(*body_pos, body_cfg, body_phys_cfg, accel_cfg, steer_cfg, &ass, &mut commands);
 		game.body 		= Some(RespawnableEntity { entity : body, ..Default::default() });
 		// TODO: is there an event we can attach to? 
 		let mut camera 	= q_camera.get_mut(game.camera.unwrap()).unwrap();
@@ -2043,7 +2057,7 @@ fn respawn_vehicle_system(
 		let mut axle	= re_axle.entity;
 		let mut axle_pos : Transform;
 
-		let axle_cfg 	= q_axle_cfg.get(axle).unwrap().clone();
+		let (axle_cfg, axle_phys_cfg) = q_axle_cfg.get(axle).unwrap().clone();
 
 		if !re_axle.respawn && !re_wheel.respawn && !respawn_body {
 			continue;
@@ -2057,7 +2071,8 @@ fn respawn_vehicle_system(
 			, body
 			, *body_pos
 			, axle_offset
-			, axle_cfg
+			, &axle_cfg
+			, &axle_phys_cfg
 			, &ass
 			, &mut commands
 		);
