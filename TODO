@@ -61,5 +61,7 @@
 44. autoload last or default config
 45. show a list of vehicles in directory
 46. incorporate model into config
+47. add respawn functions for different vehicle parts
+48. split project to multiple files
 
 next milestone: fully configurable vehicle with an environment to test it
