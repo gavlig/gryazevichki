@@ -9,7 +9,7 @@
 8. (done!)damping/stiffness tests
 9. (when it gets rapier 0.12 support)add salva?
 10. try models?
-10.1. load models in places of body/axle/wheel. axle optional
+10.1. (done!)load models in places of body/axle/wheel. axle optional
 10.2. adjust collision to loaded models
 10.3. scale models with collision
 11. (done!)bug: wheels collision doesnt correspond to visual!
