@@ -348,7 +348,7 @@ fn main() {
 		.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
 
 		.add_system				(cursor_grab_system)
-		.add_system				(toggle_button_system)
+		.add_system				(input_misc_system)
 		.add_system				(vehicle_controls_system)
 		.add_system				(update_ui_system)
 
@@ -1000,10 +1000,11 @@ fn cursor_grab_system(
 	}
 }
 
-fn toggle_button_system(
+fn input_misc_system(
 		_btn		: Res<Input<MouseButton>>,
 		key			: Res<Input<KeyCode>>,
 		_game		: Res<Game>,
+	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut exit		: EventWriter<AppExit>,
 	mut query		: Query<&mut FlyCamera>,
 ) {
@@ -1017,10 +1018,14 @@ fn toggle_button_system(
 			let toggle = !camera.enabled_rotation;
 			camera.enabled_rotation = toggle;
 		}
+	}
 
-		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Escape) {
-			exit.send(AppExit);
-		}
+	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Escape) {
+		exit.send(AppExit);
+	}
+
+	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Key1) {
+		phys_ctx.enabled = !phys_ctx.enabled;
 	}
 }
 
