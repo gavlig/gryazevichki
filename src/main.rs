@@ -351,8 +351,8 @@ fn main() {
 		.add_system				(toggle_button_system)
 		.add_system				(vehicle_controls_system)
 		.add_system				(update_ui_system)
-		.add_system				(save_vehicle_config_system)
-		.add_system				(load_vehicle_config_system)
+		.add_system_to_stage	(CoreStage::Last, save_vehicle_config_system)
+		.add_system_to_stage	(CoreStage::Last, load_vehicle_config_system)
 
 		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
 		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)
@@ -502,6 +502,8 @@ fn spawn_world_system(
 		, &ass
 		, &mut commands
 	);
+
+	game.load_veh_file	= Some(PathBuf::from("corvette.ron"));
 }
 
 fn spawn_ground(
