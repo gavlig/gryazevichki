@@ -1617,6 +1617,7 @@ fn update_ui_system(
 
 			if body_changed {
 				*mass_props_co	 	= ColliderMassProperties::Density(body_phys_cfg.density);
+				body_phys_cfg.mass	= mass_props_rb.mass;
 
 				damping.as_mut().linear_damping = body_phys_cfg.lin_damping;
 				damping.as_mut().angular_damping = body_phys_cfg.ang_damping;
