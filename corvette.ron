@@ -1,9 +1,9 @@
 version: 0
 (
     accel: Some((
-        vel_fwd: 10,
+        vel_fwd: 130,
         vel_bwd: 7,
-        damping_fwd: 100,
+        damping_fwd: 3,
         damping_bwd: 100,
         damping_stop: 200,
     )),
@@ -139,11 +139,11 @@ version: 0
         )),
         Some((
             hh: 0.2,
-            r: 0.5,
+            r: 0.55,
         )),
         Some((
             hh: 0.2,
-            r: 0.5,
+            r: 0.55,
         )),
     ),
     whphys: (
