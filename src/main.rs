@@ -1227,7 +1227,7 @@ fn draw_phys_params_ui(
   ui.collapsing("Physics", |ui| {
   ui.vertical(|ui| {
 
-  changed |= draw_density_param_ui(ui, [0.05, 5000.0], &mut cfg.density, cfg.mass);
+  changed |= draw_density_param_ui(ui, [0.05, 2000.0], &mut cfg.density, cfg.mass);
 
   changed |= ui.add(
 	  Slider::new(&mut cfg.friction, 0.0 ..= 1.0).text("Friction"),
