@@ -503,7 +503,7 @@ fn spawn_world_system(
 		spawn_cubes		(&mut commands);
 	}
 
-	if true {
+	if false {
 		spawn_friction_tests(&mut meshes, &mut materials, &mut commands);
 	}
 
@@ -543,13 +543,13 @@ fn spawn_ground(
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	commands			: &mut Commands
 ) {
-	let ground_size 	= 200.1;
+	let ground_size 	= 2000.1;
 	let ground_height 	= 0.1;
 
 	let ground			= commands
         .spawn			()
 		.insert_bundle	(PbrBundle {
-			mesh		: meshes.add(Mesh::from(render_shape::Box::new(ground_size, ground_height, ground_size))),
+			mesh		: meshes.add(Mesh::from(render_shape::Box::new(ground_size * 2.0, ground_height * 2.0, ground_size * 2.0))),
 			material	: materials.add(Color::rgb(0.8, 0.8, 0.8).into()),
 			transform	: Transform::from_xyz(0.0, -ground_height, 0.0),
 			..Default::default()
@@ -931,6 +931,61 @@ fn spawn_friction_tests(
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	commands			: &mut Commands
 ) {
+	let num = 5;
+	let offset = Vec3::new(0.0, 0.0, 3.0);
+	let line_hsize = Vec3::new(5.0, 0.025, 30.0);
+
+	for i in 0..=num {
+		let mut pos = offset.clone();
+		pos.x = i as f32 * ((line_hsize.x * 2.0) + 0.5);
+
+		let friction = i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
+		let friction_inv = 1.0 - friction;
+		let color = Color::rgb(friction_inv, friction_inv, friction_inv);
+
+		commands
+			.spawn_bundle(PbrBundle {
+				mesh		: meshes.add			(Mesh::from(render_shape::Box::new(line_hsize.x * 2.0, line_hsize.y * 2.0, line_hsize.z * 2.0))),
+				material	: materials.add			(color.into()),
+				..Default::default()
+			})
+			.insert(RigidBody::Fixed)
+			.insert(Transform::from_translation(pos))
+			.insert(GlobalTransform::default())
+			.insert(Collider::cuboid(line_hsize.x, line_hsize.y, line_hsize.z))
+			.insert(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+//			.insert(ColliderDebugColor(color));
+	}
+}
+
+fn spawn_fixed_cube(
+	pose				: Transform,
+	hsize				: Vec3,
+	color				: Color,
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	commands			: &mut Commands
+) {
+	commands.spawn_bundle(PbrBundle {
+		mesh			: meshes.add	(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0))),
+		material		: materials.add	(color.into()),
+		..default()
+	})
+	.insert				(RigidBody::Fixed)
+	.insert				(pose)
+	.insert				(GlobalTransform::default())
+	.insert				(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+//	.insert				(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+}
+
+fn spawn_obstacles(
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	commands			: &mut Commands
+) {
+
+	spawn_fixed_cube	();
+
 	let num = 5;
 	let offset = Vec3::new(0.0, 0.0, 3.0);
 	let line_hsize = Vec3::new(5.0, 0.025, 30.0);
