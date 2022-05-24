@@ -55,8 +55,8 @@
 38. spawn objects around
 39. try circuis rides in circle on walls
 40. indicate car front,right,left
-41. refactor config: separate physics into a VehiclePhysicsConfig
-42. refactor: use VehicleConfig in spawn_vehicle instead of numerous cfgs
+41. (done!)refactor config: separate physics into a VehiclePhysicsConfig
+42. (done!)refactor: use VehicleConfig in spawn_vehicle instead of numerous cfgs
 43. make ui work with any random amount of missing parts
 44. autoload last or default config
 45. show a list of vehicles in directory

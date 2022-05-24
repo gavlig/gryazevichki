@@ -5,6 +5,7 @@ use bevy_fly_camera	::	{ FlyCamera, FlyCameraPlugin };
 use bevy_egui		::	*;
 use bevy_atmosphere	::	*;
 use rapier3d		::	dynamics :: { JointAxis };
+//use iyes_loopless	::	prelude :: *;
 
 use serde			::	{ Deserialize, Serialize };
 
@@ -507,34 +508,20 @@ fn spawn_world_system(
 		spawn_friction_tests(&mut meshes, &mut materials, &mut commands);
 	}
 
+	let veh_file		= Some(PathBuf::from("corvette.ron"));
+	let veh_cfg			= load_vehicle_config(&veh_file).unwrap();
+
 	let body_pos 		= Transform::from_xyz(0.0, 5.5, 0.0);
-	let body_cfg		= BodyConfig::default();
-	let body_phys_cfg	= PhysicsConfig::default();
-	let axle_cfg		= AxleConfig::default();
-	let axle_phys_cfg	= PhysicsConfig::default();
-	let wheel_cfg		= WheelConfig::default();
-	let wheel_phys_cfg	= PhysicsConfig::default();
-	let accel_cfg		= AcceleratorConfig::default();
-	let steer_cfg		= SteeringConfig::default();
 
 	spawn_vehicle(
-		  &mut game
-		, &mut meshes
-		, &mut materials
-		, &body_cfg
-		, &body_phys_cfg
-		, &accel_cfg
-		, &steer_cfg
-		, &axle_cfg
-		, &axle_phys_cfg
-		, &wheel_cfg
-		, &wheel_phys_cfg
+		  &veh_cfg
 		, body_pos
+		, &mut game
 		, &ass
 		, &mut commands
 	);
 
-	game.load_veh_file	= Some(PathBuf::from("corvette.ron"));
+	
 }
 
 fn spawn_ground(
@@ -552,7 +539,7 @@ fn spawn_ground(
 			mesh		: meshes.add(Mesh::from(render_shape::Box::new(ground_size * 2.0, ground_height * 2.0, ground_size * 2.0))),
 			material	: materials.add(Color::rgb(0.8, 0.8, 0.8).into()),
 			transform	: Transform::from_xyz(0.0, -ground_height, 0.0),
-			..Default::default()
+			..default	()
 		})
 		.insert			(Collider::cuboid(ground_size, ground_height, ground_size))
         .insert			(Transform::from_xyz(0.0, -ground_height, 0.0))
@@ -563,32 +550,30 @@ fn spawn_ground(
 }
 
 fn spawn_vehicle(
-		game			: &mut ResMut<Game>,
-	mut _meshes			: &mut ResMut<Assets<Mesh>>,
-	mut _materials		: &mut ResMut<Assets<StandardMaterial>>,
-		body_cfg		: &BodyConfig, // TODO: use VehicleConfig instead
-		body_phys_cfg	: &PhysicsConfig,
-		accel_cfg		: &AcceleratorConfig,
-		steer_cfg		: &SteeringConfig,
-		axle_cfg		: &AxleConfig,
-		axle_phys_cfg	: &PhysicsConfig,
-		wheel_cfg		: &WheelConfig,
-		wheel_phys_cfg	: &PhysicsConfig,
+		veh_cfg			: &VehicleConfig,
 		body_pos		: Transform,
+		game			: &mut ResMut<Game>,
 		ass				: &Res<AssetServer>,
 	mut commands		: &mut Commands
 ) {
-	let body 			= spawn_body(body_pos, body_cfg, body_phys_cfg, accel_cfg, steer_cfg, ass, &mut commands);
-	game.body 			= Some(RespawnableEntity { entity : body, ..Default::default() });
+	let body_cfg		= veh_cfg.body.unwrap();
+
+	let body 			= spawn_body(body_pos, &body_cfg, &veh_cfg.bophys.unwrap(), &veh_cfg.accel.unwrap(), &veh_cfg.steer.unwrap(), ass, &mut commands);
+	game.body 			= Some(RespawnableEntity { entity : body, ..default() });
 	println!			("body Entity ID {:?}", body);
 
 	// 0..1 {
 	for side_ref in WHEEL_SIDES {
 		let side 		= *side_ref;
-		let axle_offset = body_cfg.axle_offset(side);
-		let wheel_offset= axle_cfg.wheel_offset(side);
 
-		let (axle, wheel) = spawn_attached_wheel(side, body, body_pos, axle_offset, axle_cfg, axle_phys_cfg, wheel_cfg, wheel_phys_cfg, ass, &mut commands);
+		let axle_cfg	= veh_cfg.axles[side].unwrap();
+		let axle_phys_cfg = veh_cfg.axphys[side].unwrap();
+		let axle_offset = body_cfg.axle_offset(side);
+		
+		let wheel_cfg	= veh_cfg.wheels[side].unwrap();
+		let wheel_phys_cfg = veh_cfg.whphys[side].unwrap();
+
+		let (axle, wheel) = spawn_attached_wheel(side, body, body_pos, axle_offset, &axle_cfg, &axle_phys_cfg, &wheel_cfg, &wheel_phys_cfg, ass, &mut commands);
 
 		game.axles[side] = Some(axle);
 		game.wheels[side] = Some(wheel);
@@ -1901,54 +1886,9 @@ fn load_vehicle_config_system(
 ) {
 	if game.load_veh_file.is_none() { return; }
 
-    let load_name 	= file_path_to_string(&game.load_veh_file);
-	let path 		= Path::new(&load_name);
-    let display 	= path.display();
+	let mut veh_cfg	= load_vehicle_config(&game.load_veh_file).unwrap();
 
 	game.load_veh_file = None;
-
-    let mut file = match File::open(&path) {
-        Err(why) 	=> { println!("couldn't open {}: {}", display, why); return; },
-        Ok(file) 	=> file,
-    };
-
-    let mut save_content = String::new();
-    match file.read_to_string(&mut save_content) {
-        Err(why)	=> { println!("couldn't read {}: {}", display, why); return; },
-        Ok(_) 		=> println!("Opened file {} for reading", display.to_string()),
-    }
-
-	let mut lines	= save_content.lines();
-	let line 		= match lines.next() {
-		Some(l)		=> l,
-		None		=> { println!("{0} not found! Config should start with {0}", VERSION_STR); return; }
-	};
-	
-	let version_value : String = match line.split_terminator(':').last() {
-		Some(v)		=> v.chars().filter(|c| c.is_digit(10)).collect(),
-		None		=> { println!("{0} value not found! Config should start with \"{0}: {1}\"", VERSION_STR, VehicleConfig::version()); return; }
-	};
-	let version 	= match version_value.parse::<u32>() {
-		Ok(v) 		=> v,
-		Err(why) 	=> { println!("Failed to parse version value ({})! Reason: {}", version_value, why); return; },
-	};
-
-	if version > VehicleConfig::version() {
-		println!	("Invalid config version! Expected: <={} found: {}", VehicleConfig::version(), version);
-		return;
-	}
-
-	let pos			= match save_content.find('(') {
-		Some(p)		=> p - 1, // -1 to capture the brace as well lower, see save_content.get
-		None		=> { println!("Failed to find first opening brace \"(\". Most likely invalid format or corrupted file!"); return; }
-	};
-
-	save_content	= match save_content.get(pos..) {
-		Some(c)		=> c.to_string(),
-		None		=> { return; }
-	};
-
-	let veh_cfg: VehicleConfig = ron::from_str(save_content.as_str()).unwrap();
 
 	match game.body {
 		Some(re) => {
@@ -1996,6 +1936,60 @@ fn load_vehicle_config_system(
 
 	// respawn
 	game.body = Some(RespawnableEntity{ entity : game.body.unwrap().entity, respawn: true });
+}
+
+fn load_vehicle_config(
+	vehicle_config_file : &Option<PathBuf> 
+) -> Option<VehicleConfig> {
+    let load_name 	= file_path_to_string(vehicle_config_file);
+	let path 		= Path::new(&load_name);
+    let display 	= path.display();
+
+    let mut file = match File::open(&path) {
+        Err(why) 	=> { println!("couldn't open {}: {}", display, why); return None; },
+        Ok(file) 	=> file,
+    };
+
+    let mut save_content = String::new();
+    match file.read_to_string(&mut save_content) {
+        Err(why)	=> { println!("couldn't read {}: {}", display, why); return None; },
+        Ok(_) 		=> println!("Opened file {} for reading", display.to_string()),
+    }
+
+	let mut lines	= save_content.lines();
+	let line 		= match lines.next() {
+		Some(l)		=> l,
+		None		=> { println!("{0} not found! Config should start with {0}", VERSION_STR); return None; }
+	};
+	
+	let version_value : String = match line.split_terminator(':').last() {
+		Some(v)		=> v.chars().filter(|c| c.is_digit(10)).collect(),
+		None		=> { println!("{0} value not found! Config should start with \"{0}: {1}\"", VERSION_STR, VehicleConfig::version()); return None; }
+	};
+
+	let version 	= match version_value.parse::<u32>() {
+		Ok(v) 		=> v,
+		Err(why) 	=> { println!("Failed to parse version value ({})! Reason: {}", version_value, why); return None; },
+	};
+
+	if version > VehicleConfig::version() {
+		println!	("Invalid config version! Expected: <={} found: {}", VehicleConfig::version(), version);
+		return 		None;
+	}
+
+	let pos			= match save_content.find('(') {
+		Some(p)		=> p - 1, // -1 to capture the brace as well lower, see save_content.get
+		None		=> { println!("Failed to find first opening brace \"(\". Most likely invalid format or corrupted file!"); return None; }
+	};
+
+	save_content	= match save_content.get(pos..) {
+		Some(c)		=> c.to_string(),
+		None		=> { return None; }
+	};
+
+	let veh_cfg: VehicleConfig = ron::from_str(save_content.as_str()).unwrap();
+	
+	Some(veh_cfg)
 }
 
 fn respawn_vehicle_system(
