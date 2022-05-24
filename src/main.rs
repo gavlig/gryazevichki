@@ -508,6 +508,10 @@ fn spawn_world_system(
 		spawn_friction_tests(&mut meshes, &mut materials, &mut commands);
 	}
 
+	if true {
+		spawn_obstacles	(&mut meshes, &mut materials, &mut commands);
+	}
+
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
 	let veh_cfg			= load_vehicle_config(&veh_file).unwrap();
 
@@ -964,37 +968,29 @@ fn spawn_fixed_cube(
 }
 
 fn spawn_obstacles(
-	meshes				: &mut ResMut<Assets<Mesh>>,
-	materials			: &mut ResMut<Assets<StandardMaterial>>,
-	commands			: &mut Commands
+	mut meshes			: &mut ResMut<Assets<Mesh>>,
+	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
+	mut commands		: &mut Commands
 ) {
+	let num				= 10;
+	let offset 			= Vec3::new(0.0, -22.0, 50.0);
+	let hsize 			= Vec3::new(25.0, 25.0, 25.0);
 
-	spawn_fixed_cube	();
+	for i in 0 ..= num {
+		let mut pose 	= Transform::from_translation(offset.clone());
+		pose.translation.x += i as f32 * ((hsize.x * 2.0) + 5.0);
+		pose.rotation	= Quat::from_rotation_x(-std::f32::consts::FRAC_PI_8 / 2.0);
 
-	let num = 5;
-	let offset = Vec3::new(0.0, 0.0, 3.0);
-	let line_hsize = Vec3::new(5.0, 0.025, 30.0);
-
-	for i in 0..=num {
-		let mut pos = offset.clone();
-		pos.x = i as f32 * ((line_hsize.x * 2.0) + 0.5);
-
-		let friction = i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
+		let friction 	= i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
 		let friction_inv = 1.0 - friction;
-		let color = Color::rgb(friction_inv, friction_inv, friction_inv);
+		let color		= Color::rgb(friction_inv, friction_inv, friction_inv);
 
-		commands
-			.spawn_bundle(PbrBundle {
-				mesh		: meshes.add			(Mesh::from(render_shape::Box::new(line_hsize.x * 2.0, line_hsize.y * 2.0, line_hsize.z * 2.0))),
-				material	: materials.add			(color.into()),
-				..Default::default()
-			})
-			.insert(RigidBody::Fixed)
-			.insert(Transform::from_translation(pos))
-			.insert(GlobalTransform::default())
-			.insert(Collider::cuboid(line_hsize.x, line_hsize.y, line_hsize.z))
-			.insert(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
-//			.insert(ColliderDebugColor(color));
+		spawn_fixed_cube(pose, hsize, color, &mut meshes, &mut materials, &mut commands);
+
+		pose.translation.z += 60.;
+		pose.rotation	= Quat::from_rotation_x(std::f32::consts::FRAC_PI_8 / 2.0);
+
+		spawn_fixed_cube(pose, hsize, color, &mut meshes, &mut materials, &mut commands);
 	}
 }
 
