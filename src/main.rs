@@ -337,10 +337,10 @@ fn main() {
 		.add_plugin				(FlyCameraPlugin)
 		.add_plugin				(EguiPlugin)
 		// it glitches and hides the ground
-//		.add_plugin				(AtmospherePlugin {
-//			dynamic				: false,  // Set to false since we aren't changing the sky's appearance
-//            sky_radius			: 10.0,
-//        })
+		// .add_plugin				(AtmospherePlugin {
+		// 	dynamic				: true,  // Set to false since we aren't changing the sky's appearance
+        //     sky_radius			: 10.0,
+        // })
 
 		.add_startup_system		(setup_grab_system)
 		.add_startup_system		(setup_graphics_system)
@@ -351,6 +351,9 @@ fn main() {
 		.add_system				(toggle_button_system)
 		.add_system				(vehicle_controls_system)
 		.add_system				(update_ui_system)
+
+//		.add_system				(daylight_cycle)
+
 		.add_system_to_stage	(CoreStage::Last, save_vehicle_config_system)
 		.add_system_to_stage	(CoreStage::Last, load_vehicle_config_system)
 
@@ -358,6 +361,28 @@ fn main() {
 		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)
 		.add_system_to_stage	(CoreStage::PostUpdate, despawn_system)
 		.run					();
+}
+
+// Marker for updating the position of the light, not needed unless we have multiple lights
+#[derive(Component)]
+struct Sun;
+
+// We can edit the SkyMaterial resource and it will be updated automatically, as long as AtmospherePlugin.dynamic is true
+fn daylight_cycle(
+    mut sky_mat: ResMut<AtmosphereMat>,
+    mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
+    time: Res<Time>,
+) {
+    let mut pos = sky_mat.sun_position;
+    let t = time.time_since_startup().as_millis() as f32 / 20000.0;
+    pos.y = t.sin();
+    pos.z = t.cos();
+    sky_mat.sun_position = pos;
+
+    if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
+        light_trans.rotation = Quat::from_rotation_x(-pos.y.atan2(pos.z));
+        directional.illuminance = t.sin().max(0.0).powf(2.0) * 100000.0;
+    }
 }
 
 fn setup_grab_system(mut windows: ResMut<Windows>) {
@@ -398,6 +423,12 @@ fn setup_graphics_system(
 		},
 		..default()
 	});
+
+	// commands
+    //     .spawn_bundle(DirectionalLightBundle {
+    //         ..Default::default()
+    //     })
+    //     .insert(Sun); // Marks the light as Sun
 
 	//
 
