@@ -450,7 +450,7 @@ fn spawn_camera(
 			..default()
 		})
 //		.insert			(Collider::ball(1.0))
-		.insert			(FlyCamera::default())
+		.insert			(FlyCamera{ yaw : 195.0, pitch : 7.0,  ..default() })
 		.insert			(NameComponent{ name: "Camera".to_string() })
 		.id				();
 
