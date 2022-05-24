@@ -403,7 +403,7 @@ fn setup_graphics_system(
 
 	commands.spawn_bundle(DirectionalLightBundle {
 		directional_light: DirectionalLight {
-			illuminance: 10000.0,
+			illuminance: 20000.0,
 			// Configure the projection to better fit the scene
 			shadow_projection	: OrthographicProjection {
 				left			: -HALF_SIZE,
@@ -510,6 +510,14 @@ fn spawn_world_system(
 
 	if true {
 		spawn_obstacles	(&mut meshes, &mut materials, &mut commands);
+	}
+
+	if true {
+		spawn_spheres	(&mut meshes, &mut materials, &mut commands);
+	}
+
+	if true {
+		spawn_wall		(&mut meshes, &mut materials, &mut commands);
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
@@ -991,6 +999,73 @@ fn spawn_obstacles(
 		pose.rotation	= Quat::from_rotation_x(std::f32::consts::FRAC_PI_8 / 2.0);
 
 		spawn_fixed_cube(pose, hsize, color, &mut meshes, &mut materials, &mut commands);
+	}
+}
+
+fn spawn_spheres(
+	mut meshes			: &mut ResMut<Assets<Mesh>>,
+	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
+	mut commands		: &mut Commands
+) {
+	let num				= 10;
+	let offset 			= Vec3::new(0.0, 0.0, 25.0);
+	let r 				= 0.5;
+
+	for i in 0 ..= num {
+		for j in 0 ..= num {
+			let mut pose 	= Transform::from_translation(offset.clone());
+			pose.translation.x += i as f32 * ((r * 2.0) + 1.0);
+			pose.translation.z += j as f32 * ((r * 2.0) + 1.0);
+
+			let friction 	= i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
+			let friction_inv = 1.0 - friction;
+			let color		= Color::rgb(friction_inv, friction_inv, friction_inv);
+
+			commands.spawn_bundle(PbrBundle {
+				mesh			: meshes.add	(Mesh::from(render_shape::UVSphere{ radius : r, ..default() })),
+				material		: materials.add	(color.into()),
+				..default()
+			})
+			.insert				(RigidBody::Dynamic)
+			.insert				(pose)
+			.insert				(GlobalTransform::default())
+			.insert				(Collider::ball(r));
+		//	.insert				(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+		}
+	}
+}
+
+fn spawn_wall(
+	mut meshes			: &mut ResMut<Assets<Mesh>>,
+	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
+	mut commands		: &mut Commands
+) {
+	let num				= 10;
+	let hsize 			= Vec3::new(1.5, 0.3, 0.3);
+	let offset 			= Vec3::new(-7.5, hsize.y, 10.0);
+
+
+	for i in 0 ..= num {
+		for j in 0 ..= 5 {
+			let mut pose 	= Transform::from_translation(offset.clone());
+			pose.translation.x += i as f32 * (hsize.x * 2.0);// + 0.05;
+			pose.translation.y += j as f32 * (hsize.y * 2.0);// + 0.4;
+
+			let friction 	= i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
+			let friction_inv = 1.0 - friction;
+			let color		= Color::rgb(friction_inv, friction_inv, friction_inv);
+
+			commands.spawn_bundle(PbrBundle {
+				mesh			: meshes.add	(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0))),
+				material		: materials.add	(color.into()),
+				..default()
+			})
+			.insert				(RigidBody::Dynamic)
+			.insert				(pose)
+			.insert				(GlobalTransform::default())
+			.insert				(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+		//	.insert				(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+		}
 	}
 }
 
