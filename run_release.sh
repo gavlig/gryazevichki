@@ -1,0 +1,1 @@
+RUSTFLAGS="$RUSTFLAGS -A non-snake_case" cargo run -r
