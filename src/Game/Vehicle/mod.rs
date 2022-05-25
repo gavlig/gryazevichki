@@ -1,13 +1,14 @@
 mod motor;
 mod spawn;
 mod save_load;
+mod systems;
 
 pub use save_load::save_vehicle_config_system;
 pub use save_load::load_vehicle_config_system;
 pub use save_load::load_vehicle_config;
 
-pub use spawn::spawn_vehicle as spawn;
-pub use spawn::respawn_vehicle_system as respawn_vehicle_system;
+pub use spawn::vehicle as spawn;
+pub use systems::respawn_vehicle_system as respawn_vehicle_system;
 
 use bevy		::	prelude :: *;
 use bevy_rapier3d::	prelude :: *;
