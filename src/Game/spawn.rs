@@ -1,12 +1,11 @@
-use bevy			::	prelude :: *;
-use bevy_rapier3d	::	prelude :: *;
+use bevy			::	prelude :: { * };
+use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	FlyCamera;
 
 use bevy::render::mesh::shape as render_shape;
-use std::f32::consts:: *;
+use std::f32::consts::	{ * };
 
-use super::GameState;
-use super::NameComponent;
+use super			::	{ * };
 
 pub fn camera(
 	game				: &mut ResMut<GameState>,
@@ -276,16 +275,25 @@ pub struct HerringboneStepRequest {
 }
 
 pub struct HerringboneIO {
+	pub x 				: u32,
+	pub z 				: u32,
+	pub iter			: u32,
+	pub x_limit			: f32,
+	pub z_limit			: f32,
+	pub limit			: u32,
+
 	pub num_x 			: u32,
 	pub num_z 			: u32,
 	pub body_type 		: RigidBody,
 	pub offset 			: Vec3,
 	pub hsize 			: Vec3,
-	pub x 				: u32,
-	pub z 				: u32,
-	pub x_iter			: u32,
+//	pub x 				: u32,
+//	pub z 				: u32,
+//	pub x_iter			: u32,
 	pub offset_x		: f32,
 	pub offset_z		: f32,
+
+	pub orientation		: Orientation2D,
 	pub mesh			: Handle<Mesh>,
 	pub material		: Handle<StandardMaterial>,
 }
@@ -293,16 +301,24 @@ pub struct HerringboneIO {
 impl Default for HerringboneIO {
 	fn default() -> Self {
 		Self {
+			x 			: 0,
+			z 			: 0,
+			iter		: 0,
+			x_limit		: 0.0,
+			z_limit		: 0.0,
+			limit		: 0,
+
 			num_x		: 0,
 			num_z		: 0,
 			body_type 	: RigidBody::Fixed,
 			offset 		: Vec3::ZERO,
 			hsize 		: Vec3::ZERO,
-			x 			: 0,
-			z 			: 0,
-			x_iter		: 0,
+//			x 			: 0,
+//			z 			: 0,
+//			x_iter		: 0,
 			offset_x	: 0.0,
 			offset_z	: 0.0,
+			orientation	: Orientation2D::Horizontal,
 			mesh		: Handle::<Mesh>::default(),
 			material	: Handle::<StandardMaterial>::default(),
 		}
@@ -368,6 +384,84 @@ pub fn herringbone_brick_road_iter(
 	mut io				: &mut HerringboneIO,
 	mut commands		: &mut Commands
 ) {
+	// first diagonal
+	// horizontal: n - 1 tiles
+	// vertical: n tiles
+
+	let mut rotation	= match io.orientation {
+		Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
+		Orientation2D::Vertical 	=> Quat::IDENTITY,
+	};
+
+//	let mut offset_x	= (io.iter + 1) as f32 * io.hsize.z;
+//	let mut offset_z	= (io.iter + 1) as f32 * (io.hsize.x * 2.0);
+
+	let hlenz			= io.hsize.z;
+	let lenz			= hlenz * 2.0;
+
+	let hlenx			= io.hsize.x;
+	let lenx			= hlenx * 2.0;
+
+	let offset_x		= match io.orientation {
+		Orientation2D::Horizontal 	=> (io.iter + 1) as f32 * hlenz + (io.x as f32 * lenz * 2.0),
+		Orientation2D::Vertical 	=> io.iter as f32 * hlenz + hlenx + (io.x as f32 * (lenz * 2.0)),
+	};
+
+	let offset_z		= match io.orientation {
+		Orientation2D::Horizontal 	=> (io.iter as f32 * hlenz + hlenx) + (io.z as f32 * lenz * 2.0),
+		Orientation2D::Vertical 	=> (io.iter as f32 * hlenz) + (hlenz * 2.0) + (io.z as f32 * lenz * 2.0),
+	};
+
+	let mut pose 		= Transform::from_translation(io.offset.clone());
+	pose.translation.x	+= offset_x;
+	pose.translation.z	+= offset_z;
+	pose.rotation		= rotation;
+
+	commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone_weak(), material: io.material.clone_weak(), ..default() })
+		.insert			(io.body_type)
+		.insert			(pose)
+		.insert			(GlobalTransform::default())
+		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
+	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+		.insert			(Herringbone);
+
+	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation);
+
+	io.iter				+= 1;
+
+	match io.orientation {
+		Orientation2D::Horizontal
+		if (offset_x + io.hsize.z + 0.1 >= io.x_limit)
+		|| (offset_z + io.hsize.x + 0.1 >= io.z_limit)
+		|| (io.iter >= io.limit && io.limit != 0) =>
+		{
+			io.iter		= 0;
+			io.orientation = Orientation2D::Vertical;
+
+			println!	("Horizontal -> Vertical");
+		},
+		Orientation2D::Vertical
+		if (offset_x + io.hsize.x + 0.1 >= io.x_limit)
+		|| (offset_z + io.hsize.z + 0.1 >= io.z_limit)
+		|| (io.iter >= io.limit && io.limit != 0) =>
+		{
+			io.iter		= 0;
+			io.orientation = Orientation2D::Horizontal;
+			io.x		+= 1;
+
+			println!	("Vertical -> Horizontal + x =+ 1");
+		},
+		_				=> ()
+	}
+
+//	if (offset_x + hsize.z && io.orientation == Orientation2D::Horizontal) || 
+
+	//
+	//
+	//
+
+	return;
+
 	let x 				= io.x;
 	let z 				= io.z;
 
@@ -377,7 +471,7 @@ pub fn herringbone_brick_road_iter(
 		return;
 	}
 
-	let mut x_iter		= io.x_iter;
+	let mut x_iter		= io.iter;
 	let mut offset_x	= io.offset_x;
 	let mut offset_z	= io.offset_z;
 	let body_type 		= io.body_type;
@@ -468,6 +562,9 @@ pub fn herringbone_brick_road_iter(
 	};
 
 	offset_x += 0.01;
+	if x_iter == 0 && z_iter == 0 {
+//		offset_x += 0.01;
+	}
 
 	println!("x: {} z: {} [1] offset_x: {:.2} offset_z: {:.2} z_iter: {} x_iter: {}", x, z, offset_x, offset_z, z_iter, x_iter);
 
@@ -476,9 +573,11 @@ pub fn herringbone_brick_road_iter(
 	} else if x < io.num_x {
 		io.x			+= 1;
 		io.z			= 0;
+
+		offset_z 		+= 0.01;
 	}
 
 	io.offset_x = offset_x;
 	io.offset_z = offset_z;
-	io.x_iter = x_iter;
+	io.iter = x_iter;
 }

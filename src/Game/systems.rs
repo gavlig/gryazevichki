@@ -235,6 +235,11 @@ pub fn setup_herringbone_brick_road(
 
 	io.set_default		();
 
+	io.iter				= 1; // because we spawn first brick manually lower to have a strong reference
+	io.x_limit			= 3.0;
+	io.z_limit			= 3.0;
+	io.limit			= 10;
+
 	io.num_x			= num_x;
 	io.num_z			= num_z;
 	io.body_type		= body_type;
@@ -247,6 +252,7 @@ pub fn setup_herringbone_brick_road(
 
 	let mut pose 		= Transform::from_translation(offset.clone());
 	pose.translation.x	+= hsize.z;
+	pose.translation.z	+= hsize.x;
 	pose.rotation		= Quat::from_rotation_y(FRAC_PI_2);
 
 	commands.spawn_bundle(PbrBundle{ mesh: mesh, material: material, ..default() })

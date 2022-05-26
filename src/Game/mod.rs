@@ -13,6 +13,7 @@ pub use Ui			:: *;
 mod spawn;
 pub use spawn::HerringboneStepRequest;
 pub use spawn::HerringboneIO;
+pub use spawn::Herringbone;
 
 pub struct GameState {
 	  pub camera				: Option<Entity>
@@ -70,6 +71,12 @@ pub enum SideZ {
 	Front,
 	Center,
 	Rear
+}
+
+#[derive(Component, Debug, Copy, Clone, PartialEq)]
+pub enum Orientation2D {
+	Horizontal,
+	Vertical
 }
 
 #[derive(Debug, Clone, Copy)]
