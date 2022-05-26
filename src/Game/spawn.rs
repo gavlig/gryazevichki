@@ -271,8 +271,9 @@ pub fn herringbone_brick_road(
 	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
 ) {
+	let body_type		= RigidBody::Fixed;
 	let num_x			= 32u32 * 2u32;
-	let num_z			= 12u32;
+	let num_z			= 32u32 * 1u32;
 //	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
 //	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
 	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
@@ -281,6 +282,12 @@ pub fn herringbone_brick_road(
 	let mut offset_x = offset.x;
 	let mut offset_z = offset.z;
 	let mut x_iter = 0;
+
+	let mesh			= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
+    let material		= materials.add(StandardMaterial {
+        base_color		: Color::ANTIQUE_WHITE,
+        ..default		()
+    });
 
 	for x in 0 .. num_x {
 		for z in 0 .. num_z {
@@ -333,8 +340,8 @@ pub fn herringbone_brick_road(
 		_ => (),
 	};
 
-	pose.translation.x 	= offset_x; // x as f32 * (hsize.x * 2.0);
-	pose.translation.z 	= offset_z;//z as f32 * (hsize.z * 2.0);// + 0.4;
+	pose.translation.x 	= offset_x;
+	pose.translation.z 	= offset_z;
 	pose.rotation		= rotation;
 
 	println!("x: {} z: {} [0] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", x, z, offset_x, offset_z, z_iter, x_iter);
@@ -343,14 +350,10 @@ pub fn herringbone_brick_road(
 	let friction_inv 	= 1.0 - friction;
 	let color			= Color::rgb(friction_inv, friction_inv, friction_inv);
 
-	if z_iter != 1 || x == 0 { 
+	if (z_iter != 1 || x == 0) && (x != 0 && z != 0) { 
 
-		commands.spawn_bundle(PbrBundle {
-			mesh		: meshes.add	(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0))),
-			material	: materials.add	(color.into()),
-			..default()
-		})
-		.insert			(RigidBody::Fixed)
+		commands.spawn_bundle(PbrBundle{ mesh: mesh.clone_weak(), material: material.clone_weak(), ..default() })
+		.insert			(body_type)
 		.insert			(pose)
 		.insert			(GlobalTransform::default())
 		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
@@ -375,10 +378,20 @@ pub fn herringbone_brick_road(
 		_ => (),
 	};
 
-	offset_x += 0.01;
+//	offset_x += 0.01;
 
 	println!("x: {} z: {} [1] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", x, z, offset_x, offset_z, z_iter, x_iter);
 
 		} // z
 	} // x
+
+	let mut pose 		= Transform::from_translation(offset.clone());
+	pose.translation.x	+= hsize.z;
+	pose.rotation		= Quat::from_rotation_y(FRAC_PI_2);
+
+	commands.spawn_bundle(PbrBundle{ mesh: mesh, material: material, ..default() })
+		.insert			(body_type)
+		.insert			(pose)
+		.insert			(GlobalTransform::default())
+		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
 }

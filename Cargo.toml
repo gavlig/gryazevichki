@@ -21,8 +21,8 @@ directories = "4.0"
 ron = "0.7"
 serde = { version = "1", features = ["derive"] }
 bevy = { version = "0.7" } #, features = ["dynamic"] }
-rapier3d = { git = "https://github.com/gavlig/rapier.git", branch = "gryazevichki" }
-bevy_rapier3d = { git = "https://github.com/gavlig/bevy_rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render" ] } # "parallel"
+rapier3d = { git = "https://github.com/gavlig/rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render", "parallel" ] }
+bevy_rapier3d = { git = "https://github.com/gavlig/bevy_rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render", "parallel" ] }
 bevy_egui = "0.13"
 bevy_fly_camera = { git = "https://github.com/gavlig/bevy_fly_camera.git", branch = "gryazevichki" }
 bevy_atmosphere = "0.3.1"
