@@ -92,16 +92,20 @@ pub fn setup_world_system(
 		spawn::friction_tests(&mut meshes, &mut materials, &mut commands);
 	}
 
-	if true {
+	if false {
 		spawn::obstacles(&mut meshes, &mut materials, &mut commands);
 	}
 
-	if true {
+	if false {
 		spawn::spheres	(&mut meshes, &mut materials, &mut commands);
 	}
 
-	if true {
+	if false {
 		spawn::wall		(&mut meshes, &mut materials, &mut commands);
+	}
+
+	if true {
+		spawn::herringbone_brick_road(&mut meshes, &mut materials, &mut commands);
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
