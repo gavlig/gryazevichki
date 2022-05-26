@@ -266,9 +266,13 @@ pub fn wall(
 	}
 }
 
+#[derive(Component)]
+pub struct Herringbone;
+
 #[derive(Default)]
 pub struct HerringboneStepRequest {
 	pub next			: bool,
+	pub reset			: bool,
 }
 
 pub struct HerringboneIO {
@@ -302,6 +306,12 @@ impl Default for HerringboneIO {
 			mesh		: Handle::<Mesh>::default(),
 			material	: Handle::<StandardMaterial>::default(),
 		}
+	}
+}
+
+impl HerringboneIO {
+	pub fn set_default(&mut self) {
+		*self			= Self::default();
 	}
 }
 
@@ -377,6 +387,7 @@ pub fn herringbone_brick_road_iter(
 
 	let mut rotation 	= Quat::from_rotation_y(FRAC_PI_2);
 
+	// new row, return "caret" and set first type of tile
 	if z == 0 && x != 0 {
 		offset_x		= offset.x;
 		offset_z		+= hsize.x * 2.0;
@@ -430,13 +441,13 @@ pub fn herringbone_brick_road_iter(
 	println!("x: {} z: {} [0] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", x, z, offset_x, offset_z, z_iter, x_iter);
 
 	if (z_iter != 1 || x == 0) && (x != 0 || z != 0) { 
-
 		commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone_weak(), material: io.material.clone_weak(), ..default() })
 		.insert			(body_type)
 		.insert			(pose)
 		.insert			(GlobalTransform::default())
-		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z))
 	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+		.insert			(Herringbone);
 	} else {
 		println!("skipping(z_iter != 1 || x == 0)! z_cyc: {} x: {}", z_iter, x);
 	}

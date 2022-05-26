@@ -205,13 +205,17 @@ pub fn input_misc_system(
 	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::T) {
 		step.next = true;
 	}
+
+	if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::T) {
+		step.reset = true;
+	}
 }
 
 pub fn setup_herringbone_brick_road(
-	mut io				: &mut ResMut<HerringboneIO>,
-	mut meshes			: &mut ResMut<Assets<Mesh>>,
-	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
-	mut commands		: &mut Commands
+	io					: &mut ResMut<HerringboneIO>,
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	commands			: &mut Commands
 ) {
 	let body_type		= RigidBody::Fixed;
 	let num_x			= 3u32 * 3u32;
@@ -228,6 +232,8 @@ pub fn setup_herringbone_brick_road(
 		base_color		: Color::ALICE_BLUE,
 		..default		()
 	});
+
+	io.set_default		();
 
 	io.num_x			= num_x;
 	io.num_z			= num_z;
@@ -248,18 +254,38 @@ pub fn setup_herringbone_brick_road(
 		.insert			(pose)
 		.insert			(GlobalTransform::default())
 		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+
+	println!			("x: {} z: {} [0] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", 0, 0, pose.translation.x, 0.0, 0, 0);
 }
 
 pub fn herringbone_brick_road_system(
 	mut step			: ResMut<HerringboneStepRequest>,
 	mut io				: ResMut<HerringboneIO>,
+	mut meshes			: ResMut<Assets<Mesh>>,
+	mut materials		: ResMut<Assets<StandardMaterial>>,
+
+		query			: Query<Entity, With<Herringbone>>,
+
+	mut despawn			: ResMut<DespawnResource>,
 	mut commands		: Commands
 ) {
-	if !step.next {
+	if !step.next && !step.reset {
 		return;
 	}
 
+	if step.next && !step.reset {
 	spawn::herringbone_brick_road_iter(&mut io, &mut commands);
+		step.next		= false;
+	}
 
-	step.next			= false;
+	if step.reset {
+		for e in query.iter() {
+			despawn.entities.push(e);
+		}
+
+		setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials, &mut commands);
+
+		step.reset		= false;
+		step.next		= false;
+	}
 }
