@@ -281,6 +281,7 @@ pub struct HerringboneIO {
 	pub x_limit			: f32,
 	pub z_limit			: f32,
 	pub limit			: u32,
+	pub finished		: bool,
 
 	pub num_x 			: u32,
 	pub num_z 			: u32,
@@ -307,6 +308,7 @@ impl Default for HerringboneIO {
 			x_limit		: 0.0,
 			z_limit		: 0.0,
 			limit		: 0,
+			finished	: false,
 
 			num_x		: 0,
 			num_z		: 0,
@@ -402,15 +404,32 @@ pub fn herringbone_brick_road_iter(
 	let hlenx			= io.hsize.x;
 	let lenx			= hlenx * 2.0;
 
-	let offset_x		= match io.orientation {
-		Orientation2D::Horizontal 	=> (io.iter + 1) as f32 * hlenz + (io.x as f32 * lenz * 2.0),
-		Orientation2D::Vertical 	=> io.iter as f32 * hlenz + hlenx + (io.x as f32 * (lenz * 2.0)),
+	let calc_offset_x = |iter : u32, x : u32| -> f32 {
+		match io.orientation {
+			Orientation2D::Horizontal 	=> (iter + 1) as f32 * hlenz + (x as f32 * lenz * 2.0),
+			Orientation2D::Vertical 	=> iter as f32 * hlenz + hlenx + (x as f32 * (lenz * 2.0)),
+		}
 	};
 
-	let offset_z		= match io.orientation {
-		Orientation2D::Horizontal 	=> (io.iter as f32 * hlenz + hlenx) + (io.z as f32 * lenz * 2.0),
-		Orientation2D::Vertical 	=> (io.iter as f32 * hlenz) + (hlenz * 2.0) + (io.z as f32 * lenz * 2.0),
+	let calc_offset_z = |iter : u32, z : u32| -> f32 {
+		match io.orientation {
+			Orientation2D::Horizontal 	=> (io.iter as f32 * hlenz + hlenx) + (io.z as f32 * lenz * 2.0),
+			Orientation2D::Vertical 	=> (io.iter as f32 * hlenz) + (hlenz * 2.0) + (io.z as f32 * lenz * 2.0),
+		}
 	};
+
+	// let offset_x		= match io.orientation {
+	// 	Orientation2D::Horizontal 	=> (io.iter + 1) as f32 * hlenz + (io.x as f32 * lenz * 2.0),
+	// 	Orientation2D::Vertical 	=> io.iter as f32 * hlenz + hlenx + (io.x as f32 * (lenz * 2.0)),
+	// };
+
+	// let offset_z		= match io.orientation {
+	// 	Orientation2D::Horizontal 	=> (io.iter as f32 * hlenz + hlenx) + (io.z as f32 * lenz * 2.0),
+	// 	Orientation2D::Vertical 	=> (io.iter as f32 * hlenz) + (hlenz * 2.0) + (io.z as f32 * lenz * 2.0),
+	// };
+
+	let offset_x 		= calc_offset_x(io.iter, io.x);
+	let offset_z 		= calc_offset_z(io.iter, io.z);
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());
 	pose.translation.x	+= offset_x;
@@ -447,137 +466,20 @@ pub fn herringbone_brick_road_iter(
 		{
 			io.iter		= 0;
 			io.orientation = Orientation2D::Horizontal;
-			io.x		+= 1;
 
-			println!	("Vertical -> Horizontal + x =+ 1");
+			println!	("Vertical -> Horizontal");
+
+			if calc_offset_x(io.x + 1, io.iter) + 0.1 < io.x_limit {
+				io.x	+= 1;
+				println!("x =+ 1");
+			} else if calc_offset_z(io.z + 1, io.iter) + 0.1 < io.z_limit {
+				io.x	= 0;
+				io.z	+= 1;
+				println!("x = 0, z += 1");
+			} else {
+				io.finished = true;
+			}
 		},
 		_				=> ()
 	}
-
-//	if (offset_x + hsize.z && io.orientation == Orientation2D::Horizontal) || 
-
-	//
-	//
-	//
-
-	return;
-
-	let x 				= io.x;
-	let z 				= io.z;
-
-	println!			("\nherringbone_brick_road_iter x: {} z: {}", x, z);
-	if x == io.num_x - 1 && z == io.num_z - 1 {
-		println!		("herringbone_brick_road_iter finished! x = {} z = {} num_x {} num_z {}", x, z, io.num_x, io.num_z);
-		return;
-	}
-
-	let mut x_iter		= io.iter;
-	let mut offset_x	= io.offset_x;
-	let mut offset_z	= io.offset_z;
-	let body_type 		= io.body_type;
-	// TODO: rename and apply once after all is done
-	let offset 			= io.offset;
-	let hsize 			= io.hsize;
-
-	let mut rotation 	= Quat::from_rotation_y(FRAC_PI_2);
-
-	// new row, return "caret" and set first type of tile
-	if z == 0 && x != 0 {
-		offset_x		= offset.x;
-		offset_z		+= hsize.x * 2.0;
-
-		match x % 4 {
-			0 => {
-				x_iter = 0
-			},
-			1 => {
-				x_iter = 2
-			},
-			2 => {
-				x_iter = 1
-			},
-			3 => {
-				offset_x -= hsize.z;
-				x_iter = 0;
-				println!("fourth!");
-			}
-			_ => (),
-		}
-
-		println!("line!");
-	}
-
-	let z_iter			= (z + x_iter) % 3;
-
-	let mut pose 		= Transform::from_translation(offset.clone());
-	match z_iter {
-		0 => {
-			offset_x	+= hsize.z;
-			rotation	*= Quat::IDENTITY;
-		},
-		1 => {
-			offset_x	+= hsize.x;
-			offset_z	-= hsize.z - hsize.x;
-			rotation	*= Quat::from_rotation_y(FRAC_PI_2);
-		},
-		2 => {
-			offset_x	+= hsize.x;
-			offset_z	+= hsize.z - hsize.x;
-			rotation	*= Quat::from_rotation_y(FRAC_PI_2);
-		},
-		_ => (),
-	};
-
-	pose.translation.x 	= offset_x;
-	pose.translation.z 	= offset_z;
-	pose.rotation		= rotation;
-
-	println!("x: {} z: {} [0] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", x, z, offset_x, offset_z, z_iter, x_iter);
-
-	if (z_iter != 1 || x == 0) && (x != 0 || z != 0) { 
-		commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone_weak(), material: io.material.clone_weak(), ..default() })
-		.insert			(body_type)
-		.insert			(pose)
-		.insert			(GlobalTransform::default())
-		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z))
-	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
-		.insert			(Herringbone);
-	} else {
-		println!("skipping(z_iter != 1 || x == 0)! z_cyc: {} x: {}", z_iter, x);
-	}
-
-	match z_iter {
-		0 => {
-			offset_x	+= hsize.z;
-		},
-		1 => {
-			offset_x	+= hsize.x;
-			offset_z	+= hsize.z - hsize.x;
-		},
-		2 => {
-			offset_x	+= hsize.x;
-			offset_z	-= hsize.z - hsize.x;
-		},
-		_ => (),
-	};
-
-	offset_x += 0.01;
-	if x_iter == 0 && z_iter == 0 {
-//		offset_x += 0.01;
-	}
-
-	println!("x: {} z: {} [1] offset_x: {:.2} offset_z: {:.2} z_iter: {} x_iter: {}", x, z, offset_x, offset_z, z_iter, x_iter);
-
-	if z < io.num_z - 1 {
-		io.z			+= 1;
-	} else if x < io.num_x {
-		io.x			+= 1;
-		io.z			= 0;
-
-		offset_z 		+= 0.01;
-	}
-
-	io.offset_x = offset_x;
-	io.offset_z = offset_z;
-	io.iter = x_iter;
 }
