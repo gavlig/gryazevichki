@@ -1,7 +1,4 @@
 use bevy			::	{ prelude :: * };
-use bevy			::	{ app::AppExit };
-use bevy_rapier3d	::	{ prelude :: * };
-use bevy_fly_camera	::	{ FlyCamera };
 
 use std				:: 	{ path::PathBuf };
 use serde			::	{ Deserialize, Serialize };
@@ -15,6 +12,7 @@ pub use Ui			:: *;
 
 mod spawn;
 pub use spawn::HerringboneStepRequest;
+pub use spawn::HerringboneIO;
 
 pub struct GameState {
 	  pub camera				: Option<Entity>

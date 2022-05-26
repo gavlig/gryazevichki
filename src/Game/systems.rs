@@ -4,9 +4,12 @@ use bevy_rapier3d	::	{ prelude :: * };
 use bevy_fly_camera	::	{ FlyCamera };
 
 use std				:: 	{ path::PathBuf };
-use serde			::	{ Deserialize, Serialize };
+
+use bevy::render::mesh::shape as render_shape;
+use std::f32::consts:: 	{ * };
 
 use super           ::  { * };
+use super			::	{ spawn };
 
 pub fn setup_camera_system(
 		game			: ResMut<GameState>,
@@ -76,6 +79,7 @@ pub fn setup_world_system(
 	mut _configuration	: ResMut<RapierConfiguration>,
 	mut	phys_ctx		: ResMut<DebugRenderContext>,
 	mut game			: ResMut<GameState>,
+	mut herr_io			: ResMut<HerringboneIO>,
 	mut	meshes			: ResMut<Assets<Mesh>>,
 	mut	materials		: ResMut<Assets<StandardMaterial>>,
 		ass				: Res<AssetServer>,
@@ -107,7 +111,8 @@ pub fn setup_world_system(
 	}
 
 	if true {
-		spawn::herringbone_brick_road(&mut meshes, &mut materials, &mut commands);
+//		spawn::herringbone_brick_road(&mut meshes, &mut materials, &mut commands);
+		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials, &mut commands);
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
@@ -173,6 +178,7 @@ pub fn input_misc_system(
 		key			: Res<Input<KeyCode>>,
 		_game		: Res<GameState>,
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
+	mut step		: ResMut<HerringboneStepRequest>,
 	mut exit		: EventWriter<AppExit>,
 	mut query		: Query<&mut FlyCamera>,
 ) {
@@ -195,4 +201,65 @@ pub fn input_misc_system(
 	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Key1) {
 		phys_ctx.enabled = !phys_ctx.enabled;
 	}
+
+	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::T) {
+		step.next = true;
+	}
+}
+
+pub fn setup_herringbone_brick_road(
+	mut io				: &mut ResMut<HerringboneIO>,
+	mut meshes			: &mut ResMut<Assets<Mesh>>,
+	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
+	mut commands		: &mut Commands
+) {
+	let body_type		= RigidBody::Fixed;
+	let num_x			= 3u32 * 3u32;
+	let num_z			= 3u32 * 3u32;
+	
+//	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
+	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
+//	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
+
+	let offset 			= Vec3::new(1.0, hsize.y, 1.0);
+
+	let mesh			= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
+	let material		= materials.add(StandardMaterial {
+		base_color		: Color::ALICE_BLUE,
+		..default		()
+	});
+
+	io.num_x			= num_x;
+	io.num_z			= num_z;
+	io.body_type		= body_type;
+	io.offset			= offset;
+	io.hsize			= hsize;
+	io.offset_x			= offset.x;
+	io.offset_z			= offset.z;
+	io.mesh				= mesh.clone_weak();
+	io.material			= material.clone_weak();
+
+	let mut pose 		= Transform::from_translation(offset.clone());
+	pose.translation.x	+= hsize.z;
+	pose.rotation		= Quat::from_rotation_y(FRAC_PI_2);
+
+	commands.spawn_bundle(PbrBundle{ mesh: mesh, material: material, ..default() })
+		.insert			(body_type)
+		.insert			(pose)
+		.insert			(GlobalTransform::default())
+		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+}
+
+pub fn herringbone_brick_road_system(
+	mut step			: ResMut<HerringboneStepRequest>,
+	mut io				: ResMut<HerringboneIO>,
+	mut commands		: Commands
+) {
+	if !step.next {
+		return;
+	}
+
+	spawn::herringbone_brick_road_iter(&mut io, &mut commands);
+
+	step.next			= false;
 }

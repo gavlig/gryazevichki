@@ -1,4 +1,3 @@
-use bevy::core_pipeline::draw_2d_graph::input;
 use bevy			::	prelude :: *;
 use bevy_rapier3d	::	prelude :: *;
 use bevy_fly_camera	::	FlyCamera;
@@ -39,7 +38,7 @@ pub fn ground(
 	let ground_height 	= 0.1;
 
 	let ground			= commands
-        .spawn			()
+		.spawn			()
 		.insert_bundle	(PbrBundle {
 			mesh		: meshes.add(Mesh::from(render_shape::Box::new(ground_size * 2.0, ground_height * 2.0, ground_size * 2.0))),
 			material	: materials.add(Color::rgb(0.8, 0.8, 0.8).into()),
@@ -47,8 +46,8 @@ pub fn ground(
 			..Default::default()
 		})
 		.insert			(Collider::cuboid(ground_size, ground_height, ground_size))
-        .insert			(Transform::from_xyz(0.0, -ground_height, 0.0))
-        .insert			(GlobalTransform::default())
+		.insert			(Transform::from_xyz(0.0, -ground_height, 0.0))
+		.insert			(GlobalTransform::default())
 		.id				();
 		
 	println!			("ground Entity ID {:?}", ground);
@@ -94,10 +93,10 @@ pub fn cubes(commands: &mut Commands) {
 	let mut offset = -(num as f32) * (rad * 2.0 + rad) * 0.5;
 	let mut color = 0;
 	let colors = [
-        Color::hsl(220.0, 1.0, 0.3),
-        Color::hsl(180.0, 1.0, 0.3),
-        Color::hsl(260.0, 1.0, 0.7),
-    ];
+		Color::hsl(220.0, 1.0, 0.3),
+		Color::hsl(180.0, 1.0, 0.3),
+		Color::hsl(260.0, 1.0, 0.7),
+	];
 
 	for j in 0usize..20 {
 		for i in 0..num {
@@ -273,36 +272,40 @@ pub struct HerringboneStepRequest {
 }
 
 pub struct HerringboneIO {
+	pub num_x 			: u32,
+	pub num_z 			: u32,
+	pub body_type 		: RigidBody,
+	pub offset 			: Vec3,
+	pub hsize 			: Vec3,
 	pub x 				: u32,
 	pub z 				: u32,
 	pub x_iter			: u32,
 	pub offset_x		: f32,
 	pub offset_z		: f32,
-	pub body_type 		: RigidBody,
-	pub offset 			: Vec3,
-	pub hsize 			: Vec3,
-	mesh				: Handle<Mesh>,
-	material			: Handle<StandardMaterial>,
+	pub mesh			: Handle<Mesh>,
+	pub material		: Handle<StandardMaterial>,
 }
 
 impl Default for HerringboneIO {
 	fn default() -> Self {
 		Self {
+			num_x		: 0,
+			num_z		: 0,
+			body_type 	: RigidBody::Fixed,
+			offset 		: Vec3::ZERO,
+			hsize 		: Vec3::ZERO,
 			x 			: 0,
 			z 			: 0,
 			x_iter		: 0,
 			offset_x	: 0.0,
 			offset_z	: 0.0,
-			body_type 	: RigidBody::Fixed,
-			offset 		: Vec3::ZERO,
-			hsize 		: Vec3::ZERO,
 			mesh		: Handle::<Mesh>::default(),
 			material	: Handle::<StandardMaterial>::default(),
 		}
 	}
 }
 
-pub fn herringbone_brick_road(
+pub fn _herringbone_brick_road(
 	mut meshes			: &mut ResMut<Assets<Mesh>>,
 	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
@@ -316,10 +319,10 @@ pub fn herringbone_brick_road(
 	let offset 			= Vec3::new(1.0, hsize.y, 1.0);
 
 	let mesh			= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
-    let material		= materials.add(StandardMaterial {
-        base_color		: Color::ANTIQUE_WHITE,
-        ..default		()
-    });
+	let material		= materials.add(StandardMaterial {
+		base_color		: Color::ANTIQUE_WHITE,
+		..default		()
+	});
 
 	let mut io = HerringboneIO {
 		body_type		: body_type,
@@ -357,6 +360,13 @@ pub fn herringbone_brick_road_iter(
 ) {
 	let x 				= io.x;
 	let z 				= io.z;
+
+	println!			("\nherringbone_brick_road_iter x: {} z: {}", x, z);
+	if x == io.num_x - 1 && z == io.num_z - 1 {
+		println!		("herringbone_brick_road_iter finished! x = {} z = {} num_x {} num_z {}", x, z, io.num_x, io.num_z);
+		return;
+	}
+
 	let mut x_iter		= io.x_iter;
 	let mut offset_x	= io.offset_x;
 	let mut offset_z	= io.offset_z;
@@ -419,7 +429,7 @@ pub fn herringbone_brick_road_iter(
 
 	println!("x: {} z: {} [0] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", x, z, offset_x, offset_z, z_iter, x_iter);
 
-	if (z_iter != 1 || x == 0) && (x != 0 && z != 0) { 
+	if (z_iter != 1 || x == 0) && (x != 0 || z != 0) { 
 
 		commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone_weak(), material: io.material.clone_weak(), ..default() })
 		.insert			(body_type)
@@ -427,9 +437,8 @@ pub fn herringbone_brick_road_iter(
 		.insert			(GlobalTransform::default())
 		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
 	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
-
 	} else {
-		println!("skipping! z_cyc {} x {}", z_iter, x);
+		println!("skipping(z_iter != 1 || x == 0)! z_cyc: {} x: {}", z_iter, x);
 	}
 
 	match z_iter {
@@ -449,29 +458,16 @@ pub fn herringbone_brick_road_iter(
 
 	offset_x += 0.01;
 
-	println!("x: {} z: {} [1] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", x, z, offset_x, offset_z, z_iter, x_iter);
+	println!("x: {} z: {} [1] offset_x: {:.2} offset_z: {:.2} z_iter: {} x_iter: {}", x, z, offset_x, offset_z, z_iter, x_iter);
+
+	if z < io.num_z - 1 {
+		io.z			+= 1;
+	} else if x < io.num_x {
+		io.x			+= 1;
+		io.z			= 0;
+	}
 
 	io.offset_x = offset_x;
 	io.offset_z = offset_z;
 	io.x_iter = x_iter;
-}
-
-pub fn herringbone_brick_road_system(
-	mut step			: ResMut<HerringboneStepRequest>,
-	mut io				: ResMut<HerringboneIO>,
-	mut meshes			: &mut ResMut<Assets<Mesh>>,
-	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
-	mut commands		: &mut Commands
-) {
-	if !step.next {
-		return;
-	}
-
-	// let mesh			= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
-    // let material		= materials.add(StandardMaterial {
-    //     base_color		: Color::ANTIQUE_WHITE,
-    //     ..default		()
-    // });
-
-	//herringbone_brick_road_iter(&mut io, &mesh, &material, &mut commands);
 }

@@ -20,18 +20,20 @@ fn main() {
 		.insert_resource		(GameState			::default())
 		.insert_resource		(DespawnResource	::default())
 		.insert_resource		(AtmosphereMat		::default()) // Default Earth sky
+
+		.insert_resource		(HerringboneIO::default())
 		.insert_resource		(HerringboneStepRequest::default())
 
 		.add_plugins			(DefaultPlugins)
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_plugin				(RapierDebugRenderPlugin::default())
+		.add_plugin				(RapierDebugRenderPlugin::default())
 		.add_plugin				(FlyCameraPlugin)
 		.add_plugin				(EguiPlugin)
 		// it glitches and hides the ground
 		// .add_plugin				(AtmospherePlugin {
 		// 	dynamic				: true,  // Set to false since we aren't changing the sky's appearance
-        //     sky_radius			: 10.0,
-        // })
+		//     sky_radius			: 10.0,
+		// })
 
 		.add_startup_system		(setup_cursor_visibility_system)
  		.add_startup_system		(setup_graphics_system)
@@ -42,6 +44,7 @@ fn main() {
  		.add_system				(input_misc_system)
  		.add_system				(vehicle_controls_system)
  		.add_system				(ui_system)
+		.add_system				(herringbone_brick_road_system)
 
 // 		.add_system				(daylight_cycle)
 
@@ -60,36 +63,36 @@ struct Sun;
 
 // We can edit the SkyMaterial resource and it will be updated automatically, as long as AtmospherePlugin.dynamic is true
 fn _daylight_cycle(
-    mut sky_mat: ResMut<AtmosphereMat>,
-    mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
-    time: Res<Time>,
+	mut sky_mat: ResMut<AtmosphereMat>,
+	mut query: Query<(&mut Transform, &mut DirectionalLight), With<Sun>>,
+	time: Res<Time>,
 ) {
-    let mut pos = sky_mat.sun_position;
-    let t = time.time_since_startup().as_millis() as f32 / 20000.0;
-    pos.y = t.sin();
-    pos.z = t.cos();
-    sky_mat.sun_position = pos;
+	let mut pos = sky_mat.sun_position;
+	let t = time.time_since_startup().as_millis() as f32 / 20000.0;
+	pos.y = t.sin();
+	pos.z = t.cos();
+	sky_mat.sun_position = pos;
 
-    if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
-        light_trans.rotation = Quat::from_rotation_x(-pos.y.atan2(pos.z));
-        directional.illuminance = t.sin().max(0.0).powf(2.0) * 100000.0;
-    }
+	if let Some((mut light_trans, mut directional)) = query.single_mut().into() {
+		light_trans.rotation = Quat::from_rotation_x(-pos.y.atan2(pos.z));
+		directional.illuminance = t.sin().max(0.0).powf(2.0) * 100000.0;
+	}
 }
 
 fn _spawn_gltf(
-    mut commands: Commands,
-    ass: Res<AssetServer>,
+	mut commands: Commands,
+	ass: Res<AssetServer>,
 ) {
-    // note that we have to include the `Scene0` label
-    let my_gltf = ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
+	// note that we have to include the `Scene0` label
+	let my_gltf = ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
 
-    // to be able to position our 3d model:
-    // spawn a parent entity with a TransformBundle
-    // and spawn our gltf as a scene under it
-    commands.spawn_bundle(TransformBundle {
-        local: Transform::from_xyz(0.0, 0.0, 0.0),
-        global: GlobalTransform::identity(),
-    }).with_children(|parent| {
-        parent.spawn_scene(my_gltf);
-    });
+	// to be able to position our 3d model:
+	// spawn a parent entity with a TransformBundle
+	// and spawn our gltf as a scene under it
+	commands.spawn_bundle(TransformBundle {
+		local: Transform::from_xyz(0.0, 0.0, 0.0),
+		global: GlobalTransform::identity(),
+	}).with_children(|parent| {
+		parent.spawn_scene(my_gltf);
+	});
 }
