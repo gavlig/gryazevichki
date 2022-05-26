@@ -121,9 +121,6 @@ fn draw_phys_params_ui(
 
 fn draw_body_params_ui_collapsing(
 	ui						: &mut Ui,
-	name					: &String,
-	density_range			: [f32; 2],
-	mass					: f32,
 	cfg						: &mut BodyConfig,
 	phys					: &mut PhysicsConfig,
 	section_name			: &str
@@ -345,7 +342,6 @@ pub fn ui_system(
     mut	q_parent	: Query<(
 		&Vehicle::Part,
 		&SideZ,
-		&NameComponent,
 		&MassProperties,
 		&mut Damping,
 	)>,
@@ -480,8 +476,7 @@ pub fn ui_system(
 
 		// write changes back to physics + per component ui 
 		for (parent, mut collider, mut mass_props_co, mut friction, mut restitution) in q_child.iter_mut() {
-			let (vehicle_part, sidez, name_comp, mass_props_rb, mut damping) = q_parent.get_mut(parent.0).unwrap();
-			let name 				= &name_comp.name;
+			let (vehicle_part, sidez, mass_props_rb, mut damping) = q_parent.get_mut(parent.0).unwrap();
 			let vp 					= *vehicle_part;
 
 			if (vp == Vehicle::Part::Wheel && wheels_changed) || (vp == Vehicle::Part::Axle && axles_changed) {
@@ -491,13 +486,11 @@ pub fn ui_system(
 
 			let mut body_changed	= false;
 			let mut body_cfg 		= q_body_cfg.get_mut(body).unwrap();
-			let 	body_cfg_cache 	= body_cfg.clone();
 			let mut body_phys_cfg 	= q_phys_cfg.get_mut(body).unwrap();
 			let		body_phys_cfg_cache = body_phys_cfg.clone();
 
 			if vp == Vehicle::Part::Body {
-				let mass			= mass_props_rb.mass;
-				body_changed 		= draw_body_params_ui_collapsing(ui, name, [0.05, 100.0], mass, body_cfg.as_mut(), body_phys_cfg.as_mut(), "Body");
+				body_changed 		= draw_body_params_ui_collapsing(ui, body_cfg.as_mut(), body_phys_cfg.as_mut(), "Body");
 
 				draw_acceleration_params_ui	(ui, accel_cfg.as_mut());
 				draw_steering_params_ui		(ui, steer_cfg.as_mut());

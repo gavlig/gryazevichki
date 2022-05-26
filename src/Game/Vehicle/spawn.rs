@@ -54,8 +54,6 @@ pub fn attached_wheel(
 
     let wheel		= wheel_with_joint(side, axle, axle_pos, wheel_offset, wheel_cfg, wheel_phys_cfg, ass, commands);
 
-    let wheel_pos	= axle_pos * wheel_offset;
-
     (
     RespawnableEntity{ entity : axle,	..Default::default() },
     RespawnableEntity{ entity : wheel, 	..Default::default() }
@@ -122,7 +120,7 @@ pub fn axle(
     let side_name	= wheel_side_name(side);
     let (sidez, sidex) = wheel_side_to_zx(side);
 
-    let mut axle_id = Entity::from_bits(0);
+    let mut axle_id : Entity;
     let 	axle_pos= body_pos * Transform::from_translation(offset);
     let		body_type = if phys.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
 
