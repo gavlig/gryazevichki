@@ -1,13 +1,13 @@
 ## Unstable branch
 ### Currently broken due to migration to newer rapier and bevy_rapier so unless you want to compare old and new versions branch gryazevichki_rapier_v0.12.0-alpha.0 offers a better experience
 
-![cargo_run](https://github.com/gavlig/gryazevichki/blob/master/content/README/cargo_run.gif)
+![cargo_run](https://github.com/gavlig/gryazevichki/blob/master/assets/README/cargo_run.gif)
 
 Hello! This is a prototype of vehicle simulator based on [Rapier](https://github.com/dimforge/rapier) and [Bevy](https://github.com/bevyengine/bevy) written on Rust. Inspired by [Godot-6DOF-Vehicle-Demo](https://github.com/Saitodepaula/Godot-6DOF-Vehicle-Demo).  
 
 ## Parameters
 
-![wheel_size](https://github.com/gavlig/gryazevichki/blob/master/content/README/wheel_size.gif)
+![wheel_size](https://github.com/gavlig/gryazevichki/blob/master/assets/README/wheel_size.gif)
 
 From Parameters window these can be adjusted:
 - Size of front and rear wheels 
