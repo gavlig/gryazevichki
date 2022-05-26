@@ -74,6 +74,7 @@ pub fn setup_graphics_system(
 
 pub fn setup_world_system(
 	mut _configuration	: ResMut<RapierConfiguration>,
+	mut	phys_ctx		: ResMut<DebugRenderContext>,
 	mut game			: ResMut<GameState>,
 	mut	meshes			: ResMut<Assets<Mesh>>,
 	mut	materials		: ResMut<Assets<StandardMaterial>>,
@@ -81,6 +82,7 @@ pub fn setup_world_system(
 	mut commands		: Commands
 ) {
 //	configuration.timestep_mode = TimestepMode::VariableTimestep;
+	phys_ctx.enabled	= false;
 
 	spawn::ground		(&game, &mut meshes, &mut materials, &mut commands);
 
