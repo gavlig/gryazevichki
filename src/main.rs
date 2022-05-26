@@ -16,10 +16,11 @@ fn main() {
 			0xF9 as f32 / 255.0,
 			0xFF as f32 / 255.0,
 		)))
-		.insert_resource		(Msaa::default())
-		.insert_resource		(GameState::default())
-		.insert_resource		(DespawnResource::default())
-		.insert_resource		(AtmosphereMat::default()) // Default Earth sky
+		.insert_resource		(Msaa				::default())
+		.insert_resource		(GameState			::default())
+		.insert_resource		(DespawnResource	::default())
+		.insert_resource		(AtmosphereMat		::default()) // Default Earth sky
+		.insert_resource		(HerringboneStepRequest::default())
 
 		.add_plugins			(DefaultPlugins)
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())

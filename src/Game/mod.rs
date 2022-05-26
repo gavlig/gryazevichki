@@ -14,6 +14,7 @@ pub mod Ui;
 pub use Ui			:: *;			
 
 mod spawn;
+pub use spawn::HerringboneStepRequest;
 
 pub struct GameState {
 	  pub camera				: Option<Entity>
@@ -43,8 +44,8 @@ impl Default for GameState {
 
 			, save_veh_file		: None
 			, load_veh_file		: None
-	  }
-  }
+		}
+	}
 }
 
 #[derive(Component)]

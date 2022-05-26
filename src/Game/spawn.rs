@@ -1,3 +1,4 @@
+use bevy::core_pipeline::draw_2d_graph::input;
 use bevy			::	prelude :: *;
 use bevy_rapier3d	::	prelude :: *;
 use bevy_fly_camera	::	FlyCamera;
@@ -266,22 +267,53 @@ pub fn wall(
 	}
 }
 
+#[derive(Default)]
+pub struct HerringboneStepRequest {
+	pub next			: bool,
+}
+
+pub struct HerringboneIO {
+	pub x 				: u32,
+	pub z 				: u32,
+	pub x_iter			: u32,
+	pub offset_x		: f32,
+	pub offset_z		: f32,
+	pub body_type 		: RigidBody,
+	pub offset 			: Vec3,
+	pub hsize 			: Vec3,
+	mesh				: Handle<Mesh>,
+	material			: Handle<StandardMaterial>,
+}
+
+impl Default for HerringboneIO {
+	fn default() -> Self {
+		Self {
+			x 			: 0,
+			z 			: 0,
+			x_iter		: 0,
+			offset_x	: 0.0,
+			offset_z	: 0.0,
+			body_type 	: RigidBody::Fixed,
+			offset 		: Vec3::ZERO,
+			hsize 		: Vec3::ZERO,
+			mesh		: Handle::<Mesh>::default(),
+			material	: Handle::<StandardMaterial>::default(),
+		}
+	}
+}
+
 pub fn herringbone_brick_road(
 	mut meshes			: &mut ResMut<Assets<Mesh>>,
 	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
 ) {
 	let body_type		= RigidBody::Fixed;
-	let num_x			= 32u32 * 2u32;
-	let num_z			= 32u32 * 1u32;
+	let num_x			= 3u32 * 3u32;
+	let num_z			= 3u32 * 3u32;
 //	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
-//	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
-	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
+	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
+//	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
 	let offset 			= Vec3::new(1.0, hsize.y, 1.0);
-
-	let mut offset_x = offset.x;
-	let mut offset_z = offset.z;
-	let mut x_iter = 0;
 
 	let mesh			= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
     let material		= materials.add(StandardMaterial {
@@ -289,8 +321,49 @@ pub fn herringbone_brick_road(
         ..default		()
     });
 
+	let mut io = HerringboneIO {
+		body_type		: body_type,
+		offset			: offset,
+		hsize			: hsize,
+		offset_x		: offset.x,
+		offset_z		: offset.z,
+		mesh			: mesh.clone_weak(),
+		material		: material.clone_weak(),
+		..default()
+	};
+
 	for x in 0 .. num_x {
 		for z in 0 .. num_z {
+			io.x		= x;
+			io.z		= z;
+			herringbone_brick_road_iter(&mut io, &mut commands);
+		} // z
+	} // x
+
+	let mut pose 		= Transform::from_translation(offset.clone());
+	pose.translation.x	+= hsize.z;
+	pose.rotation		= Quat::from_rotation_y(FRAC_PI_2);
+
+	commands.spawn_bundle(PbrBundle{ mesh: mesh, material: material, ..default() })
+		.insert			(body_type)
+		.insert			(pose)
+		.insert			(GlobalTransform::default())
+		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+}
+
+pub fn herringbone_brick_road_iter(
+	mut io				: &mut HerringboneIO,
+	mut commands		: &mut Commands
+) {
+	let x 				= io.x;
+	let z 				= io.z;
+	let mut x_iter		= io.x_iter;
+	let mut offset_x	= io.offset_x;
+	let mut offset_z	= io.offset_z;
+	let body_type 		= io.body_type;
+	// TODO: rename and apply once after all is done
+	let offset 			= io.offset;
+	let hsize 			= io.hsize;
 
 	let mut rotation 	= Quat::from_rotation_y(FRAC_PI_2);
 
@@ -346,13 +419,9 @@ pub fn herringbone_brick_road(
 
 	println!("x: {} z: {} [0] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", x, z, offset_x, offset_z, z_iter, x_iter);
 
-	let friction 		= x as f32 * (1.0 / num_x as f32); // so that when i == num => friction == 1
-	let friction_inv 	= 1.0 - friction;
-	let color			= Color::rgb(friction_inv, friction_inv, friction_inv);
-
 	if (z_iter != 1 || x == 0) && (x != 0 && z != 0) { 
 
-		commands.spawn_bundle(PbrBundle{ mesh: mesh.clone_weak(), material: material.clone_weak(), ..default() })
+		commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone_weak(), material: io.material.clone_weak(), ..default() })
 		.insert			(body_type)
 		.insert			(pose)
 		.insert			(GlobalTransform::default())
@@ -378,20 +447,31 @@ pub fn herringbone_brick_road(
 		_ => (),
 	};
 
-//	offset_x += 0.01;
+	offset_x += 0.01;
 
 	println!("x: {} z: {} [1] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", x, z, offset_x, offset_z, z_iter, x_iter);
 
-		} // z
-	} // x
+	io.offset_x = offset_x;
+	io.offset_z = offset_z;
+	io.x_iter = x_iter;
+}
 
-	let mut pose 		= Transform::from_translation(offset.clone());
-	pose.translation.x	+= hsize.z;
-	pose.rotation		= Quat::from_rotation_y(FRAC_PI_2);
+pub fn herringbone_brick_road_system(
+	mut step			: ResMut<HerringboneStepRequest>,
+	mut io				: ResMut<HerringboneIO>,
+	mut meshes			: &mut ResMut<Assets<Mesh>>,
+	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
+	mut commands		: &mut Commands
+) {
+	if !step.next {
+		return;
+	}
 
-	commands.spawn_bundle(PbrBundle{ mesh: mesh, material: material, ..default() })
-		.insert			(body_type)
-		.insert			(pose)
-		.insert			(GlobalTransform::default())
-		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+	// let mesh			= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
+    // let material		= materials.add(StandardMaterial {
+    //     base_color		: Color::ANTIQUE_WHITE,
+    //     ..default		()
+    // });
+
+	//herringbone_brick_road_iter(&mut io, &mesh, &material, &mut commands);
 }
