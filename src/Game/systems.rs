@@ -227,15 +227,8 @@ pub fn setup_herringbone_brick_road(
 
 	let offset 			= Vec3::new(1.0, hsize.y, 1.0);
 
-	let mesh			= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
-	let material		= materials.add(StandardMaterial {
-		base_color		: Color::ALICE_BLUE,
-		..default		()
-	});
-
 	io.set_default		();
 
-	io.iter				= 1; // because we spawn first brick manually lower to have a strong reference
 	io.x_limit			= 3.0;
 	io.z_limit			= 3.0;
 	io.limit			= 10;
@@ -247,21 +240,13 @@ pub fn setup_herringbone_brick_road(
 	io.hsize			= hsize;
 	io.offset_x			= offset.x;
 	io.offset_z			= offset.z;
-	io.mesh				= mesh.clone_weak();
-	io.material			= material.clone_weak();
+	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0))); //mesh.clone_weak();
+	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() }); //material.clone_weak();
 
 	let mut pose 		= Transform::from_translation(offset.clone());
 	pose.translation.x	+= hsize.z;
 	pose.translation.z	+= hsize.x;
 	pose.rotation		= Quat::from_rotation_y(FRAC_PI_2);
-
-	commands.spawn_bundle(PbrBundle{ mesh: mesh, material: material, ..default() })
-		.insert			(body_type)
-		.insert			(pose)
-		.insert			(GlobalTransform::default())
-		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
-
-	println!			("x: {} z: {} [0] offset_x {:.2} offset_z {:.2} z_iter {} x_iter {}", 0, 0, pose.translation.x, 0.0, 0, 0);
 }
 
 pub fn herringbone_brick_road_system(

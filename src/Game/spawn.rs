@@ -435,6 +435,18 @@ pub fn herringbone_brick_road_iter(
 	pose.translation.z	+= offset_z;
 	pose.rotation		= rotation;
 
+	match (io.x, io.z) {
+		// spawn strong reference as a first brick to keep reference count > 0
+		(0, 0) => {
+			commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone(), material: io.material.clone(), ..default() })
+			.insert			(io.body_type)
+			.insert			(pose)
+			.insert			(GlobalTransform::default())
+			.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
+		//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+			.insert			(Herringbone);
+		}
+		_ => {
 	commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone_weak(), material: io.material.clone_weak(), ..default() })
 		.insert			(io.body_type)
 		.insert			(pose)
@@ -442,6 +454,9 @@ pub fn herringbone_brick_road_iter(
 		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
 	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		.insert			(Herringbone);
+		}
+	}
+	
 
 	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation);
 
