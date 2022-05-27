@@ -423,8 +423,11 @@ pub fn herringbone_brick_road_iter(
 	let mut offset_z 	= calc_offset_z(io.z, io.iter, io.orientation);
 
 //	 if io.iter != 0 {
-	 	offset_x		+= (io.iter + 0) as f32 * seam + (io.x as f32 * seam * 3.0);
-	 	offset_z		+= (io.iter + 0) as f32 * seam + (io.z as f32 * seam * 3.0);
+	 	offset_x		+= ((io.iter + 0) as f32 * seam) + (((io.x + 0) as f32) * seam * 3.0);
+	 	offset_z		+= ((io.iter + 0) as f32 * seam) + (((io.z + 0) as f32) * seam * 3.0);// + (seam * (io.iter + 1) as f32);
+		if io.orientation == Orientation2D::Vertical {
+			offset_z	+= seam;
+		}
 //	 }
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());
