@@ -422,13 +422,12 @@ pub fn herringbone_brick_road_iter(
 	let mut offset_x 	= calc_offset_x(io.x, io.iter, io.orientation);
 	let mut offset_z 	= calc_offset_z(io.z, io.iter, io.orientation);
 
-//	 if io.iter != 0 {
-	 	offset_x		+= ((io.iter + 0) as f32 * seam) + (((io.x + 0) as f32) * seam * 3.0);
-	 	offset_z		+= ((io.iter + 0) as f32 * seam) + (((io.z + 0) as f32) * seam * 3.0);// + (seam * (io.iter + 1) as f32);
-		if io.orientation == Orientation2D::Vertical {
-			offset_z	+= seam;
+	offset_x			+= ((io.iter + 0) as f32 * seam) + (((io.x + 0) as f32) * seam * 3.0);
+	offset_z			+= ((io.iter + 0) as f32 * seam) + (((io.z + 0) as f32) * seam * 3.0);
+	match io.orientation {
+		Orientation2D::Vertical => offset_z += seam * 1.5,
+		Orientation2D::Horizontal => (),//offset_x += seam * 1.5,
 		}
-//	 }
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());
 	pose.translation.x	+= offset_x;
@@ -464,8 +463,8 @@ pub fn herringbone_brick_road_iter(
 
 	match io.orientation {
 		Orientation2D::Horizontal
-		if (offset_x + io.hsize.z + 0.1 >= io.x_limit)
-		|| (offset_z + io.hsize.x + 0.1 >= io.z_limit)
+		if ((offset_x + io.hsize.z + seam >= io.x_limit) && (io.x_limit != 0.0))
+		|| ((offset_z + io.hsize.x + seam >= io.z_limit) && (io.z_limit != 0.0))
 		|| (io.iter >= io.limit && io.limit != 0) =>
 		{
 			io.iter		= 0;
@@ -474,8 +473,8 @@ pub fn herringbone_brick_road_iter(
 			println!	("Horizontal -> Vertical x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
 		},
 		Orientation2D::Vertical
-		if (offset_x + io.hsize.x + 0.1 >= io.x_limit)
-		|| (offset_z + io.hsize.z + 0.1 >= io.z_limit)
+		if ((offset_x + io.hsize.x + seam >= io.x_limit) && (io.x_limit != 0.0))
+		|| ((offset_z + io.hsize.z + seam >= io.z_limit) && (io.z_limit != 0.0))
 		|| (io.iter >= io.limit && io.limit != 0) =>
 		{
 			io.iter		= 0;
@@ -485,10 +484,10 @@ pub fn herringbone_brick_road_iter(
 
 			let newoffx	= calc_offset_x(io.x + 1, io.iter, io.orientation);
 			let newoffz	= calc_offset_z(io.z + 1, io.iter, io.orientation);
-			if newoffx + 0.1 < io.x_limit {
+			if newoffx + seam < io.x_limit {
 				io.x	+= 1;
 				println!("x =+ 1 new offx {:.3}", newoffx);
-			} else if newoffz + 0.1 < io.z_limit {
+			} else if newoffz + seam < io.z_limit {
 				io.x	= 0;
 				io.z	+= 1;
 				println!("x = 0, z += 1 new offz {:.3}", newoffz);
