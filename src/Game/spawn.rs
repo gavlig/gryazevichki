@@ -397,6 +397,7 @@ pub fn herringbone_brick_road_iter(
 
 //	let mut offset_x	= (io.iter + 1) as f32 * io.hsize.z;
 //	let mut offset_z	= (io.iter + 1) as f32 * (io.hsize.x * 2.0);
+	let seam			= 0.01;
 
 	let hlenz			= io.hsize.z;
 	let lenz			= hlenz * 2.0;
@@ -404,22 +405,27 @@ pub fn herringbone_brick_road_iter(
 	let hlenx			= io.hsize.x;
 	let lenx			= hlenx * 2.0;
 
-	let calc_offset_x = |iter : u32, x : u32, orientation : Orientation2D| -> f32 {
+	let calc_offset_x = |x : u32, iter : u32, orientation : Orientation2D| -> f32 {
 		match orientation {
-			Orientation2D::Horizontal 	=> (iter + 1) as f32 * hlenz + (x as f32 * lenz * 2.0),
-			Orientation2D::Vertical 	=> iter as f32 * hlenz + hlenx + (x as f32 * (lenz * 2.0)),
+			Orientation2D::Horizontal 	=> ((iter + 1) as f32 * hlenz) 					+ (x as f32 * (lenz * 2.0)),
+			Orientation2D::Vertical 	=> ((iter + 0) as f32 * hlenz) + (hlenx * 1.0)	+ (x as f32 * (lenz * 2.0)),
 		}
 	};
 
-	let calc_offset_z = |iter : u32, z : u32, orientation : Orientation2D| -> f32 {
+	let calc_offset_z = |z : u32, iter : u32, orientation : Orientation2D| -> f32 {
 		match orientation {
-			Orientation2D::Horizontal 	=> (iter as f32 * hlenz + hlenx) + (z as f32 * lenz * 2.0),
-			Orientation2D::Vertical 	=> (iter as f32 * hlenz) + (hlenz * 2.0) + (z as f32 * lenz * 2.0),
+			Orientation2D::Horizontal 	=> ((iter + 0) as f32 * hlenz) + (hlenx * 1.0)	+ (z as f32 * (lenz * 2.0)),
+			Orientation2D::Vertical 	=> ((iter + 0) as f32 * hlenz) + (hlenz * 2.0) 	+ (z as f32 * (lenz * 2.0)),
 		}
 	};
 
-	let offset_x 		= calc_offset_x(io.iter, io.x, io.orientation);
-	let offset_z 		= calc_offset_z(io.iter, io.z, io.orientation);
+	let mut offset_x 	= calc_offset_x(io.x, io.iter, io.orientation);
+	let mut offset_z 	= calc_offset_z(io.z, io.iter, io.orientation);
+
+//	 if io.iter != 0 {
+	 	offset_x		+= (io.iter + 0) as f32 * seam + (io.x as f32 * seam * 3.0);
+	 	offset_z		+= (io.iter + 0) as f32 * seam + (io.z as f32 * seam * 3.0);
+//	 }
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());
 	pose.translation.x	+= offset_x;
@@ -447,7 +453,7 @@ pub fn herringbone_brick_road_iter(
 			io.iter		= 0;
 			io.orientation = Orientation2D::Vertical;
 
-			println!	("Horizontal -> Vertical x_limit: {} z_limit: {}", io.x_limit, io.z_limit);
+			println!	("Horizontal -> Vertical x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
 		},
 		Orientation2D::Vertical
 		if (offset_x + io.hsize.x + 0.1 >= io.x_limit)
@@ -457,17 +463,20 @@ pub fn herringbone_brick_road_iter(
 			io.iter		= 0;
 			io.orientation = Orientation2D::Horizontal;
 
-			println!	("Vertical -> Horizontal x_limit: {} z_limit: {}", io.x_limit, io.z_limit);
+			println!	("Vertical -> Horizontal x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
 
-			if calc_offset_x(io.x + 1, io.iter, io.orientation) + 0.1 < io.x_limit {
+			let newoffx	= calc_offset_x(io.x + 1, io.iter, io.orientation);
+			let newoffz	= calc_offset_z(io.z + 1, io.iter, io.orientation);
+			if newoffx + 0.1 < io.x_limit {
 				io.x	+= 1;
-				println!("x =+ 1");
-			} else if calc_offset_z(io.z + 1, io.iter, io.orientation) + 0.1 < io.z_limit {
+				println!("x =+ 1 new offx {:.3}", newoffx);
+			} else if newoffz + 0.1 < io.z_limit {
 				io.x	= 0;
 				io.z	+= 1;
-				println!("x = 0, z += 1");
+				println!("x = 0, z += 1 new offz {:.3}", newoffz);
 			} else {
 				io.finished = true;
+				println!("herringbone_brick_road_iter finished!");
 			}
 		},
 		_				=> ()

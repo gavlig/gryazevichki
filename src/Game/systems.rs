@@ -279,7 +279,7 @@ pub fn herringbone_brick_road_system(
 		return;
 	}
 
-	if step.next && !step.reset {
+	if step.next && !step.reset && !io.finished {
 	spawn::herringbone_brick_road_iter(&mut io, &mut commands);
 		step.next		= false;
 	}
