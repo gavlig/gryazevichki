@@ -461,6 +461,17 @@ pub fn herringbone_brick_road_iter(
 
 	io.iter				+= 1;
 
+	// if only io.limit is given set limits in cordinates anyway because otherwise we don't know where to stop not on diagonal
+	if io.iter == io.limit {
+		if io.x_limit == 0.0 {
+			io.x_limit = offset_x;
+		}
+
+		if io.z_limit == 0.0 {
+			io.z_limit = offset_z;
+		}
+	}
+
 	match io.orientation {
 		Orientation2D::Horizontal
 		if ((offset_x + io.hsize.z + seam >= io.x_limit) && (io.x_limit != 0.0))
