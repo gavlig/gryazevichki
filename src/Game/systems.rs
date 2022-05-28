@@ -240,13 +240,8 @@ pub fn setup_herringbone_brick_road(
 	io.hsize			= hsize;
 	io.offset_x			= offset.x;
 	io.offset_z			= offset.z;
-	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0))); //mesh.clone_weak();
-	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() }); //material.clone_weak();
-
-	let mut pose 		= Transform::from_translation(offset.clone());
-	pose.translation.x	+= hsize.z;
-	pose.translation.z	+= hsize.x;
-	pose.rotation		= Quat::from_rotation_y(FRAC_PI_2);
+	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
+	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
 }
 
 pub fn herringbone_brick_road_system(
