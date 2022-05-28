@@ -281,6 +281,7 @@ pub struct HerringboneIO {
 	pub x_limit			: f32,
 	pub z_limit			: f32,
 	pub limit			: u32,
+	pub finished_hor	: bool,
 	pub finished		: bool,
 
 	pub num_x 			: u32,
@@ -308,6 +309,7 @@ impl Default for HerringboneIO {
 			x_limit		: 0.0,
 			z_limit		: 0.0,
 			limit		: 0,
+			finished_hor: false,
 			finished	: false,
 
 			num_x		: 0,
@@ -472,6 +474,7 @@ pub fn herringbone_brick_road_iter(
 		}
 	}
 
+	// check for end conditions
 	match io.orientation {
 		Orientation2D::Horizontal
 		if ((offset_x + io.hsize.z + seam >= io.x_limit) && (io.x_limit != 0.0))
@@ -495,12 +498,13 @@ pub fn herringbone_brick_road_iter(
 
 			let newoffx	= calc_offset_x(io.x + 1, io.iter, io.orientation);
 			let newoffz	= calc_offset_z(io.z + 1, io.iter, io.orientation);
-			if newoffx + seam < io.x_limit {
+			if newoffx + seam < io.x_limit && !io.finished_hor {
 				io.x	+= 1;
 				println!("x =+ 1 new offx {:.3}", newoffx);
 			} else if newoffz + seam < io.z_limit {
 				io.x	= 0;
 				io.z	+= 1;
+				io.finished_hor = true;
 				println!("x = 0, z += 1 new offz {:.3}", newoffz);
 			} else {
 				io.finished = true;
