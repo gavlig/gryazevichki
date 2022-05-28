@@ -393,8 +393,8 @@ pub fn herringbone_brick_road_iter(
 	// vertical: n tiles
 
 	let mut rotation	= match io.orientation {
-		Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
-		Orientation2D::Vertical 	=> Quat::IDENTITY,
+	Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
+	Orientation2D::Vertical 	=> Quat::IDENTITY,
 	};
 
 //	let mut offset_x	= (io.iter + 1) as f32 * io.hsize.z;
@@ -409,15 +409,15 @@ pub fn herringbone_brick_road_iter(
 
 	let calc_offset_x = |x : u32, iter : u32, orientation : Orientation2D| -> f32 {
 		match orientation {
-			Orientation2D::Horizontal 	=> ((iter + 1) as f32 * hlenz) 					+ (x as f32 * (lenz * 2.0)),
-			Orientation2D::Vertical 	=> ((iter + 0) as f32 * hlenz) + (hlenx * 1.0)	+ (x as f32 * (lenz * 2.0)),
+		Orientation2D::Horizontal 	=> ((iter + 1) as f32 * hlenz) 					+ (x as f32 * (lenz * 2.0)),
+		Orientation2D::Vertical 	=> ((iter + 0) as f32 * hlenz) + (hlenx * 1.0)	+ (x as f32 * (lenz * 2.0)),
 		}
 	};
 
 	let calc_offset_z = |z : u32, iter : u32, orientation : Orientation2D| -> f32 {
 		match orientation {
-			Orientation2D::Horizontal 	=> ((iter + 0) as f32 * hlenz) + (hlenx * 1.0)	+ (z as f32 * (lenz * 2.0)),
-			Orientation2D::Vertical 	=> ((iter + 0) as f32 * hlenz) + (hlenz * 2.0) 	+ (z as f32 * (lenz * 2.0)),
+		Orientation2D::Horizontal 	=> ((iter + 0) as f32 * hlenz) + (hlenx * 1.0)	+ (z as f32 * (lenz * 2.0)),
+		Orientation2D::Vertical 	=> ((iter + 0) as f32 * hlenz) + (hlenz * 2.0) 	+ (z as f32 * (lenz * 2.0)),
 		}
 	};
 
@@ -427,39 +427,33 @@ pub fn herringbone_brick_road_iter(
 	offset_x			+= ((io.iter + 0) as f32 * seam) + (((io.x + 0) as f32) * seam * 3.0);
 	offset_z			+= ((io.iter + 0) as f32 * seam) + (((io.z + 0) as f32) * seam * 3.0);
 	match io.orientation {
-		Orientation2D::Vertical => offset_z += seam * 1.5,
-		Orientation2D::Horizontal => (),//offset_x += seam * 1.5,
-		}
+	Orientation2D::Vertical 	=> offset_z += seam * 1.5,
+	Orientation2D::Horizontal 	=> (),//offset_x += seam * 1.5,
+	}
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());
 	pose.translation.x	+= offset_x;
 	pose.translation.z	+= offset_z;
 	pose.rotation		= rotation;
 
+	let (mut me, mut ma) = (io.mesh.clone_weak(), io.material.clone_weak());
 	match (io.x, io.z) {
 		// spawn strong reference as a first brick to keep reference count > 0
 		(0, 0) => {
-			commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone(), material: io.material.clone(), ..default() })
-			.insert			(io.body_type)
-			.insert			(pose)
-			.insert			(GlobalTransform::default())
-			.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
-		//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
-			.insert			(Herringbone);
+			(me, ma)	= (io.mesh.clone(), io.material.clone());
 		}
-		_ => {
-	commands.spawn_bundle(PbrBundle{ mesh: io.mesh.clone_weak(), material: io.material.clone_weak(), ..default() })
+		_ => (),
+	}
+
+	commands.spawn_bundle(PbrBundle{ mesh: me, material: ma, ..default() })
 		.insert			(io.body_type)
 		.insert			(pose)
 		.insert			(GlobalTransform::default())
 		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
 	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		.insert			(Herringbone);
-		}
-	}
 	
-
-	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation);
+	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation, io.body_type);
 
 	io.iter				+= 1;
 
