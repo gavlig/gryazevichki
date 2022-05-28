@@ -26,3 +26,4 @@ bevy_rapier3d = { git = "https://github.com/gavlig/bevy_rapier.git", branch = "g
 bevy_egui = "0.13"
 bevy_fly_camera = { git = "https://github.com/gavlig/bevy_fly_camera.git", branch = "gryazevichki" }
 bevy_atmosphere = "0.3.1"
+bevy_mod_picking = "0.6"

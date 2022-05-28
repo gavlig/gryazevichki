@@ -1,6 +1,7 @@
 use bevy			::	prelude :: { * };
 use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	FlyCamera;
+use bevy_mod_picking::	*;
 
 use bevy::render::mesh::shape as render_shape;
 use std::f32::consts::	{ * };
@@ -20,6 +21,7 @@ pub fn camera(
 		})
 //		.insert			(Collider::ball(1.0))
 		.insert			(FlyCamera{ yaw : 195.0, pitch : 7.0,  ..default() })
+		.insert_bundle	(PickingCameraBundle::default())
 		.insert			(NameComponent{ name: "Camera".to_string() })
 		.id				();
 
@@ -454,6 +456,7 @@ pub fn herringbone_brick_road_iter(
 		.insert			(GlobalTransform::default())
 		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
 	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+		.insert_bundle	(PickableBundle::default())
 		.insert			(Herringbone);
 	
 	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation, io.body_type);

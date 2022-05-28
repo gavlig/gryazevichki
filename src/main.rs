@@ -3,6 +3,7 @@ use bevy_rapier3d	::	{ prelude :: * };
 use bevy_fly_camera	::	{ FlyCameraPlugin };
 use bevy_egui		::	*;
 use bevy_atmosphere	::	*;
+use bevy_mod_picking::	*;
 
 #[macro_use(defer)] extern crate scopeguard;
 
@@ -29,6 +30,7 @@ fn main() {
 		.add_plugin				(RapierDebugRenderPlugin::default())
 		.add_plugin				(FlyCameraPlugin)
 		.add_plugin				(EguiPlugin)
+		.add_plugins			(DefaultPickingPlugins)
 		// it glitches and hides the ground
 		// .add_plugin				(AtmospherePlugin {
 		// 	dynamic				: true,  // Set to false since we aren't changing the sky's appearance
