@@ -71,7 +71,7 @@ pub fn save_vehicle_config_system(
 		, serialized
 	].concat();
 
-	let mut save_name = file_path_to_string(&game.save_veh_file);
+	let save_name = file_path_to_string(&game.save_veh_file);
 	// if let Some(proj_dirs) = ProjectDirs::from("lol", "Gryazevicki Inc",  "Gryazevichki") {
 	// 	save_name = [ proj_dirs.config_dir(), &save_name ].concat();
 	// 	// Lin: /home/user/.config/gryazevichki

@@ -11,12 +11,7 @@ use super           :: egui_ext	:: toggle_switch;
 
 use super			::	{ * };
 use super			::	{ Vehicle };
-//use super			::	{ draw };
-
-//mod draw;
-//mod writeback;
-//use super::draw;
-use super::{ writeback };
+use super			::	{ writeback };
 
 pub fn vehicle_params_ui_system(
 	mut ui_context	: ResMut<EguiContext>,

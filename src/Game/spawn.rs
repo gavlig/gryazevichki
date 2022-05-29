@@ -234,9 +234,9 @@ pub fn spheres(
 }
 
 pub fn wall(
-	mut meshes			: &mut ResMut<Assets<Mesh>>,
-	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
-	mut commands		: &mut Commands
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	commands			: &mut Commands
 ) {
 	let num				= 10;
 	let hsize 			= Vec3::new(1.5, 0.3, 0.3);
@@ -367,7 +367,7 @@ pub fn herringbone_brick_road_iter(
 	mut io				: &mut HerringboneIO,
 		commands		: &mut Commands
 ) {
-	let mut rotation	= match io.orientation {
+	let rotation		= match io.orientation {
 	Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
 	Orientation2D::Vertical 	=> Quat::IDENTITY,
 	};

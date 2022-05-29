@@ -46,14 +46,14 @@ pub fn density(
 
 pub fn friction(
 		friction_in			: f32,
-	mut friction			: &mut Mut<Friction>,
+		friction			: &mut Mut<Friction>,
 ) {
 	friction.as_mut().coefficient = friction_in;
 }
 
 pub fn restitution(
 		restitution_in		: f32,
-	mut restitution			: &mut Mut<Restitution>,
+		restitution			: &mut Mut<Restitution>,
 ) {
 	restitution.as_mut().coefficient = restitution_in;
 }
@@ -61,7 +61,7 @@ pub fn restitution(
 pub fn damping(
 		lin_damping_in		: f32,
 		ang_damping_in		: f32,
-	mut damping				: &mut Mut<Damping>,
+		damping				: &mut Mut<Damping>,
 ) {
 	damping.as_mut().linear_damping = lin_damping_in;
 	damping.as_mut().angular_damping = ang_damping_in;

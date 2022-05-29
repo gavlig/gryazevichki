@@ -120,9 +120,9 @@ pub fn axle(
 	let side_name	= wheel_side_name(side);
 	let (sidez, sidex) = wheel_side_to_zx(side);
 
-	let mut axle_id : Entity;
-	let 	axle_pos= body_pos * Transform::from_translation(offset);
-	let		body_type = if phys.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
+	let axle_id 	: Entity;
+	let axle_pos	= body_pos * Transform::from_translation(offset);
+	let	body_type 	= if phys.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
 
 	axle_id 		=
 	commands
