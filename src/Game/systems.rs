@@ -2,6 +2,7 @@ use bevy			::	{ prelude :: * };
 use bevy			::	{ app::AppExit };
 use bevy_rapier3d	::	{ prelude :: * };
 use bevy_fly_camera	::	{ FlyCamera };
+use bevy_mod_picking::	{ * };
 
 use std				:: 	{ path::PathBuf };
 
@@ -23,11 +24,18 @@ pub fn setup_camera_system(
 	}
 }
 
-pub fn setup_cursor_visibility_system(mut windows: ResMut<Windows>) {
+pub fn setup_cursor_visibility_system(
+	mut windows	: ResMut<Windows>,
+	mut picking	: ResMut<PickingPluginsState>,
+) {
 	let window = windows.get_primary_mut().unwrap();
 
 	window.set_cursor_lock_mode	(true);
 	window.set_cursor_visibility(false);
+
+	picking.enable_picking 		= false;
+	picking.enable_highlighting = false;
+	picking.enable_interacting 	= false;
 }
 
 pub fn setup_graphics_system(
@@ -163,6 +171,7 @@ pub fn cursor_grab_system(
 	mut windows		: ResMut<Windows>,
 	_btn			: Res<Input<MouseButton>>,
 	key				: Res<Input<KeyCode>>,
+	mut picking		: ResMut<PickingPluginsState>,
 ) {
 	let window = windows.get_primary_mut().unwrap();
 
@@ -170,6 +179,10 @@ pub fn cursor_grab_system(
 		let toggle 	= !window.cursor_visible();
 		window.set_cursor_visibility(toggle);
 		window.set_cursor_lock_mode(!toggle);
+
+		picking.enable_picking = toggle;
+		picking.enable_highlighting = toggle;
+		picking.enable_interacting = toggle;
 	}
 }
 
