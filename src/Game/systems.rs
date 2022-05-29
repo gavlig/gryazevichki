@@ -184,12 +184,12 @@ pub fn input_misc_system(
 ) {
 	for mut camera in query.iter_mut() {
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
-			let toggle = !camera.enabled_follow;
+			let toggle 	= !camera.enabled_follow;
 			camera.enabled_follow = toggle;
 		}
 
 		if key.just_pressed(KeyCode::Escape) {
-			let toggle = !camera.enabled_rotation;
+			let toggle 	= !camera.enabled_rotation;
 			camera.enabled_rotation = toggle;
 		}
 	}
@@ -202,12 +202,20 @@ pub fn input_misc_system(
 		phys_ctx.enabled = !phys_ctx.enabled;
 	}
 
-	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::T) {
-		step.next = true;
+	if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::T) {
+		step.next 		= true;
+	}
+
+	if key.just_released(KeyCode::T) {
+		step.next 		= false;
 	}
 
 	if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::T) {
-		step.reset = true;
+		step.reset		= true;
+	}
+
+	if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LShift) && key.just_pressed(KeyCode::T) {
+		step.animate	= true;
 	}
 }
 
@@ -231,15 +239,11 @@ pub fn setup_herringbone_brick_road(
 
 	io.x_limit			= 3.0;
 	io.z_limit			= 3.0;
-	io.limit			= 10;
+	io.limit			= 30;
 
-	io.num_x			= num_x;
-	io.num_z			= num_z;
 	io.body_type		= body_type;
 	io.offset			= offset;
 	io.hsize			= hsize;
-	io.offset_x			= offset.x;
-	io.offset_z			= offset.z;
 	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
 	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
 }
@@ -247,20 +251,31 @@ pub fn setup_herringbone_brick_road(
 pub fn herringbone_brick_road_system(
 	mut step			: ResMut<HerringboneStepRequest>,
 	mut io				: ResMut<HerringboneIO>,
+	mut despawn			: ResMut<DespawnResource>,
+		time			: Res<Time>,
+
 	mut meshes			: ResMut<Assets<Mesh>>,
 	mut materials		: ResMut<Assets<StandardMaterial>>,
 
 		query			: Query<Entity, With<Herringbone>>,
 
-	mut despawn			: ResMut<DespawnResource>,
 	mut commands		: Commands
 ) {
-	if !step.next && !step.reset {
+	if !step.next && !step.animate && !step.reset {
 		return;
 	}
 
+	if step.animate {
+		let cur_time	= time.seconds_since_startup();
+		if (cur_time - step.last_update) < step.anim_delay_sec {
+			return;
+		}
+
+		step.last_update = cur_time;
+	}
+
 	if step.next && !step.reset && !io.finished {
-	spawn::herringbone_brick_road_iter(&mut io, &mut commands);
+		spawn::herringbone_brick_road_iter(&mut io, &mut commands);
 		step.next		= false;
 	}
 
@@ -273,5 +288,10 @@ pub fn herringbone_brick_road_system(
 
 		step.reset		= false;
 		step.next		= false;
+	}
+
+	if io.finished {
+		step.next		= false;
+		step.animate	= false;
 	}
 }

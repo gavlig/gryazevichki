@@ -270,10 +270,24 @@ pub fn wall(
 #[derive(Component)]
 pub struct Herringbone;
 
-#[derive(Default)]
 pub struct HerringboneStepRequest {
 	pub next			: bool,
+	pub animate			: bool,
 	pub reset			: bool,
+	pub last_update		: f64,
+	pub anim_delay_sec	: f64,
+}
+
+impl Default for HerringboneStepRequest {
+	fn default() -> Self {
+		Self {
+			next		: false,
+			animate		: false,
+			reset		: false,
+			last_update	: 0.0,
+			anim_delay_sec: 0.05,
+		}
+	}
 }
 
 #[derive(Component)]
@@ -351,7 +365,7 @@ impl HerringboneIO {
 
 pub fn herringbone_brick_road_iter(
 	mut io				: &mut HerringboneIO,
-	mut commands		: &mut Commands
+		commands		: &mut Commands
 ) {
 	let mut rotation	= match io.orientation {
 	Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
