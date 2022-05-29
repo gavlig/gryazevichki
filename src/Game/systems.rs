@@ -22,7 +22,58 @@ pub fn setup_camera_system(
 		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
 		camera.target 	= Some(game.body.unwrap().entity);
 		println!		("camera.target Entity ID {:?}", camera.target);
+
+pub fn setup_world_system(
+	mut _configuration	: ResMut<RapierConfiguration>,
+	mut	phys_ctx		: ResMut<DebugRenderContext>,
+	mut game			: ResMut<GameState>,
+	mut herr_io			: ResMut<HerringboneIO>,
+	mut	meshes			: ResMut<Assets<Mesh>>,
+	mut	materials		: ResMut<Assets<StandardMaterial>>,
+		ass				: Res<AssetServer>,
+	mut commands		: Commands
+) {
+//	configuration.timestep_mode = TimestepMode::VariableTimestep;
+	phys_ctx.enabled	= false;
+
+	spawn::ground		(&game, &mut meshes, &mut materials, &mut commands);
+
+	if false {
+		spawn::cubes	(&mut commands);
 	}
+
+	if false {
+		spawn::friction_tests(&mut meshes, &mut materials, &mut commands);
+	}
+
+	if false {
+		spawn::obstacles(&mut meshes, &mut materials, &mut commands);
+	}
+
+	if false {
+		spawn::spheres	(&mut meshes, &mut materials, &mut commands);
+	}
+
+	if false {
+		spawn::wall		(&mut meshes, &mut materials, &mut commands);
+	}
+
+	if true {
+		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials);
+	}
+
+	let veh_file		= Some(PathBuf::from("corvette.ron"));
+	let veh_cfg			= load_vehicle_config(&veh_file).unwrap();
+
+	let body_pos 		= Transform::from_xyz(0.0, 5.5, 0.0);
+
+	Vehicle::spawn(
+		  &veh_cfg
+		, body_pos
+		, &mut game
+		, &ass
+		, &mut commands
+	);
 }
 
 pub fn setup_cursor_visibility_system(
@@ -37,6 +88,61 @@ pub fn setup_cursor_visibility_system(
 	picking.enable_picking 		= false;
 	picking.enable_highlighting = false;
 	picking.enable_interacting 	= false;
+}
+
+pub fn cursor_visibility_system(
+	mut windows		: ResMut<Windows>,
+	btn				: Res<Input<MouseButton>>,
+	key				: Res<Input<KeyCode>>,
+	time			: Res<Time>,
+	mut window_focused : EventReader<bevy::window::WindowFocused>,
+		game_mode	: Res<CurrentState<GameMode>>,
+	mut picking		: ResMut<PickingPluginsState>,
+	mut	commands	: Commands
+) {
+	let window 		= windows.get_primary_mut().unwrap();
+	let cursor_visible = window.cursor_visible();
+	let window_id	= window.id();
+
+	let mut set_cursor_visibility = |v| {
+		window.set_cursor_visibility(v);
+		window.set_cursor_lock_mode(!v);
+	};
+
+	let mut set_visibility = |v| {
+		set_cursor_visibility(v);
+
+		picking.enable_picking = v;
+		picking.enable_highlighting = v;
+		picking.enable_interacting = v;
+
+		commands.insert_resource(NextState(
+			if v { GameMode::Editor } else { GameMode::InGame }
+		));
+	};
+
+	if key.just_pressed(KeyCode::Escape) {
+		let toggle 	= !cursor_visible;
+		set_visibility(toggle);
+	}
+
+	if btn.just_pressed(MouseButton::Left) && game_mode.0 == GameMode::InGame{
+		set_cursor_visibility(false);
+	}
+
+	if time.seconds_since_startup() > 1.0 {
+		for ev in window_focused.iter() {
+			if ev.id == window_id {
+
+				if !ev.focused {
+					set_cursor_visibility(true);
+				} else {
+					// this works bad because winit says we cant grab cursor right after window gets alt-tabbed back to focused
+					set_cursor_visibility(game_mode.0 == GameMode::Editor);
+				}
+			}
+		}
+	}
 }
 
 pub fn setup_graphics_system(
@@ -84,60 +190,6 @@ pub fn setup_graphics_system(
 	spawn::camera		(&mut game, &mut commands);
 }
 
-pub fn setup_world_system(
-	mut _configuration	: ResMut<RapierConfiguration>,
-	mut	phys_ctx		: ResMut<DebugRenderContext>,
-	mut game			: ResMut<GameState>,
-	mut herr_io			: ResMut<HerringboneIO>,
-	mut	meshes			: ResMut<Assets<Mesh>>,
-	mut	materials		: ResMut<Assets<StandardMaterial>>,
-		ass				: Res<AssetServer>,
-	mut commands		: Commands
-) {
-//	configuration.timestep_mode = TimestepMode::VariableTimestep;
-	phys_ctx.enabled	= false;
-
-	spawn::ground		(&game, &mut meshes, &mut materials, &mut commands);
-
-	if false {
-		spawn::cubes	(&mut commands);
-	}
-
-	if false {
-		spawn::friction_tests(&mut meshes, &mut materials, &mut commands);
-	}
-
-	if false {
-		spawn::obstacles(&mut meshes, &mut materials, &mut commands);
-	}
-
-	if false {
-		spawn::spheres	(&mut meshes, &mut materials, &mut commands);
-	}
-
-	if false {
-		spawn::wall		(&mut meshes, &mut materials, &mut commands);
-	}
-
-	if true {
-//		spawn::herringbone_brick_road(&mut meshes, &mut materials, &mut commands);
-		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials, &mut commands);
-	}
-
-	let veh_file		= Some(PathBuf::from("corvette.ron"));
-	let veh_cfg			= load_vehicle_config(&veh_file).unwrap();
-
-	let body_pos 		= Transform::from_xyz(0.0, 5.5, 0.0);
-
-	Vehicle::spawn(
-		  &veh_cfg
-		, body_pos
-		, &mut game
-		, &ass
-		, &mut commands
-	);
-}
-
 #[derive(Default)]
 pub struct DespawnResource {
 	pub entities: Vec<Entity>,
@@ -166,48 +218,6 @@ pub fn display_events_system(
 //			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
 //		}
 //	}
-}
-
-pub fn cursor_visibility_system(
-	mut windows		: ResMut<Windows>,
-	_btn			: Res<Input<MouseButton>>,
-	key				: Res<Input<KeyCode>>,
-	time			: Res<Time>,
-	mut window_focused : EventReader<bevy::window::WindowFocused>,
-	mut picking		: ResMut<PickingPluginsState>,
-	mut	commands	: Commands
-) {
-	let window 		= windows.get_primary_mut().unwrap();
-	let cursor_visible = window.cursor_visible();
-	// let window_id	= window.id();
-
-	let mut set_visibility = |v| {
-		window.set_cursor_visibility(v);
-		window.set_cursor_lock_mode(!v);
-
-		picking.enable_picking = v;
-		picking.enable_highlighting = v;
-		picking.enable_interacting = v;
-
-		commands.insert_resource(NextState(
-			if v { GameMode::Editor } else { GameMode::InGame }
-		));
-	};
-
-	if key.just_pressed(KeyCode::Escape) {
-		let toggle 	= !cursor_visible;
-		// println!("set visibility: {} because esc pressed", toggle);
-		set_visibility(toggle);
-	}
-
-	// if time.seconds_since_startup() > 1.0 {
-	// 	for ev in window_focused.iter() {
-	// 		if ev.id == window_id {
-	// 			println!("set visibility: {} because focus changed", ev.focused);
-	// 			set_visibility(ev.focused);
-	// 		}
-	// 	}
-	// }
 }
 
 pub fn input_misc_system(
@@ -262,11 +272,8 @@ pub fn setup_herringbone_brick_road(
 	io					: &mut ResMut<HerringboneIO>,
 	meshes				: &mut ResMut<Assets<Mesh>>,
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
-	commands			: &mut Commands
 ) {
 	let body_type		= RigidBody::Fixed;
-	let num_x			= 3u32 * 3u32;
-	let num_z			= 3u32 * 3u32;
 	
 //	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
 	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
@@ -305,7 +312,7 @@ pub fn herringbone_brick_road_system(
 			despawn.entities.push(e);
 		}
 
-		setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials, &mut commands);
+		setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials);
 
 		step.reset		= false;
 		step.next		= false;
