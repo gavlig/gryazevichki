@@ -1,9 +1,11 @@
-use bevy			::	prelude :: *;
-use bevy_rapier3d	::	{ prelude :: * };
+use bevy			::	prelude :: { * };
+use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	{ FlyCameraPlugin };
-use bevy_egui		::	*;
-use bevy_atmosphere	::	*;
-use bevy_mod_picking::	*;
+use bevy_egui		::	{ * };
+use bevy_atmosphere	::	{ * };
+use bevy_mod_picking::	{ * };
+
+use iyes_loopless	::	prelude :: { * };
 
 #[macro_use(defer)] extern crate scopeguard;
 
@@ -26,6 +28,8 @@ fn main() {
 		.insert_resource		(HerringboneStepRequest::default())
 		.insert_resource		(HoverState			::default())
 
+		.add_loopless_state		(GameMode::Editor)
+
 		.add_plugins			(DefaultPlugins)
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin				(RapierDebugRenderPlugin::default())
@@ -43,12 +47,15 @@ fn main() {
  		.add_startup_system		(setup_world_system)
  		.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
 
+		// input
  		.add_system				(cursor_grab_system)
  		.add_system				(input_misc_system)
- 		.add_system				(vehicle_controls_system)
- 		.add_system				(vehicle_params_ui_system)
+ 		.add_system				(vehicle_controls_system) // TODO: probably split input processing from gamelogic here
+		// game logic 
 		.add_system				(herringbone_brick_road_system)
-		.add_system				(coords_on_hover_ui_system)
+		// ui
+		.add_system				(coords_on_hover_ui_system.run_in_state(GameMode::Editor))
+		.add_system				(vehicle_params_ui_system.run_in_state(GameMode::Editor))
 
 // 		.add_system				(daylight_cycle)
 

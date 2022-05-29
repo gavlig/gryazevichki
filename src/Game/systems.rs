@@ -1,10 +1,11 @@
-use bevy			::	{ prelude :: * };
-use bevy			::	{ app::AppExit };
-use bevy_rapier3d	::	{ prelude :: * };
-use bevy_fly_camera	::	{ FlyCamera };
-use bevy_mod_picking::	{ * };
+use bevy			:: { prelude :: * };
+use bevy			:: { app::AppExit };
+use bevy_rapier3d	:: { prelude :: * };
+use bevy_fly_camera	:: { FlyCamera };
+use bevy_mod_picking:: { * };
+use iyes_loopless	:: { prelude :: * };
 
-use std				:: 	{ path::PathBuf };
+use std				:: { path::PathBuf };
 
 use bevy::render::mesh::shape as render_shape;
 use std::f32::consts:: 	{ * };
@@ -172,6 +173,7 @@ pub fn cursor_grab_system(
 	_btn			: Res<Input<MouseButton>>,
 	key				: Res<Input<KeyCode>>,
 	mut picking		: ResMut<PickingPluginsState>,
+	mut	commands	: Commands
 ) {
 	let window = windows.get_primary_mut().unwrap();
 
@@ -183,6 +185,10 @@ pub fn cursor_grab_system(
 		picking.enable_picking = toggle;
 		picking.enable_highlighting = toggle;
 		picking.enable_interacting = toggle;
+
+		commands.insert_resource(NextState(
+			if toggle { GameMode::Editor } else { GameMode::InGame }
+		));
 	}
 }
 
