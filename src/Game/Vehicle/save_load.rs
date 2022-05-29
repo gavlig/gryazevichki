@@ -80,17 +80,17 @@ pub fn save_vehicle_config_system(
 	// }
 
 	let path = Path::new(&save_name);
-    let display = path.display();
+	let display = path.display();
 
-    let mut file = match File::create(&path) {
-        Err(why) => panic!("couldn't create {}: {}", display, why),
-        Ok(file) => file,
-    };
+	let mut file = match File::create(&path) {
+		Err(why) => panic!("couldn't create {}: {}", display, why),
+		Ok(file) => file,
+	};
 
-    match file.write_all(save_content.as_bytes()) {
-        Err(why) => panic!("couldn't write to {}: {}", display, why),
-        Ok(_) => println!("successfully wrote to {}", display),
-    }
+	match file.write_all(save_content.as_bytes()) {
+		Err(why) => panic!("couldn't write to {}: {}", display, why),
+		Ok(_) => println!("successfully wrote to {}", display),
+	}
 
 	game.save_veh_file = None;
 }
@@ -162,20 +162,20 @@ pub fn load_vehicle_config_system(
 pub fn load_vehicle_config(
 	vehicle_config_file : &Option<PathBuf> 
 ) -> Option<self::Config> {
-    let load_name 	= file_path_to_string(vehicle_config_file);
+	let load_name 	= file_path_to_string(vehicle_config_file);
 	let path 		= Path::new(&load_name);
-    let display 	= path.display();
+	let display 	= path.display();
 
-    let mut file = match File::open(&path) {
-        Err(why) 	=> { println!("couldn't open {}: {}", display, why); return None; },
-        Ok(file) 	=> file,
-    };
+	let mut file = match File::open(&path) {
+		Err(why) 	=> { println!("couldn't open {}: {}", display, why); return None; },
+		Ok(file) 	=> file,
+	};
 
-    let mut save_content = String::new();
-    match file.read_to_string(&mut save_content) {
-        Err(why)	=> { println!("couldn't read {}: {}", display, why); return None; },
-        Ok(_) 		=> println!("Opened file {} for reading", display.to_string()),
-    }
+	let mut save_content = String::new();
+	match file.read_to_string(&mut save_content) {
+		Err(why)	=> { println!("couldn't read {}: {}", display, why); return None; },
+		Ok(_) 		=> println!("Opened file {} for reading", display.to_string()),
+	}
 
 	let mut lines	= save_content.lines();
 	let line 		= match lines.next() {
@@ -214,8 +214,8 @@ pub fn load_vehicle_config(
 }
 
 fn file_path_to_string(buf: &Option<PathBuf>) -> String {
-    match buf {
-        Some(path) => path.display().to_string(),
-        None => String::from(""),
-    }
+	match buf {
+		Some(path) => path.display().to_string(),
+		None => String::from(""),
+	}
 }

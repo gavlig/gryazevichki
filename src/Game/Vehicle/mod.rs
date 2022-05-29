@@ -21,7 +21,7 @@ pub use super	::	{ GameState, RespawnableEntity, NameComponent };
 pub struct Config {
 	  accel		: Option<AcceleratorConfig>
 	, steer		: Option<SteeringConfig>
-    , body 		: Option<BodyConfig>
+	, body 		: Option<BodyConfig>
 	, bophys	: Option<PhysicsConfig>
 	, axles		: [Option<AxleConfig>;      WHEELS_MAX as usize]
 	, axphys	: [Option<PhysicsConfig>;   WHEELS_MAX as usize]
