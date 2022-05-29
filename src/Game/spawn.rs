@@ -276,28 +276,25 @@ pub struct HerringboneStepRequest {
 	pub reset			: bool,
 }
 
+#[derive(Component)]
 pub struct HerringboneIO {
+	// going to change
 	pub x 				: u32,
 	pub z 				: u32,
 	pub iter			: u32,
-	pub x_limit			: f32,
-	pub z_limit			: f32,
-	pub limit			: u32,
 	pub finished_hor	: bool,
 	pub finished		: bool,
 
-	pub num_x 			: u32,
-	pub num_z 			: u32,
+	// read only
 	pub body_type 		: RigidBody,
 	pub offset 			: Vec3,
 	pub hsize 			: Vec3,
-//	pub x 				: u32,
-//	pub z 				: u32,
-//	pub x_iter			: u32,
-	pub offset_x		: f32,
-	pub offset_z		: f32,
-
 	pub orientation		: Orientation2D,
+	pub x_limit			: f32,
+	pub z_limit			: f32,
+	pub limit			: u32,
+
+	// cant copy
 	pub mesh			: Handle<Mesh>,
 	pub material		: Handle<StandardMaterial>,
 }
@@ -308,23 +305,17 @@ impl Default for HerringboneIO {
 			x 			: 0,
 			z 			: 0,
 			iter		: 0,
-			x_limit		: 0.0,
-			z_limit		: 0.0,
-			limit		: 0,
 			finished_hor: false,
 			finished	: false,
 
-			num_x		: 0,
-			num_z		: 0,
 			body_type 	: RigidBody::Fixed,
 			offset 		: Vec3::ZERO,
 			hsize 		: Vec3::ZERO,
-//			x 			: 0,
-//			z 			: 0,
-//			x_iter		: 0,
-			offset_x	: 0.0,
-			offset_z	: 0.0,
 			orientation	: Orientation2D::Horizontal,
+			x_limit		: 0.0,
+			z_limit		: 0.0,
+			limit		: 0,
+
 			mesh		: Handle::<Mesh>::default(),
 			material	: Handle::<StandardMaterial>::default(),
 		}
@@ -335,72 +326,38 @@ impl HerringboneIO {
 	pub fn set_default(&mut self) {
 		*self			= Self::default();
 	}
-}
 
-pub fn _herringbone_brick_road(
-	mut meshes			: &mut ResMut<Assets<Mesh>>,
-	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
-	mut commands		: &mut Commands
-) {
-	let body_type		= RigidBody::Fixed;
-	let num_x			= 3u32 * 3u32;
-	let num_z			= 3u32 * 3u32;
-//	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
-	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
-//	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
-	let offset 			= Vec3::new(1.0, hsize.y, 1.0);
+	pub fn clone(&self) -> Self {
+		Self {
+			x 			: self.x,
+			z 			: self.z,
+			iter		: self.iter,
+			x_limit		: self.x_limit,
+			z_limit		: self.z_limit,
+			limit		: self.limit,
+			finished_hor: self.finished_hor,
+			finished	: self.finished,
 
-	let mesh			= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
-	let material		= materials.add(StandardMaterial {
-		base_color		: Color::ANTIQUE_WHITE,
-		..default		()
-	});
+			body_type 	: self.body_type,
+			offset 		: self.offset,
+			hsize 		: self.hsize,
+			orientation	: self.orientation,
 
-	let mut io = HerringboneIO {
-		body_type		: body_type,
-		offset			: offset,
-		hsize			: hsize,
-		offset_x		: offset.x,
-		offset_z		: offset.z,
-		mesh			: mesh.clone_weak(),
-		material		: material.clone_weak(),
-		..default()
-	};
-
-	for x in 0 .. num_x {
-		for z in 0 .. num_z {
-			io.x		= x;
-			io.z		= z;
-			herringbone_brick_road_iter(&mut io, &mut commands);
-		} // z
-	} // x
-
-	let mut pose 		= Transform::from_translation(offset.clone());
-	pose.translation.x	+= hsize.z;
-	pose.rotation		= Quat::from_rotation_y(FRAC_PI_2);
-
-	commands.spawn_bundle(PbrBundle{ mesh: mesh, material: material, ..default() })
-		.insert			(body_type)
-		.insert			(pose)
-		.insert			(GlobalTransform::default())
-		.insert			(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+			mesh		: self.mesh.clone_weak(),
+			material	: self.material.clone_weak(),
+		}
+	}
 }
 
 pub fn herringbone_brick_road_iter(
 	mut io				: &mut HerringboneIO,
 	mut commands		: &mut Commands
 ) {
-	// first diagonal
-	// horizontal: n - 1 tiles
-	// vertical: n tiles
-
 	let mut rotation	= match io.orientation {
 	Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
 	Orientation2D::Vertical 	=> Quat::IDENTITY,
 	};
 
-//	let mut offset_x	= (io.iter + 1) as f32 * io.hsize.z;
-//	let mut offset_z	= (io.iter + 1) as f32 * (io.hsize.x * 2.0);
 	let seam			= 0.01;
 
 	let hlenz			= io.hsize.z;
@@ -434,7 +391,7 @@ pub fn herringbone_brick_road_iter(
 	//_ => (),
 	}
 
-	if io.z > 0 { offset_x += seam; offset_z += seam * 0.5; }
+//	if io.z > 0 { offset_x += seam; offset_z += seam * 0.5; }
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());
 	pose.translation.x	+= offset_x;
@@ -457,7 +414,8 @@ pub fn herringbone_brick_road_iter(
 		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
 	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		.insert_bundle	(PickableBundle::default())
-		.insert			(Herringbone);
+		.insert			(Herringbone)
+		.insert			(io.clone());
 	
 	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation, io.body_type);
 

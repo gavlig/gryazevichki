@@ -22,8 +22,9 @@ fn main() {
 		.insert_resource		(DespawnResource	::default())
 		.insert_resource		(AtmosphereMat		::default()) // Default Earth sky
 
-		.insert_resource		(HerringboneIO::default())
+		.insert_resource		(HerringboneIO		::default())
 		.insert_resource		(HerringboneStepRequest::default())
+		.insert_resource		(HoverState			::default())
 
 		.add_plugins			(DefaultPlugins)
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
@@ -45,14 +46,16 @@ fn main() {
  		.add_system				(cursor_grab_system)
  		.add_system				(input_misc_system)
  		.add_system				(vehicle_controls_system)
- 		.add_system				(ui_system)
+ 		.add_system				(vehicle_params_ui_system)
 		.add_system				(herringbone_brick_road_system)
+		.add_system				(coords_on_hover_ui_system)
 
 // 		.add_system				(daylight_cycle)
 
  		.add_system_to_stage	(CoreStage::Last, save_vehicle_config_system)
  		.add_system_to_stage	(CoreStage::Last, load_vehicle_config_system)
 
+		.add_system_to_stage	(CoreStage::PostUpdate, picking_events_ui_system)
  		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
  		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)
  		.add_system_to_stage	(CoreStage::PostUpdate, despawn_system)
