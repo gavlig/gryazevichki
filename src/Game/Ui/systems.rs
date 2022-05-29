@@ -290,6 +290,7 @@ pub fn picking_events_ui_system(
 }
 
 pub fn coords_on_hover_ui_system(
+	mut windows			: ResMut<Windows>,
 	mut ui_context		: ResMut<EguiContext>,
 		q_hover			: Query<(Entity, &Hover, &HerringboneIO, &Transform)>,
 ) {
@@ -297,13 +298,17 @@ pub fn coords_on_hover_ui_system(
 		return;
 	}
 
+	let window = windows.get_primary_mut().unwrap();
+
 	for (_, hover, io, transform) in q_hover.iter() {
 		if !hover.hovered() {
 			continue;
 		}
 	
-		egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
-			ui.label(format!("#[{}] offx: {:.2} offz: {:.2} x: {} z: {}", io.iter, transform.translation.x - io.offset.x, transform.translation.z - io.offset.z, io.x, io.z));
-		});
+		if !window.physical_cursor_position().is_none() {
+			egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
+				ui.label(format!("#[{}] offx: {:.2} offz: {:.2} x: {} z: {}", io.iter, transform.translation.x - io.offset.x, transform.translation.z - io.offset.z, io.x, io.z));
+			});
+		}
 	}
 }
