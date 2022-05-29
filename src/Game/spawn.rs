@@ -380,6 +380,8 @@ pub fn herringbone_brick_road_iter(
 	let hlenx			= io.hsize.x;
 	let lenx			= hlenx * 2.0;
 
+	// main tile center calculation without seams
+
 	let calc_offset_x = |x : u32, iter : u32, orientation : Orientation2D| -> f32 {
 		match orientation {
 		Orientation2D::Horizontal 	=> ((iter + 1) as f32 * hlenz) 					+ (x as f32 * (lenz * 2.0)),
@@ -397,11 +399,17 @@ pub fn herringbone_brick_road_iter(
 	let mut offset_x 	= calc_offset_x(io.x, io.iter, io.orientation);
 	let mut offset_z 	= calc_offset_z(io.z, io.iter, io.orientation);
 
+	// seams are tricky
+
 	offset_x			+= ((io.iter + 0) as f32 * seam) + (((io.x + 0) as f32) * seam * 3.0);
 	offset_z			+= ((io.iter + 0) as f32 * seam) + (((io.z + 0) as f32) * seam * 3.0);
 
 	if Orientation2D::Vertical == io.orientation {
 		offset_z 		+= seam * 1.5;
+	}
+
+	if Orientation2D::Horizontal == io.orientation && io.z > 0 {
+		offset_x 		+= seam * 0.5;
 	}
 	
 	offset_z 			+= ((io.z + 0) as f32) * seam * 0.5;
