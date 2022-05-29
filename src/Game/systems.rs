@@ -211,11 +211,11 @@ pub fn input_misc_system(
 		step.next 		= false;
 	}
 
-	if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::T) {
+	if key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::T) {
 		step.reset		= true;
 	}
 
-	if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LShift) && key.just_pressed(KeyCode::T) {
+	if key.pressed(KeyCode::RControl) && key.just_pressed(KeyCode::T) {
 		step.animate	= true;
 		step.last_update = time.seconds_since_startup();
 	}
@@ -263,25 +263,6 @@ pub fn herringbone_brick_road_system(
 
 	mut commands		: Commands
 ) {
-	if !step.next && !step.animate && !step.reset {
-		return;
-	}
-
-	if step.animate {
-		let cur_time	= time.seconds_since_startup();
-		if (cur_time - step.last_update) < step.anim_delay_sec {
-			return;
-		}
-
-		step.last_update = cur_time;
-	}
-
-	let do_spawn = step.next || step.animate;
-	if do_spawn && !step.reset && !io.finished {
-		spawn::herringbone_brick_road_iter(&mut io, &mut commands);
-		step.next		= false;
-	}
-
 	if step.reset {
 		for e in query.iter() {
 			despawn.entities.push(e);
@@ -291,10 +272,26 @@ pub fn herringbone_brick_road_system(
 
 		step.reset		= false;
 		step.next		= false;
+		step.animate	= false;
+		return;
 	}
 
+	let do_spawn 		= step.next || step.animate;
+	if !do_spawn || io.finished {
+		return;
+	}
+
+	let cur_time		= time.seconds_since_startup();
+	if (cur_time - step.last_update) < step.anim_delay_sec {
+		return;
+	}
+
+	step.last_update 	= cur_time;
+
+	spawn::herringbone_brick_road_iter(&mut io, &mut commands);
+	step.next			= false;
+
 	if io.finished {
-		step.next		= false;
 		step.animate	= false;
 	}
 }
