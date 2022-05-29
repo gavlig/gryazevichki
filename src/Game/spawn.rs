@@ -1,7 +1,8 @@
 use bevy			::	prelude :: { * };
 use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	FlyCamera;
-use bevy_mod_picking::	*;
+use bevy_mod_picking::	{ * };
+use splines			::	{ Interpolation, Key, Spline };
 
 use bevy::render::mesh::shape as render_shape;
 use std::f32::consts::	{ * };
@@ -285,7 +286,7 @@ impl Default for HerringboneStepRequest {
 			animate		: false,
 			reset		: false,
 			last_update	: 0.0,
-			anim_delay_sec: 0.05,
+			anim_delay_sec: 0.001,
 		}
 	}
 }
@@ -307,6 +308,9 @@ pub struct HerringboneIO {
 	pub x_limit			: f32,
 	pub z_limit			: f32,
 	pub limit			: u32,
+
+	pub spline			: Option<Spline<f32, Vec3>>,
+	pub prev_p			: Vec3,
 
 	// cant copy
 	pub mesh			: Handle<Mesh>,
@@ -330,6 +334,9 @@ impl Default for HerringboneIO {
 			z_limit		: 0.0,
 			limit		: 0,
 
+			spline		: None,
+			prev_p		: Vec3::ZERO,
+
 			mesh		: Handle::<Mesh>::default(),
 			material	: Handle::<StandardMaterial>::default(),
 		}
@@ -346,9 +353,6 @@ impl HerringboneIO {
 			x 			: self.x,
 			z 			: self.z,
 			iter		: self.iter,
-			x_limit		: self.x_limit,
-			z_limit		: self.z_limit,
-			limit		: self.limit,
 			finished_hor: self.finished_hor,
 			finished	: self.finished,
 
@@ -356,6 +360,12 @@ impl HerringboneIO {
 			offset 		: self.offset,
 			hsize 		: self.hsize,
 			orientation	: self.orientation,
+			x_limit		: self.x_limit,
+			z_limit		: self.z_limit,
+			limit		: self.limit,
+
+			spline		: self.spline.clone(),
+			prev_p		: self.prev_p,
 
 			mesh		: self.mesh.clone_weak(),
 			material	: self.material.clone_weak(),
@@ -365,6 +375,7 @@ impl HerringboneIO {
 
 pub fn herringbone_brick_road_iter(
 	mut io				: &mut HerringboneIO,
+		ass				: &Res<AssetServer>,
 		commands		: &mut Commands
 ) {
 	let rotation		= match io.orientation {
@@ -413,6 +424,28 @@ pub fn herringbone_brick_road_iter(
 	}
 	
 	offset_z 			+= ((io.z + 0) as f32) * seam * 0.5;
+
+	// let me interject for a moment with a spline
+
+	let t = offset_z;
+
+	if t < 10. {
+		let mut p = io.spline.as_ref().unwrap().sample(t).unwrap();
+		//offset_x += p.x;
+
+		p += io.offset;
+		p.x += offset_x;
+		//p.z += offset_z;
+
+		let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
+		commands.spawn_bundle(
+			TransformBundle {
+				local: Transform::from_translation(p),
+				global: GlobalTransform::default(),
+		}).with_children(|parent| {
+			parent.spawn_scene(axis_cube);
+		});
+	}
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());
 	pose.translation.x	+= offset_x;

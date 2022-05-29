@@ -23,6 +23,13 @@ pub fn setup_camera_system(
 		camera.target 	= Some(game.body.unwrap().entity);
 		println!		("camera.target Entity ID {:?}", camera.target);
 
+		// temp
+		camera.enabled_follow = false;
+		camera.enabled_translation = true;
+		camera.enabled_rotation = true;
+	}
+}
+
 pub fn setup_world_system(
 	mut _configuration	: ResMut<RapierConfiguration>,
 	mut	phys_ctx		: ResMut<DebugRenderContext>,
@@ -59,7 +66,7 @@ pub fn setup_world_system(
 	}
 
 	if true {
-		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials);
+		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials, &ass);
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
@@ -75,28 +82,39 @@ pub fn setup_world_system(
 		, &mut commands
 	);
 
-	use splines::{Interpolation, Key, Spline};
+	// use splines::{Interpolation, Key, Spline};
 
-	let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::Bezier(Vec3::new(3.0, 0.5, 0.0)));
-	let k1 = Key::new(1., Vec3::new(0.0, 0.5, 3.0), Interpolation::Bezier(Vec3::new(-3.0, 0.5, 3.0)));
-	let k2 = Key::new(2., Vec3::new(0.0, 0.5, 6.0), Interpolation::Bezier(Vec3::new(3.0, 0.5, 6.0)));
-	let spline = Spline::from_vec(vec![k0, k1, k2]);
+	// let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::Bezier(Vec3::new(3.0, 0.5, 0.0)));
+	// let k1 = Key::new(1., Vec3::new(0.0, 0.5, 3.0), Interpolation::Bezier(Vec3::new(-3.0, 0.5, 3.0)));
+	// let k2 = Key::new(2., Vec3::new(0.0, 0.5, 6.0), Interpolation::Bezier(Vec3::new(3.0, 0.5, 6.0)));
+	// let spline = Spline::from_vec(vec![k0, k1, k2]);
 
-	let num = 20;
-	for i in 0..num {
-		let t = (2.0 / num as f32) * i as f32;
+	// let num = 20;
+	// for i in 0..num {
+	// 	let t = (2.0 / num as f32) * i as f32;
 
-		let p = spline.sample(t).unwrap();
+	// 	let p = spline.sample(t).unwrap();
 
-		let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
+	// 	let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
+	// 	commands.spawn_bundle(
+	// 		TransformBundle {
+	// 			local: Transform::from_translation(p),
+	// 			global: GlobalTransform::default(),
+	// 	}).with_children(|parent| {
+	// 		parent.spawn_scene(axis_cube);
+	// 	});
+	// }
+
+	let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
+	let mut p = Transform::from_translation(Vec3::new(0.0, 2.0, 10.0));
+	p.scale = Vec3::new(2.0, 2.0, 2.0);
 		commands.spawn_bundle(
 			TransformBundle {
-				local: Transform::from_translation(p),
+				local: p,
 				global: GlobalTransform::default(),
 		}).with_children(|parent| {
 			parent.spawn_scene(axis_cube);
 		});
-	}
 }
 
 pub fn setup_cursor_visibility_system(
@@ -295,6 +313,7 @@ pub fn setup_herringbone_brick_road(
 	io					: &mut ResMut<HerringboneIO>,
 	meshes				: &mut ResMut<Assets<Mesh>>,
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	_ass				: &Res<AssetServer>,
 ) {
 	let body_type		= RigidBody::Fixed;
 	
@@ -307,14 +326,27 @@ pub fn setup_herringbone_brick_road(
 	io.set_default		();
 
 	io.x_limit			= 3.0;
-	io.z_limit			= 3.0;
-	io.limit			= 30;
+	io.z_limit			= 10.0;
+	io.limit			= 100;
 
 	io.body_type		= body_type;
 	io.offset			= offset;
 	io.hsize			= hsize;
 	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
 	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
+
+	use splines :: { Interpolation, Key, Spline };
+
+	let y_offset		= 0.5;
+	// let k0 = Key::new(0., Vec3::new(0.0, y_offset, 0.0), Interpolation::Bezier(Vec3::new(0.0, y_offset, -2.5)));
+	// let k1 = Key::new(2.5, Vec3::new(2.5, y_offset, 2.5), Interpolation::Bezier(Vec3::new(5.0, y_offset, 2.5)));
+	// let k2 = Key::new(5., Vec3::new(0.0, y_offset, 5.0), Interpolation::Bezier(Vec3::new(0.0, y_offset, 7.5)));
+	// let k3 = Key::new(7.5, Vec3::new(-2.5, y_offset, 2.5), Interpolation::Bezier(Vec3::new(-5.0, y_offset, 2.5)));
+	// let k4 = Key::new(10., Vec3::new(0.0, y_offset, 0.0), Interpolation::Bezier(Vec3::new(0.0, y_offset, -2.5)));
+	let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 0.0)));
+	let k1 = Key::new(5., Vec3::new(2.0, 0.5, 5.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 5.0)));
+	let k2 = Key::new(10., Vec3::new(0.0, 0.5, 10.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 10.0)));
+	io.spline 			= Some(Spline::from_vec(vec![k0, k1, k2]));
 }
 
 pub fn herringbone_brick_road_system(
@@ -325,6 +357,7 @@ pub fn herringbone_brick_road_system(
 
 	mut meshes			: ResMut<Assets<Mesh>>,
 	mut materials		: ResMut<Assets<StandardMaterial>>,
+		ass				: Res<AssetServer>,
 
 		query			: Query<Entity, With<Herringbone>>,
 
@@ -335,7 +368,7 @@ pub fn herringbone_brick_road_system(
 			despawn.entities.push(e);
 		}
 
-		setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials);
+		setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials, &ass);
 
 		step.reset		= false;
 		step.next		= false;
@@ -355,7 +388,7 @@ pub fn herringbone_brick_road_system(
 
 	step.last_update 	= cur_time;
 
-	spawn::herringbone_brick_road_iter(&mut io, &mut commands);
+	spawn::herringbone_brick_road_iter(&mut io, &ass, &mut commands);
 	step.next			= false;
 
 	if io.finished {
