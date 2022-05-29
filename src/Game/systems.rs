@@ -177,6 +177,7 @@ pub fn input_misc_system(
 		_btn		: Res<Input<MouseButton>>,
 		key			: Res<Input<KeyCode>>,
 		_game		: Res<GameState>,
+		time		: Res<Time>,
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut step		: ResMut<HerringboneStepRequest>,
 	mut exit		: EventWriter<AppExit>,
@@ -216,6 +217,7 @@ pub fn input_misc_system(
 
 	if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LShift) && key.just_pressed(KeyCode::T) {
 		step.animate	= true;
+		step.last_update = time.seconds_since_startup();
 	}
 }
 
@@ -274,7 +276,8 @@ pub fn herringbone_brick_road_system(
 		step.last_update = cur_time;
 	}
 
-	if step.next && !step.reset && !io.finished {
+	let do_spawn = step.next || step.animate;
+	if do_spawn && !step.reset && !io.finished {
 		spawn::herringbone_brick_road_iter(&mut io, &mut commands);
 		step.next		= false;
 	}
