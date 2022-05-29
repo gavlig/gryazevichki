@@ -74,6 +74,29 @@ pub fn setup_world_system(
 		, &ass
 		, &mut commands
 	);
+
+	use splines::{Interpolation, Key, Spline};
+
+	let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::Bezier(Vec3::new(3.0, 0.5, 0.0)));
+	let k1 = Key::new(1., Vec3::new(0.0, 0.5, 3.0), Interpolation::Bezier(Vec3::new(-3.0, 0.5, 3.0)));
+	let k2 = Key::new(2., Vec3::new(0.0, 0.5, 6.0), Interpolation::Bezier(Vec3::new(3.0, 0.5, 6.0)));
+	let spline = Spline::from_vec(vec![k0, k1, k2]);
+
+	let num = 20;
+	for i in 0..num {
+		let t = (2.0 / num as f32) * i as f32;
+
+		let p = spline.sample(t).unwrap();
+
+		let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
+		commands.spawn_bundle(
+			TransformBundle {
+				local: Transform::from_translation(p),
+				global: GlobalTransform::default(),
+		}).with_children(|parent| {
+			parent.spawn_scene(axis_cube);
+		});
+	}
 }
 
 pub fn setup_cursor_visibility_system(

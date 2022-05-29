@@ -29,5 +29,6 @@ bevy_atmosphere = "0.3.1"
 bevy_mod_picking = "0.6" 
 bevy_mod_raycast = "0.4.0"
 iyes_loopless = "0.5.1"
+splines = { version = "4.1.0", features = ["glam"] }
 
 [patch.crates-io]
