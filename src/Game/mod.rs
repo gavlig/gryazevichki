@@ -47,6 +47,12 @@ impl Default for GameState {
 	}
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GameMode {
+    Editor,
+    InGame,
+}
+
 #[derive(Component)]
 pub struct NameComponent {
 	pub name : String

@@ -28,7 +28,7 @@ fn main() {
 		.insert_resource		(HerringboneStepRequest::default())
 		.insert_resource		(HoverState			::default())
 
-		.add_loopless_state		(GameMode::Editor)
+		.add_loopless_state		(GameMode::InGame)
 
 		.add_plugins			(DefaultPlugins)
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
@@ -48,7 +48,7 @@ fn main() {
  		.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
 
 		// input
- 		.add_system				(cursor_grab_system)
+ 		.add_system				(cursor_visibility_system)
  		.add_system				(input_misc_system)
  		.add_system				(vehicle_controls_system) // TODO: probably split input processing from gamelogic here
 		// game logic 

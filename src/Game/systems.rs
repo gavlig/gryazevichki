@@ -168,28 +168,46 @@ pub fn display_events_system(
 //	}
 }
 
-pub fn cursor_grab_system(
+pub fn cursor_visibility_system(
 	mut windows		: ResMut<Windows>,
 	_btn			: Res<Input<MouseButton>>,
 	key				: Res<Input<KeyCode>>,
+	time			: Res<Time>,
+	mut window_focused : EventReader<bevy::window::WindowFocused>,
 	mut picking		: ResMut<PickingPluginsState>,
 	mut	commands	: Commands
 ) {
-	let window = windows.get_primary_mut().unwrap();
+	let window 		= windows.get_primary_mut().unwrap();
+	let cursor_visible = window.cursor_visible();
+	// let window_id	= window.id();
 
-	if key.just_pressed(KeyCode::Escape) {
-		let toggle 	= !window.cursor_visible();
-		window.set_cursor_visibility(toggle);
-		window.set_cursor_lock_mode(!toggle);
+	let mut set_visibility = |v| {
+		window.set_cursor_visibility(v);
+		window.set_cursor_lock_mode(!v);
 
-		picking.enable_picking = toggle;
-		picking.enable_highlighting = toggle;
-		picking.enable_interacting = toggle;
+		picking.enable_picking = v;
+		picking.enable_highlighting = v;
+		picking.enable_interacting = v;
 
 		commands.insert_resource(NextState(
-			if toggle { GameMode::Editor } else { GameMode::InGame }
+			if v { GameMode::Editor } else { GameMode::InGame }
 		));
+	};
+
+	if key.just_pressed(KeyCode::Escape) {
+		let toggle 	= !cursor_visible;
+		// println!("set visibility: {} because esc pressed", toggle);
+		set_visibility(toggle);
 	}
+
+	// if time.seconds_since_startup() > 1.0 {
+	// 	for ev in window_focused.iter() {
+	// 		if ev.id == window_id {
+	// 			println!("set visibility: {} because focus changed", ev.focused);
+	// 			set_visibility(ev.focused);
+	// 		}
+	// 	}
+	// }
 }
 
 pub fn input_misc_system(
