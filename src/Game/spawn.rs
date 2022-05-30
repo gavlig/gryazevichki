@@ -471,6 +471,7 @@ pub fn herringbone_brick_road_iter(
 		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
 	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		.insert_bundle	(PickableBundle::default())
+		.insert			(Draggable::default())
 		.insert			(Herringbone)
 		.insert			(io.clone());
 	

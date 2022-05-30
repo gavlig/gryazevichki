@@ -1,5 +1,6 @@
 use bevy			:: { prelude :: * };
 use bevy			:: { app::AppExit };
+use bevy			:: { input :: mouse :: * };
 use bevy_rapier3d	:: { prelude :: * };
 use bevy_fly_camera	:: { FlyCamera };
 use bevy_mod_picking:: { * };
@@ -276,6 +277,52 @@ pub fn input_misc_system(
 	if key.pressed(KeyCode::RControl) && key.just_pressed(KeyCode::T) {
 		step.animate	= true;
 		step.last_update = time.seconds_since_startup();
+	}
+}
+
+#[derive(Component, Default)]
+pub struct Draggable {
+	pub drag_start_pos : Vec3,
+	pub init_transform : Transform,
+}
+
+pub fn mouse_dragging_system(
+		btn					: Res<Input<MouseButton>>,
+		pick_source_query	: Query<&PickingCamera>,
+	mut interactions: Query<(
+		&Interaction,
+		&mut Transform,
+		&mut Draggable,
+		Entity,
+	)>,
+) {
+	let pick_source = pick_source_query.single();
+	let top_pick = pick_source.intersect_top();
+
+	// There is at least one entity under the cursor
+	if top_pick.is_none() {
+		return;
+	}
+	
+	let (topmost_entity, intersection) = top_pick.unwrap();
+	
+	if let Ok((interaction, mut transform, mut drag, _entity)) = interactions.get_mut(topmost_entity) {
+		if *interaction != Interaction::Clicked {
+			return;
+		}
+
+		let cur_pos = intersection.position();
+
+		let just_clicked = btn.just_pressed(MouseButton::Left);
+		if just_clicked {
+			drag.drag_start_pos = cur_pos;
+			drag.init_transform = transform.clone();
+			return;
+		}
+
+		let delta = cur_pos - drag.drag_start_pos;
+
+		transform.translation = drag.init_transform.translation + delta;
 	}
 }
 

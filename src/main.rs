@@ -61,7 +61,7 @@ fn main() {
  		.add_system_to_stage	(CoreStage::Last, save_vehicle_config_system)
  		.add_system_to_stage	(CoreStage::Last, load_vehicle_config_system)
 
-		.add_system_to_stage	(CoreStage::PostUpdate, picking_events_ui_system)
+		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_system)
  		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
  		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)
  		.add_system_to_stage	(CoreStage::PostUpdate, despawn_system)
