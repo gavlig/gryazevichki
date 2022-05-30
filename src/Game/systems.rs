@@ -325,7 +325,7 @@ pub fn setup_herringbone_brick_road(
 
 	io.set_default		();
 
-	io.x_limit			= 3.0;
+	io.x_limit			= 10.0;
 	io.z_limit			= 10.0;
 	io.limit			= 100;
 
@@ -339,15 +339,13 @@ pub fn setup_herringbone_brick_road(
 	use splines :: { Interpolation, Key, Spline };
 
 	let y_offset		= 0.5;
-	// let k0 = Key::new(0., Vec3::new(0.0, y_offset, 0.0), Interpolation::Bezier(Vec3::new(0.0, y_offset, -2.5)));
-	// let k1 = Key::new(2.5, Vec3::new(2.5, y_offset, 2.5), Interpolation::Bezier(Vec3::new(5.0, y_offset, 2.5)));
-	// let k2 = Key::new(5., Vec3::new(0.0, y_offset, 5.0), Interpolation::Bezier(Vec3::new(0.0, y_offset, 7.5)));
-	// let k3 = Key::new(7.5, Vec3::new(-2.5, y_offset, 2.5), Interpolation::Bezier(Vec3::new(-5.0, y_offset, 2.5)));
-	// let k4 = Key::new(10., Vec3::new(0.0, y_offset, 0.0), Interpolation::Bezier(Vec3::new(0.0, y_offset, -2.5)));
-	let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 0.0)));
-	let k1 = Key::new(5., Vec3::new(2.0, 0.5, 5.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 5.0)));
-	let k2 = Key::new(10., Vec3::new(0.0, 0.5, 10.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 10.0)));
-	io.spline 			= Some(Spline::from_vec(vec![k0, k1, k2]));
+	
+	let h0				= Vec3::new(2.5, 0.5, 2.5);
+	let h1				= Vec3::new(2.0, 0.5, 7.5);
+	let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::StrokeBezier(h0, h0));
+	let k1 = Key::new(10., Vec3::new(0.0, 0.5, 10.0), Interpolation::StrokeBezier(h1, h1));
+//	let k2 = Key::new(10., Vec3::new(0.0, 0.5, 10.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 10.0)));
+	io.spline 			= Some(Spline::from_vec(vec![k0, k1]));
 }
 
 pub fn herringbone_brick_road_system(
