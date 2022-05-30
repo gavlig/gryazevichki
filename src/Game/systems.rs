@@ -43,7 +43,11 @@ pub fn setup_world_system(
 //	configuration.timestep_mode = TimestepMode::VariableTimestep;
 	phys_ctx.enabled	= false;
 
+	spawn::camera		(&mut game, &mut commands);
+
 	spawn::ground		(&game, &mut meshes, &mut materials, &mut commands);
+
+	spawn::world_axis	(&mut meshes, &mut materials, &mut commands);
 
 	if false {
 		spawn::cubes	(&mut commands);
@@ -117,6 +121,47 @@ pub fn setup_world_system(
 		});
 }
 
+pub fn setup_lighting_system(
+	mut	meshes					: ResMut<Assets<Mesh>>,
+	mut	materials				: ResMut<Assets<StandardMaterial>>,
+	mut game					: ResMut<GameState>,
+	mut commands				: Commands,
+) {
+	const HALF_SIZE: f32		= 100.0;
+
+	commands.spawn_bundle(DirectionalLightBundle {
+		directional_light: DirectionalLight {
+			illuminance: 8000.0,
+			// Configure the projection to better fit the scene
+			shadow_projection	: OrthographicProjection {
+				left			: -HALF_SIZE,
+				right			:  HALF_SIZE,
+				bottom			: -HALF_SIZE,
+				top				:  HALF_SIZE,
+				near			: -10.0 * HALF_SIZE,
+				far				: 100.0 * HALF_SIZE,
+				..default()
+			},
+			shadows_enabled		: true,
+			..default()
+		},
+		transform				: Transform {
+			translation			: Vec3::new(10.0, 2.0, 10.0),
+			rotation			: Quat::from_rotation_x(-std::f32::consts::FRAC_PI_4),
+			..default()
+		},
+		..default()
+	});
+
+	// commands
+	//     .spawn_bundle(DirectionalLightBundle {
+	//         ..Default::default()
+	//     })
+	//     .insert(Sun); // Marks the light as Sun
+
+	//
+}
+
 pub fn setup_cursor_visibility_system(
 	mut windows	: ResMut<Windows>,
 	mut picking	: ResMut<PickingPluginsState>,
@@ -186,81 +231,6 @@ pub fn cursor_visibility_system(
 	}
 }
 
-pub fn setup_graphics_system(
-	mut	meshes					: ResMut<Assets<Mesh>>,
-	mut	materials				: ResMut<Assets<StandardMaterial>>,
-	mut game					: ResMut<GameState>,
-	mut commands				: Commands,
-) {
-	const HALF_SIZE: f32		= 100.0;
-
-	commands.spawn_bundle(DirectionalLightBundle {
-		directional_light: DirectionalLight {
-			illuminance: 10000.0,
-			// Configure the projection to better fit the scene
-			shadow_projection	: OrthographicProjection {
-				left			: -HALF_SIZE,
-				right			:  HALF_SIZE,
-				bottom			: -HALF_SIZE,
-				top				:  HALF_SIZE,
-				near			: -10.0 * HALF_SIZE,
-				far				: 100.0 * HALF_SIZE,
-				..default()
-			},
-			shadows_enabled		: true,
-			..default()
-		},
-		transform				: Transform {
-			translation			: Vec3::new(10.0, 2.0, 10.0),
-			rotation			: Quat::from_rotation_x(-std::f32::consts::FRAC_PI_4),
-			..default()
-		},
-		..default()
-	});
-
-	// commands
-	//     .spawn_bundle(DirectionalLightBundle {
-	//         ..Default::default()
-	//     })
-	//     .insert(Sun); // Marks the light as Sun
-
-	//
-
-	spawn::world_axis	(&mut meshes, &mut materials, &mut commands);
-
-	spawn::camera		(&mut game, &mut commands);
-}
-
-#[derive(Default)]
-pub struct DespawnResource {
-	pub entities: Vec<Entity>,
-}
-
-pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
-	if time.seconds_since_startup() > 5.0 {
-		for entity in &despawn.entities {
-			println!("Despawning entity {:?}", entity);
-			commands.entity(*entity).despawn_recursive();
-		}
-		despawn.entities.clear();
-	}
-}
-
-pub fn display_events_system(
-	mut _collision_events: EventReader<CollisionEvent>,
-) {
-//	for intersection_event in intersection_events.iter() {
-//		println!("Received intersection event: collider1 {:?} collider2 {:?}", intersection_event.collider1.entity(), intersection_event.collider2.entity());
-//	}
-//
-//	for contact_event in contact_events.iter() {
-//		match contact_event {
-//			ContactEvent::Started(collider1, collider2) => println!("Received contact START event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
-//			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
-//		}
-//	}
-}
-
 pub fn input_misc_system(
 		_btn		: Res<Input<MouseButton>>,
 		key			: Res<Input<KeyCode>>,
@@ -309,28 +279,54 @@ pub fn input_misc_system(
 	}
 }
 
+#[derive(Default)]
+pub struct DespawnResource {
+	pub entities: Vec<Entity>,
+}
+
+pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
+	if time.seconds_since_startup() > 5.0 {
+		for entity in &despawn.entities {
+			println!("Despawning entity {:?}", entity);
+			commands.entity(*entity).despawn_recursive();
+		}
+		despawn.entities.clear();
+	}
+}
+
+pub fn display_events_system(
+	mut _collision_events: EventReader<CollisionEvent>,
+) {
+//	for intersection_event in intersection_events.iter() {
+//		println!("Received intersection event: collider1 {:?} collider2 {:?}", intersection_event.collider1.entity(), intersection_event.collider2.entity());
+//	}
+//
+//	for contact_event in contact_events.iter() {
+//		match contact_event {
+//			ContactEvent::Started(collider1, collider2) => println!("Received contact START event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
+//			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
+//		}
+//	}
+}
+
 pub fn setup_herringbone_brick_road(
 	io					: &mut ResMut<HerringboneIO>,
 	meshes				: &mut ResMut<Assets<Mesh>>,
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	_ass				: &Res<AssetServer>,
 ) {
-	let body_type		= RigidBody::Fixed;
-	
 //	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
 	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
 //	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
 
-	let offset 			= Vec3::new(1.0, hsize.y, 1.0);
-
 	io.set_default		();
 
-	io.x_limit			= 10.0;
-	io.z_limit			= 10.0;
+	io.x_limit			= 3.0;
+	io.z_limit			= 3.0;
 	io.limit			= 100;
 
-	io.body_type		= body_type;
-	io.offset			= offset;
+	io.body_type		= RigidBody::Fixed;
+	io.offset			= Vec3::new(1.0, hsize.y, 1.0);
 	io.hsize			= hsize;
 	io.seam				= 0.01;
 	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));

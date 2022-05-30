@@ -43,7 +43,7 @@ fn main() {
 		// })
 
 		.add_startup_system		(setup_cursor_visibility_system)
- 		.add_startup_system		(setup_graphics_system)
+ 		.add_startup_system		(setup_lighting_system)
  		.add_startup_system		(setup_world_system)
  		.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
 
