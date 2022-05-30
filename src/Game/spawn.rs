@@ -50,6 +50,7 @@ pub fn ground(
 		.insert			(Collider::cuboid(ground_size, ground_height, ground_size))
 		.insert			(Transform::from_xyz(0.0, -ground_height, 0.0))
 		.insert			(GlobalTransform::default())
+//		.insert			(PickableMesh::default())
 		.id				();
 		
 	println!			("ground Entity ID {:?}", ground);
@@ -434,20 +435,20 @@ pub fn herringbone_brick_road_iter(
 
 	if t < 10. {
 		let mut p = io.spline.as_ref().unwrap().sample(t).unwrap();
-		//offset_x += p.x;
+		// offset_x += p.x;
 
 		p += io.offset;
 		p.x += offset_x;
 		//p.z += offset_z;
 
-		let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
-		commands.spawn_bundle(
-			TransformBundle {
-				local: Transform::from_translation(p),
-				global: GlobalTransform::default(),
-		}).with_children(|parent| {
-			parent.spawn_scene(axis_cube);
-		});
+		// let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
+		// commands.spawn_bundle(
+		// 	TransformBundle {
+		// 		local: Transform::from_translation(p),
+		// 		global: GlobalTransform::default(),
+		// }).with_children(|parent| {
+		// 	parent.spawn_scene(axis_cube);
+		// });
 	}
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());

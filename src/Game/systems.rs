@@ -4,6 +4,7 @@ use bevy			:: { input :: mouse :: * };
 use bevy_rapier3d	:: { prelude :: * };
 use bevy_fly_camera	:: { FlyCamera };
 use bevy_mod_picking:: { * };
+use bevy_mod_raycast:: { * };
 use iyes_loopless	:: { prelude :: * };
 
 use std				:: { path::PathBuf };
@@ -282,20 +283,32 @@ pub fn input_misc_system(
 
 #[derive(Component, Default)]
 pub struct Draggable {
-	pub drag_start_pos : Vec3,
-	pub init_transform : Transform,
+	pub drag_start_pos	: Vec3,
+	pub distance		: f32,
+	pub init_transform	: Transform,
 }
 
-pub fn mouse_dragging_system(
+#[derive(Component)]
+pub struct DraggableActive;
+
+pub fn mouse_dragging_start_system(
 		btn					: Res<Input<MouseButton>>,
 		pick_source_query	: Query<&PickingCamera>,
-	mut interactions: Query<(
-		&Interaction,
-		&mut Transform,
-		&mut Draggable,
+	mut interactions 		: Query<
+	(
 		Entity,
-	)>,
+		&Interaction,
+		&Transform,
+		&mut Draggable,
+	), Without<DraggableActive>
+	>,
+	mut commands			: Commands
 ) {
+	let just_clicked = btn.just_pressed(MouseButton::Left);
+	if !just_clicked {
+		return;
+	}
+
 	let pick_source = pick_source_query.single();
 	let top_pick = pick_source.intersect_top();
 
@@ -306,24 +319,64 @@ pub fn mouse_dragging_system(
 	
 	let (topmost_entity, intersection) = top_pick.unwrap();
 	
-	if let Ok((interaction, mut transform, mut drag, _entity)) = interactions.get_mut(topmost_entity) {
+	if let Ok((entity, interaction, transform, mut drag)) = interactions.get_mut(topmost_entity) {
 		if *interaction != Interaction::Clicked {
 			return;
 		}
 
 		let cur_pos = intersection.position();
 
-		let just_clicked = btn.just_pressed(MouseButton::Left);
-		if just_clicked {
-			drag.drag_start_pos = cur_pos;
-			drag.init_transform = transform.clone();
-			return;
-		}
+		drag.drag_start_pos = cur_pos;
+		drag.distance = intersection.distance();
+		drag.init_transform = transform.clone();
 
-		let delta = cur_pos - drag.drag_start_pos;
-
-		transform.translation = drag.init_transform.translation + delta;
+		commands.entity(entity).insert(DraggableActive);
 	}
+}
+
+pub fn mouse_dragging_system(
+	pick_source_query : Query<&PickingCamera>,
+	mut draggable: Query<
+	(
+		&mut Transform,
+		&Draggable
+	), With<DraggableActive>
+	>,
+) {
+	let pick_source = pick_source_query.single();
+	if pick_source.ray().is_none() {
+		return;
+	}
+
+	if draggable.is_empty() {
+		return;
+	}
+	
+	let (mut transform, drag) = draggable.single_mut();
+
+	let ray = pick_source.ray().unwrap();
+	let cur_pos = ray.origin() + ray.direction() * drag.distance;
+	let delta = cur_pos - drag.drag_start_pos;
+
+	transform.translation = drag.init_transform.translation + delta;
+}
+
+pub fn mouse_dragging_stop_system(
+		btn					: Res<Input<MouseButton>>,
+		draggable_active	: Query<Entity, With<DraggableActive>>,
+	mut commands			: Commands
+) {
+	let just_released = btn.just_released(MouseButton::Left);
+	if !just_released {
+		return;
+	}
+
+	if draggable_active.is_empty() {
+		return;
+	}
+
+	let entity = draggable_active.single();
+	commands.entity(entity).remove::<DraggableActive>();
 }
 
 #[derive(Default)]
