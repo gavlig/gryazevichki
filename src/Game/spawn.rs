@@ -304,6 +304,7 @@ pub struct HerringboneIO {
 	pub body_type 		: RigidBody,
 	pub offset 			: Vec3,
 	pub hsize 			: Vec3,
+	pub seam			: f32,
 	pub orientation		: Orientation2D,
 	pub x_limit			: f32,
 	pub z_limit			: f32,
@@ -329,6 +330,7 @@ impl Default for HerringboneIO {
 			body_type 	: RigidBody::Fixed,
 			offset 		: Vec3::ZERO,
 			hsize 		: Vec3::ZERO,
+			seam		: 0.01,
 			orientation	: Orientation2D::Horizontal,
 			x_limit		: 0.0,
 			z_limit		: 0.0,
@@ -359,6 +361,7 @@ impl HerringboneIO {
 			body_type 	: self.body_type,
 			offset 		: self.offset,
 			hsize 		: self.hsize,
+			seam		: self.seam,
 			orientation	: self.orientation,
 			x_limit		: self.x_limit,
 			z_limit		: self.z_limit,
@@ -383,7 +386,7 @@ pub fn herringbone_brick_road_iter(
 	Orientation2D::Vertical 	=> Quat::IDENTITY,
 	};
 
-	let seam			= 0.01;
+	let seam			= io.seam;
 
 	let hlenz			= io.hsize.z;
 	let lenz			= hlenz * 2.0;

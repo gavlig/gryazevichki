@@ -332,6 +332,7 @@ pub fn setup_herringbone_brick_road(
 	io.body_type		= body_type;
 	io.offset			= offset;
 	io.hsize			= hsize;
+	io.seam				= 0.01;
 	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
 	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
 
