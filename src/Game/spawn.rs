@@ -84,6 +84,30 @@ pub fn world_axis(
 	});
 }
 
+pub fn spline_handle(
+	pos					: Vec3,
+	handle				: SplineHandle,
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	mut commands		: &mut Commands
+) -> Entity {
+	// let axis_cube		= ass.load("utils/axis_cube.gltf#Scene0");
+	commands.spawn_bundle(PbrBundle {
+		mesh			: meshes.add			(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
+		material		: materials.add			(Color::INDIGO.into()),
+		transform		: Transform::from_translation(pos),
+		..Default::default()
+	})
+	.insert				(handle)
+	.insert_bundle		(PickableBundle::default())
+	.insert				(Draggable::default())
+
+	// .with_children(|parent| {
+	// 	parent.spawn_scene(axis_cube);
+	// })
+	.id()
+}
+
 pub fn cubes(commands: &mut Commands) {
 	let num = 8;
 	let rad = 1.0;
@@ -276,6 +300,7 @@ pub struct HerringboneStepRequest {
 	pub next			: bool,
 	pub animate			: bool,
 	pub reset			: bool,
+	pub instant			: bool,
 	pub last_update		: f64,
 	pub anim_delay_sec	: f64,
 }
@@ -286,6 +311,7 @@ impl Default for HerringboneStepRequest {
 			next		: false,
 			animate		: false,
 			reset		: false,
+			instant		: false,
 			last_update	: 0.0,
 			anim_delay_sec: 0.001,
 		}
@@ -375,6 +401,11 @@ impl HerringboneIO {
 			material	: self.material.clone_weak(),
 		}
 	}
+
+	pub fn set_spline_interpolation(&mut self, id : usize, h : Vec3) {
+		use splines :: { Interpolation };
+		*self.spline.as_mut().unwrap().get_mut(id).unwrap().interpolation = Interpolation::StrokeBezier(h, h);
+	}
 }
 
 pub fn herringbone_brick_road_iter(
@@ -435,7 +466,7 @@ pub fn herringbone_brick_road_iter(
 
 	if t < 10. {
 		let mut p = io.spline.as_ref().unwrap().sample(t).unwrap();
-		// offset_x += p.x;
+		offset_x += p.x;
 
 		p += io.offset;
 		p.x += offset_x;
@@ -472,11 +503,11 @@ pub fn herringbone_brick_road_iter(
 		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
 	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		.insert_bundle	(PickableBundle::default())
-		.insert			(Draggable::default())
+	//	.insert			(Draggable::default())
 		.insert			(Herringbone)
 		.insert			(io.clone());
 	
-	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation, io.body_type);
+//	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation, io.body_type);
 
 	io.iter				+= 1;
 
@@ -501,7 +532,7 @@ pub fn herringbone_brick_road_iter(
 			io.iter		= 0;
 			io.orientation = Orientation2D::Vertical;
 
-			println!	("Horizontal -> Vertical x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
+//			println!	("Horizontal -> Vertical x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
 		},
 		Orientation2D::Vertical
 		if ((offset_x + io.hsize.x + seam >= io.x_limit) && (io.x_limit != 0.0))
@@ -511,21 +542,21 @@ pub fn herringbone_brick_road_iter(
 			io.iter		= 0;
 			io.orientation = Orientation2D::Horizontal;
 
-			println!	("Vertical -> Horizontal x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
+//			println!	("Vertical -> Horizontal x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
 
 			let newoffx	= calc_offset_x(io.x + 1, io.iter, io.orientation);
 			let newoffz	= calc_offset_z(io.z + 1, io.iter, io.orientation);
 			if newoffx + seam < io.x_limit && !io.finished_hor {
 				io.x	+= 1;
-				println!("x =+ 1 new offx {:.3}", newoffx);
+//				println!("x =+ 1 new offx {:.3}", newoffx);
 			} else if newoffz + seam < io.z_limit {
 				io.x	= 0;
 				io.z	+= 1;
 				io.finished_hor = true;
-				println!("x = 0, z += 1 new offz {:.3}", newoffz);
+//				println!("x = 0, z += 1 new offz {:.3}", newoffz);
 			} else {
 				io.finished = true;
-				println!("herringbone_brick_road_iter finished!");
+//				println!("herringbone_brick_road_iter finished!");
 			}
 		},
 		_				=> ()

@@ -72,7 +72,8 @@ pub fn setup_world_system(
 	}
 
 	if true {
-		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials, &ass);
+		// TODO: make it startup system instead
+		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials, &ass, &mut commands);
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
@@ -87,40 +88,6 @@ pub fn setup_world_system(
 		, &ass
 		, &mut commands
 	);
-
-	// use splines::{Interpolation, Key, Spline};
-
-	// let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::Bezier(Vec3::new(3.0, 0.5, 0.0)));
-	// let k1 = Key::new(1., Vec3::new(0.0, 0.5, 3.0), Interpolation::Bezier(Vec3::new(-3.0, 0.5, 3.0)));
-	// let k2 = Key::new(2., Vec3::new(0.0, 0.5, 6.0), Interpolation::Bezier(Vec3::new(3.0, 0.5, 6.0)));
-	// let spline = Spline::from_vec(vec![k0, k1, k2]);
-
-	// let num = 20;
-	// for i in 0..num {
-	// 	let t = (2.0 / num as f32) * i as f32;
-
-	// 	let p = spline.sample(t).unwrap();
-
-	// 	let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
-	// 	commands.spawn_bundle(
-	// 		TransformBundle {
-	// 			local: Transform::from_translation(p),
-	// 			global: GlobalTransform::default(),
-	// 	}).with_children(|parent| {
-	// 		parent.spawn_scene(axis_cube);
-	// 	});
-	// }
-
-	let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
-	let mut p = Transform::from_translation(Vec3::new(0.0, 2.0, 10.0));
-	p.scale = Vec3::new(2.0, 2.0, 2.0);
-		commands.spawn_bundle(
-			TransformBundle {
-				local: p,
-				global: GlobalTransform::default(),
-		}).with_children(|parent| {
-			parent.spawn_scene(axis_cube);
-		});
 }
 
 pub fn setup_lighting_system(
@@ -275,8 +242,14 @@ pub fn input_misc_system(
 		step.reset		= true;
 	}
 
-	if key.pressed(KeyCode::RControl) && key.just_pressed(KeyCode::T) {
+	if key.pressed(KeyCode::RControl) && !key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
 		step.animate	= true;
+		step.last_update = time.seconds_since_startup();
+	}
+
+	if key.pressed(KeyCode::RControl) && key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
+		step.instant	= true;
+		step.next 		= true;
 		step.last_update = time.seconds_since_startup();
 	}
 }
@@ -387,7 +360,7 @@ pub struct DespawnResource {
 pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
 	if time.seconds_since_startup() > 5.0 {
 		for entity in &despawn.entities {
-			println!("Despawning entity {:?}", entity);
+//			println!("Despawning entity {:?}", entity);
 			commands.entity(*entity).despawn_recursive();
 		}
 		despawn.entities.clear();
@@ -413,7 +386,8 @@ pub fn setup_herringbone_brick_road(
 	io					: &mut ResMut<HerringboneIO>,
 	meshes				: &mut ResMut<Assets<Mesh>>,
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
-	_ass				: &Res<AssetServer>,
+	ass					: &Res<AssetServer>,
+	mut commands		: &mut Commands
 ) {
 //	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
 	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
@@ -421,8 +395,8 @@ pub fn setup_herringbone_brick_road(
 
 	io.set_default		();
 
-	io.x_limit			= 3.0;
-	io.z_limit			= 3.0;
+	io.x_limit			= 10.0;
+	io.z_limit			= 10.0;
 	io.limit			= 100;
 
 	io.body_type		= RigidBody::Fixed;
@@ -435,9 +409,13 @@ pub fn setup_herringbone_brick_road(
 	use splines :: { Interpolation, Key, Spline };
 
 	let y_offset		= 0.5;
-	
+
 	let h0				= Vec3::new(2.5, 0.5, 2.5);
+	spawn::spline_handle(h0, SplineHandle::ID(0), meshes, materials, commands);
 	let h1				= Vec3::new(2.0, 0.5, 7.5);
+	spawn::spline_handle(h1, SplineHandle::ID(1), meshes, materials, commands);
+
+
 	let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::StrokeBezier(h0, h0));
 	let k1 = Key::new(10., Vec3::new(0.0, 0.5, 10.0), Interpolation::StrokeBezier(h1, h1));
 //	let k2 = Key::new(10., Vec3::new(0.0, 0.5, 10.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 10.0)));
@@ -462,13 +440,10 @@ pub fn herringbone_brick_road_system(
 		for e in query.iter() {
 			despawn.entities.push(e);
 		}
-
-		setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials, &ass);
-
+	
+		setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials, &ass, &mut commands);
+	
 		step.reset		= false;
-		step.next		= false;
-		step.animate	= false;
-		return;
 	}
 
 	let do_spawn 		= step.next || step.animate;
@@ -477,16 +452,50 @@ pub fn herringbone_brick_road_system(
 	}
 
 	let cur_time		= time.seconds_since_startup();
-	if (cur_time - step.last_update) < step.anim_delay_sec {
+	if (cur_time - step.last_update) < step.anim_delay_sec && !step.instant {
 		return;
 	}
 
 	step.last_update 	= cur_time;
 
-	spawn::herringbone_brick_road_iter(&mut io, &ass, &mut commands);
+	if !step.instant {
+		spawn::herringbone_brick_road_iter(&mut io, &ass, &mut commands);
+	} else {
+		loop {
+			spawn::herringbone_brick_road_iter(&mut io, &ass, &mut commands);
+			if io.finished {
+				step.instant = false;
+				break;
+			}
+		}
+	}
+
 	step.next			= false;
 
 	if io.finished {
 		step.animate	= false;
+	}
+}
+
+pub fn on_spline_handle_moved(
+	mut step			: ResMut<HerringboneStepRequest>,
+	mut io				: ResMut<HerringboneIO>,
+		time			: Res<Time>,
+		q_handle 		: Query<(&Transform, &SplineHandle), Changed<Transform>>,
+) {
+	if time.seconds_since_startup() < 1.0 {
+		return;
+	}
+
+	for (t, h) in q_handle.iter() {
+		let h_pos = t.translation;
+		match h {
+			SplineHandle::ID(id) => {
+				io.set_spline_interpolation(*id, h_pos);
+				step.reset = true;
+				step.next = true;
+				step.instant = true;
+			},
+		}
 	}
 }

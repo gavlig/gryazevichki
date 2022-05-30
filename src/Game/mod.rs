@@ -124,3 +124,8 @@ impl Default for PhysicsConfig {
 		}
 	}
 }
+
+#[derive(Component)]
+pub enum SplineHandle {
+	ID(usize)
+}
