@@ -463,10 +463,10 @@ pub fn herringbone_brick_road_iter(
 	// let me interject for a moment with a spline
 
 	let t = offset_z;
-
+	let mut offset_x_spline = 0.0;
 	if t < 10. {
 		let mut p = io.spline.as_ref().unwrap().sample(t).unwrap();
-		offset_x += p.x;
+		offset_x_spline = p.x;
 
 		p += io.offset;
 		p.x += offset_x;
@@ -483,7 +483,7 @@ pub fn herringbone_brick_road_iter(
 	}
 
 	let mut pose 		= Transform::from_translation(io.offset.clone());
-	pose.translation.x	+= offset_x;
+	pose.translation.x	+= offset_x + offset_x_spline;
 	pose.translation.z	+= offset_z;
 	pose.rotation		= rotation;
 

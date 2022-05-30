@@ -74,6 +74,14 @@ pub fn setup_world_system(
 	if true {
 		// TODO: make it startup system instead
 		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials, &ass, &mut commands);
+
+		use splines :: { Interpolation, Key, Spline };
+
+
+		let h0			= Vec3::new(2.5, 0.5, 2.5);
+		spawn::spline_handle(h0, SplineHandle::ID(0), &mut meshes, &mut materials, &mut commands);
+		let h1			= Vec3::new(2.0, 0.5, 7.5);
+		spawn::spline_handle(h1, SplineHandle::ID(1), &mut meshes, &mut materials, &mut commands);
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
@@ -256,7 +264,7 @@ pub fn input_misc_system(
 
 #[derive(Component, Default)]
 pub struct Draggable {
-	pub drag_start_pos	: Vec3,
+	pub start_pos		: Vec3,
 	pub distance		: f32,
 	pub init_transform	: Transform,
 }
@@ -299,7 +307,7 @@ pub fn mouse_dragging_start_system(
 
 		let cur_pos = intersection.position();
 
-		drag.drag_start_pos = cur_pos;
+		drag.start_pos = cur_pos;
 		drag.distance = intersection.distance();
 		drag.init_transform = transform.clone();
 
@@ -328,8 +336,9 @@ pub fn mouse_dragging_system(
 	let (mut transform, drag) = draggable.single_mut();
 
 	let ray = pick_source.ray().unwrap();
-	let cur_pos = ray.origin() + ray.direction() * drag.distance;
-	let delta = cur_pos - drag.drag_start_pos;
+	let mut cur_pos = ray.origin() + ray.direction() * drag.distance;
+	cur_pos.y = drag.start_pos.y;
+	let delta = cur_pos - drag.start_pos;
 
 	transform.translation = drag.init_transform.translation + delta;
 }
@@ -411,9 +420,7 @@ pub fn setup_herringbone_brick_road(
 	let y_offset		= 0.5;
 
 	let h0				= Vec3::new(2.5, 0.5, 2.5);
-	spawn::spline_handle(h0, SplineHandle::ID(0), meshes, materials, commands);
 	let h1				= Vec3::new(2.0, 0.5, 7.5);
-	spawn::spline_handle(h1, SplineHandle::ID(1), meshes, materials, commands);
 
 
 	let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::StrokeBezier(h0, h0));
