@@ -264,31 +264,6 @@ pub fn vehicle_params_ui_system(
 //	}
 }
 
-pub fn picking_events_ui_system(
-	mut events			: EventReader<PickingEvent>,
-	mut hover_state     : ResMut<HoverState>,
-) {
-	// first we enable/disable hover ui from events
-	for event in events.iter() {
-		match event {
-			PickingEvent::Hover(event) => {
-				match event {
-					HoverEvent::JustEntered	(e) => {
-						hover_state.entity = *e;
-						hover_state.active = true;
-					}
-					HoverEvent::JustLeft	(e) => {
-						if hover_state.entity == *e {
-							hover_state.active	= false;
-						}
-					},
-				}
-			},
-			_ => { return }, 
-		}
-	}
-}
-
 pub fn coords_on_hover_ui_system(
 	mut windows			: ResMut<Windows>,
 	mut ui_context		: ResMut<EguiContext>,

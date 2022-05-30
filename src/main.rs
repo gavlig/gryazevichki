@@ -26,7 +26,6 @@ fn main() {
 
 		.insert_resource		(HerringboneIO		::default())
 		.insert_resource		(HerringboneStepRequest::default())
-		.insert_resource		(HoverState			::default())
 
 		.add_loopless_state		(GameMode::InGame)
 
