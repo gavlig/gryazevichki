@@ -448,7 +448,12 @@ pub fn herringbone_brick_road_system(
 			despawn.entities.push(e);
 		}
 	
-		setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials, &ass, &mut commands);
+		//setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials, &ass, &mut commands);
+		io.iter = 0;
+		io.x = 0;
+		io.z = 0;
+		io.finished = false;
+		io.finished_hor = false;
 	
 		step.reset		= false;
 	}

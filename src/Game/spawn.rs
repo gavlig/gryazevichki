@@ -464,20 +464,22 @@ pub fn herringbone_brick_road_iter(
 
 	let t = offset_z;
 	let mut offset_x_spline = 0.0;
+
 	if t < 10. {
 		let mut p = io.spline.as_ref().unwrap().sample(t).unwrap();
 		offset_x_spline = p.x;
 
 		p += io.offset;
 		p.x += offset_x;
-		//p.z += offset_z;
 
 		// let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
 		// commands.spawn_bundle(
 		// 	TransformBundle {
 		// 		local: Transform::from_translation(p),
 		// 		global: GlobalTransform::default(),
-		// }).with_children(|parent| {
+		// })
+		// .insert			(Herringbone)
+		// .with_children(|parent| {
 		// 	parent.spawn_scene(axis_cube);
 		// });
 	}
