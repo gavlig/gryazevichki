@@ -438,54 +438,60 @@ pub fn herringbone_brick_road_iter(
 	//
 	//
 
-	let calc_offset_x = |x : u32, iter : u32, orientation : Orientation2D| -> f32 {
+	let iter0			= (io.iter + 0) as f32;
+	let iter1			= (io.iter + 1) as f32;
+
+	let calc_offset_x = |x : f32, iter : f32, orientation : Orientation2D| -> f32 {
 		match orientation {
-		Orientation2D::Horizontal 	=> ((iter + 1) as f32 * hlenz) 					+ (x as f32 * (lenz * 2.0)),
-		Orientation2D::Vertical 	=> ((iter + 0) as f32 * hlenz) + (hlenx * 1.0)	+ (x as f32 * (lenz * 2.0)),
+		Orientation2D::Horizontal 	=> (iter + 1.0) * hlenz 				+ (x * (lenz * 2.0)),
+		Orientation2D::Vertical 	=> (iter + 0.0) * hlenz + (hlenx * 1.0)	+ (x * (lenz * 2.0)),
 		}
 	};
 
-	let calc_offset_z = |z : u32, iter : u32, orientation : Orientation2D| -> f32 {
+	let calc_offset_z = |z : f32, iter : f32, orientation : Orientation2D| -> f32 {
 		match orientation {
-		Orientation2D::Horizontal 	=> ((iter + 0) as f32 * hlenz) + (hlenx * 1.0)	+ (z as f32 * (lenz * 2.0)),
-		Orientation2D::Vertical 	=> ((iter + 0) as f32 * hlenz) + (hlenz * 2.0) 	+ (z as f32 * (lenz * 2.0)),
+		Orientation2D::Horizontal 	=> (iter + 0.0) * hlenz + (hlenx * 1.0)	+ (z * (lenz * 2.0)),
+		Orientation2D::Vertical 	=> (iter + 0.0) * hlenz + (hlenz * 2.0) + (z * (lenz * 2.0)),
 		}
 	};
 
-	let mut offset_x 	= calc_offset_x(io.x, io.iter, io.orientation);
-	let mut offset_z 	= calc_offset_z(io.z, io.iter, io.orientation);
+	let offset_x 		= calc_offset_x(io.x as f32, iter0, io.orientation);
+	let offset_z 		= calc_offset_z(io.z as f32, iter0, io.orientation);
 
 	// now seams are tricky
+	//
+	//
 
-	let calc_seam_offset_x = |x : u32, z : u32, iter : u32, orientation : Orientation2D, seam: f32| -> f32 {
-		let mut offset_x = ((iter + 0) as f32 * seam) + (((x + 0) as f32) * seam * 3.0);
+	let calc_seam_offset_x = |x : f32, z : f32, iter : f32, orientation : Orientation2D, seam: f32| -> f32 {
+		let mut offset_x = ((iter + 0.0) * seam) + ((x + 0.0) * seam * 3.0);
 
-		if Orientation2D::Horizontal == orientation && z > 0 {
+		if Orientation2D::Horizontal == orientation && z > 0.0 {
 			offset_x 	+= seam * 0.5;
 		}
 
 		offset_x
 	};
 
-	let calc_seam_offset_z = |z : u32, iter : u32, orientation : Orientation2D, seam: f32| -> f32 {
-		let mut offset_z = ((iter + 0) as f32 * seam) + (((z + 0) as f32) * seam * 3.0);
+	let calc_seam_offset_z = |z : f32, iter : f32, orientation : Orientation2D, seam: f32| -> f32 {
+		let mut offset_z = ((iter + 0.0) * seam) + ((z + 0.0) * seam * 3.0);
 
 		if Orientation2D::Vertical == orientation {
 			offset_z 	+= seam * 1.5;
 		}
-		offset_z 		+= ((z + 0) as f32) * seam * 0.5;
+		offset_z 		+= (z + 0.0) * seam * 0.5;
 
 		offset_z
 	};
 
-	let mut seam_offset_x = calc_seam_offset_x(io.x, io.z, io.iter, io.orientation, seam);
-	let mut seam_offset_z = calc_seam_offset_z(io.z, io.iter, io.orientation, seam);
+	let seam_offset_x 	= calc_seam_offset_x(io.x as f32, io.z as f32, iter0, io.orientation, seam);
+	let seam_offset_z 	= calc_seam_offset_z(io.z as f32, iter0, io.orientation, seam);
 
 	// now let me interject for a moment with a spline (Hi Freya!)
 	//
 	//
 
-	println!			("no spline {} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x + seam_offset_x, offset_z + seam_offset_z, io.orientation, io.body_type);
+	// println!			("no spline {} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x + seam_offset_x, offset_z + seam_offset_z, io.orientation, io.body_type);
+
 	// spline is in the same local space as each brick is
 	let t				= offset_z + seam_offset_z;
 	let spline_p		= io.spline.as_ref().unwrap().sample(t).unwrap();
@@ -506,7 +512,7 @@ pub fn herringbone_brick_road_iter(
 	let mut pose 		= Transform::from_translation(io.offset.clone());
 
 	pose.translation.x	+= offset_x + seam_offset_x + spline_p.x;
-	pose.translation.z	+= offset_z + seam_offset_z; // spline_p.z should
+	pose.translation.z	+= offset_z + seam_offset_z; // spline is sampled by z so it doesnt bring any offset
 	pose.rotation		= init_rotation * spline_r;
 
 	// spawn
@@ -545,11 +551,14 @@ pub fn herringbone_brick_road_iter(
 	}
 
 	// check for end conditions
-	let newoffx	= calc_offset_x		(io.x, io.iter + 1, io.orientation) 
-				+ calc_seam_offset_x(io.x, io.z, io.iter + 1, io.orientation, seam);
+	//
+	//
 
-	let newoffz	= calc_offset_z		(io.z, io.iter + 1, io.orientation)
-				+ calc_seam_offset_z(io.z, io.iter + 1, io.orientation, seam);
+	let newoffx	= calc_offset_x		(io.x as f32, iter1, io.orientation) 
+				+ calc_seam_offset_x(io.x as f32, io.z as f32, iter1, io.orientation, seam);
+
+	let newoffz	= calc_offset_z		(io.z as f32, iter1, io.orientation)
+				+ calc_seam_offset_z(io.z as f32, iter1, io.orientation, seam);
 
 	if ((newoffx >= io.x_limit) && (io.x_limit != 0.0))
 	|| ((newoffz >= io.z_limit) && (io.z_limit != 0.0))
@@ -560,26 +569,26 @@ pub fn herringbone_brick_road_iter(
 		io.iter			= 0;
 		io.orientation.flip();
 
-		println!		("Flipped orientation x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
+		// println!		("Flipped orientation x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
 
 		if prev_orientation == Orientation2D::Vertical {
-			let newoffx	= calc_offset_x		(io.x + 1, io.iter, io.orientation) 
-						+ calc_seam_offset_x(io.x + 1, io.z, io.iter, io.orientation, seam);
+			let newoffx	= calc_offset_x		((io.x + 1) as f32, io.iter as f32, io.orientation) 
+						+ calc_seam_offset_x((io.x + 1) as f32, io.z as f32, io.iter as f32, io.orientation, seam);
 
-			let newoffz	= calc_offset_z		(io.z + 1, io.iter, io.orientation)
-						+ calc_seam_offset_z(io.z + 1, io.iter, io.orientation, seam);
+			let newoffz	= calc_offset_z		((io.z + 1) as f32, io.iter as f32, io.orientation)
+						+ calc_seam_offset_z((io.z + 1) as f32, io.iter as f32, io.orientation, seam);
 
 			if newoffx < io.x_limit && !io.finished_hor {
 				io.x	+= 1;
-				println!("x =+ 1 new offx {:.3}", newoffx);
+				// println!("x =+ 1 new offx {:.3}", newoffx);
 			} else if newoffz < io.z_limit {
 				io.x	= 0;
 				io.z	+= 1;
 				io.finished_hor = true;
-				println!("x = 0, z += 1 new offz {:.3}", newoffz);
+				// println!("x = 0, z += 1 new offz {:.3}", newoffz);
 			} else {
 				io.finished = true;
-				println!("herringbone_brick_road_iter finished!");
+				// println!("herringbone_brick_road_iter finished!");
 			}
 		}
 	}
