@@ -421,7 +421,7 @@ pub fn herringbone_brick_road_iter(
 		ass				: &Res<AssetServer>,
 		commands		: &mut Commands
 ) {
-	let rotation		= match io.orientation {
+	let init_rotation	= match io.orientation {
 	Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
 	Orientation2D::Vertical 	=> Quat::IDENTITY,
 	};
@@ -435,6 +435,8 @@ pub fn herringbone_brick_road_iter(
 	let lenx			= hlenx * 2.0;
 
 	// main tile center calculation without seams
+	//
+	//
 
 	let calc_offset_x = |x : u32, iter : u32, orientation : Orientation2D| -> f32 {
 		match orientation {
@@ -453,63 +455,67 @@ pub fn herringbone_brick_road_iter(
 	let mut offset_x 	= calc_offset_x(io.x, io.iter, io.orientation);
 	let mut offset_z 	= calc_offset_z(io.z, io.iter, io.orientation);
 
-	// seams are tricky
+	// now seams are tricky
 
-	offset_x			+= ((io.iter + 0) as f32 * seam) + (((io.x + 0) as f32) * seam * 3.0);
-	offset_z			+= ((io.iter + 0) as f32 * seam) + (((io.z + 0) as f32) * seam * 3.0);
+	let calc_seam_offset_x = |x : u32, z : u32, iter : u32, orientation : Orientation2D, seam: f32| -> f32 {
+		let mut offset_x = ((iter + 0) as f32 * seam) + (((x + 0) as f32) * seam * 3.0);
 
-	if Orientation2D::Vertical == io.orientation {
-		offset_z 		+= seam * 1.5;
-	}
-
-	if Orientation2D::Horizontal == io.orientation && io.z > 0 {
-		offset_x 		+= seam * 0.5;
-	}
-	
-	offset_z 			+= ((io.z + 0) as f32) * seam * 0.5;
-
-	let mut pose 		= Transform::from_translation(io.offset.clone());
-	pose.translation.x	+= offset_x;
-	pose.translation.z	+= offset_z;
-	pose.rotation		= rotation;
-
-	// let me interject for a moment with a spline
-	let t = offset_z;
-
-	
-	if t < 10. {
-		let spline_p = io.spline.as_ref().unwrap().sample(t).unwrap();
-
-		// translate
-		pose.translation.x += spline_p.x;
-
-		// rotate
-		if io.prev_spline_p.is_some() {
-			let spline_dir	= (spline_p - io.prev_spline_p.unwrap()).normalize();
-			let spline_r = Quat::from_rotation_arc(Vec3::Z, spline_dir);
-			pose.rotation *= spline_r;
+		if Orientation2D::Horizontal == orientation && z > 0 {
+			offset_x 	+= seam * 0.5;
 		}
 
-		io.prev_spline_p	= Some(spline_p);
+		offset_x
+	};
 
-		// 
-		// let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
-		// commands.spawn_bundle(
-		// 	TransformBundle {
-		// 		local: Transform::from_translation(p),
-		// 		global: GlobalTransform::default(),
-		// })
-		// .insert			(Herringbone)
-		// .with_children(|parent| {
-		// 	parent.spawn_scene(axis_cube);
-		// });
-	}
+	let calc_seam_offset_z = |z : u32, iter : u32, orientation : Orientation2D, seam: f32| -> f32 {
+		let mut offset_z = ((iter + 0) as f32 * seam) + (((z + 0) as f32) * seam * 3.0);
 
-	
+		if Orientation2D::Vertical == orientation {
+			offset_z 	+= seam * 1.5;
+		}
+		offset_z 		+= ((z + 0) as f32) * seam * 0.5;
 
+		offset_z
+	};
+
+	let mut seam_offset_x = calc_seam_offset_x(io.x, io.z, io.iter, io.orientation, seam);
+	let mut seam_offset_z = calc_seam_offset_z(io.z, io.iter, io.orientation, seam);
+
+	// now let me interject for a moment with a spline (Hi Freya!)
+	//
+	//
+
+	println!			("no spline {} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x + seam_offset_x, offset_z + seam_offset_z, io.orientation, io.body_type);
+	// spline is in the same local space as each brick is
+	let t				= offset_z + seam_offset_z;
+	let spline_p		= io.spline.as_ref().unwrap().sample(t).unwrap();
+	let spline_r		= match io.prev_spline_p {
+		Some(prev_spline_p) => {
+			let spline_dir	= (spline_p - prev_spline_p).normalize();
+			Quat::from_rotation_arc(Vec3::Z, spline_dir)
+		},
+		None => Quat::IDENTITY,
+	};
+
+	io.prev_spline_p	= Some(spline_p);
+
+	// Final pose
+	//
+	//
+
+	let mut pose 		= Transform::from_translation(io.offset.clone());
+
+	pose.translation.x	+= offset_x + seam_offset_x + spline_p.x;
+	pose.translation.z	+= offset_z + seam_offset_z; // spline_p.z should
+	pose.rotation		= init_rotation * spline_r;
+
+	// spawn
+	//
+	//
+
+	// spawn first brick with a strong reference to keep reference count > 0 and mesh/material from dying when out of scope
 	let (mut me, mut ma) = (io.mesh.clone_weak(), io.material.clone_weak());
 	match (io.x, io.z) {
-		// spawn strong reference as a first brick to keep reference count > 0
 		(0, 0) => {
 			(me, ma)	= (io.mesh.clone(), io.material.clone());
 		}
@@ -521,15 +527,11 @@ pub fn herringbone_brick_road_iter(
 		.insert			(pose)
 		.insert			(GlobalTransform::default())
 		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
-	//	.insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+		// .insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		.insert_bundle	(PickableBundle::default())
-	//	.insert			(Draggable::default())
+		// .insert			(Draggable::default())
 		.insert			(Herringbone)
 		.insert			(io.clone());
-	
-//	println!			("{} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x, offset_z, io.orientation, io.body_type);
-
-	io.iter				+= 1;
 
 	// if only io.limit is given set limits in cordinates anyway because otherwise we don't know where to stop not on diagonal
 	if io.iter == io.limit {
@@ -543,42 +545,44 @@ pub fn herringbone_brick_road_iter(
 	}
 
 	// check for end conditions
-	match io.orientation {
-		Orientation2D::Horizontal
-		if ((offset_x + io.hsize.z + seam >= io.x_limit) && (io.x_limit != 0.0))
-		|| ((offset_z + io.hsize.x + seam >= io.z_limit) && (io.z_limit != 0.0))
-		|| (io.iter >= io.limit && io.limit != 0) =>
-		{
-			io.iter		= 0;
-			io.orientation = Orientation2D::Vertical;
+	let newoffx	= calc_offset_x		(io.x, io.iter + 1, io.orientation) 
+				+ calc_seam_offset_x(io.x, io.z, io.iter + 1, io.orientation, seam);
 
-//			println!	("Horizontal -> Vertical x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
-		},
-		Orientation2D::Vertical
-		if ((offset_x + io.hsize.x + seam >= io.x_limit) && (io.x_limit != 0.0))
-		|| ((offset_z + io.hsize.z + seam >= io.z_limit) && (io.z_limit != 0.0))
-		|| (io.iter >= io.limit && io.limit != 0) =>
-		{
-			io.iter		= 0;
-			io.orientation = Orientation2D::Horizontal;
+	let newoffz	= calc_offset_z		(io.z, io.iter + 1, io.orientation)
+				+ calc_seam_offset_z(io.z, io.iter + 1, io.orientation, seam);
 
-//			println!	("Vertical -> Horizontal x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
+	if ((newoffx >= io.x_limit) && (io.x_limit != 0.0))
+	|| ((newoffz >= io.z_limit) && (io.z_limit != 0.0))
+	|| (io.iter >= io.limit && io.limit != 0)
+	{
+		let prev_orientation = io.orientation.clone();
 
-			let newoffx	= calc_offset_x(io.x + 1, io.iter, io.orientation);
-			let newoffz	= calc_offset_z(io.z + 1, io.iter, io.orientation);
-			if newoffx + seam < io.x_limit && !io.finished_hor {
+		io.iter			= 0;
+		io.orientation.flip();
+
+		println!		("Flipped orientation x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
+
+		if prev_orientation == Orientation2D::Vertical {
+			let newoffx	= calc_offset_x		(io.x + 1, io.iter, io.orientation) 
+						+ calc_seam_offset_x(io.x + 1, io.z, io.iter, io.orientation, seam);
+
+			let newoffz	= calc_offset_z		(io.z + 1, io.iter, io.orientation)
+						+ calc_seam_offset_z(io.z + 1, io.iter, io.orientation, seam);
+
+			if newoffx < io.x_limit && !io.finished_hor {
 				io.x	+= 1;
-//				println!("x =+ 1 new offx {:.3}", newoffx);
-			} else if newoffz + seam < io.z_limit {
+				println!("x =+ 1 new offx {:.3}", newoffx);
+			} else if newoffz < io.z_limit {
 				io.x	= 0;
 				io.z	+= 1;
 				io.finished_hor = true;
-//				println!("x = 0, z += 1 new offz {:.3}", newoffz);
+				println!("x = 0, z += 1 new offz {:.3}", newoffz);
 			} else {
 				io.finished = true;
-//				println!("herringbone_brick_road_iter finished!");
+				println!("herringbone_brick_road_iter finished!");
 			}
-		},
-		_				=> ()
+		}
 	}
+
+	io.iter				+= 1;
 }

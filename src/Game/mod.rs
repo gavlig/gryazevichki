@@ -85,6 +85,13 @@ pub enum Orientation2D {
 	Vertical
 }
 
+impl Orientation2D {
+	pub fn flip(&mut self) {
+		let flipped = if *self == Orientation2D::Vertical { Orientation2D::Horizontal } else { Orientation2D::Vertical };
+		*self = flipped;
+	}
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct RespawnableEntity {
 	entity			: Entity,

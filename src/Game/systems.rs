@@ -337,7 +337,7 @@ pub fn mouse_dragging_system(
 
 	let ray = pick_source.ray().unwrap();
 	let mut cur_pos = ray.origin() + ray.direction() * drag.distance;
-	cur_pos.y = drag.start_pos.y;
+	cur_pos.y = drag.start_pos.y; // TODO: implement blender-like controls g + axis etc
 	let delta = cur_pos - drag.start_pos;
 
 	transform.translation = drag.init_transform.translation + delta;
@@ -418,15 +418,23 @@ pub fn setup_herringbone_brick_road(
 	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
 
 	let y_offset		= 0.5;
+	
+	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
+	//
+	//
+	let tangent0		= Vec3::new(2.5, y_offset, 2.5);
+	let tangent1		= Vec3::new(2.0, y_offset, 7.5);
+	// z_limit is used both for final coordinate and for final value of t to have road length tied to spline length and vice versa
+	let control_point0_pos = Vec3::new(0.0, y_offset, 0.0);
+	let control_point1_pos = Vec3::new(0.0, y_offset, io.z_limit);
+	// z_limit as final 't' value lets us probe spline from any z offset of a tile
+	let t0				= 0.0;
+	let t1				= io.z_limit;
 
-	let h0				= Vec3::new(2.5, 0.5, 2.5);
-	let h1				= Vec3::new(2.0, 0.5, 7.5);
+	let control_point0	= Key::new(t0, control_point0_pos, Interpolation::StrokeBezier(tangent0, tangent0));
+	let control_point1	= Key::new(t1, control_point1_pos, Interpolation::StrokeBezier(tangent1, tangent1));
 
-
-	let k0 = Key::new(0., Vec3::new(0.0, 0.5, 0.0), Interpolation::StrokeBezier(h0, h0));
-	let k1 = Key::new(10., Vec3::new(0.0, 0.5, 10.0), Interpolation::StrokeBezier(h1, h1));
-//	let k2 = Key::new(10., Vec3::new(0.0, 0.5, 10.0), Interpolation::Bezier(Vec3::new(1.0, 0.5, 10.0)));
-	io.spline 			= Some(Spline::from_vec(vec![k0, k1]));
+	io.spline 			= Some(Spline::from_vec(vec![control_point0, control_point1]));
 }
 
 pub fn herringbone_brick_road_system(

@@ -71,13 +71,15 @@
 49.3.2. (done!)tangents/handles
 49.3.3. multiple control points
 49.3.4. multiple handles
-49.3.5. rotate tiles along spline normal
+49.3.5. (done!)rotate tiles along spline normal
 49.3.6. verticality
-49.4. movable root
+49.4. ()movable root
 49.5. borders
 49.6. render models
 49.7. random rotation/artifacts on tiles
 49.8. optimize spawning huge amounts of dynamic tiles (dynamic -> fixed after a few seconds or sleeping maybe)
-49.9. sync io limits and spline t
+49.9. (done!)sync io limits and spline t
+49.10. refactor IO thing and setup
+49.11. move to own file
 
 next milestone: fully configurable vehicle with an environment to test it
