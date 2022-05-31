@@ -8,12 +8,13 @@ use bevy_mod_raycast:: { * };
 use iyes_loopless	:: { prelude :: * };
 
 use std				:: { path::PathBuf };
+use splines			:: { Interpolation, Key, Spline };
 
 use bevy::render::mesh::shape as render_shape;
-use std::f32::consts:: 	{ * };
+use std::f32::consts:: { * };
 
-use super           ::  { * };
-use super			::	{ spawn };
+use super           :: { * };
+use super			:: { spawn };
 
 pub fn setup_camera_system(
 		game			: ResMut<GameState>,
@@ -75,22 +76,33 @@ pub fn setup_world_system(
 		// TODO: make it startup system instead
 		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials, &ass, &mut commands);
 
-		use splines :: { Interpolation, Key, Spline };
-
 		let y_offset	= 0.5;
 
 		let root_pos	= herr_io.translation;
-		spawn::object_root(root_pos, &mut meshes, &mut materials, &mut commands);
+		let root_e		= spawn::object_root(root_pos, &mut meshes, &mut materials, &mut commands);
 
-		let tangent0		= Vec3::new(2.5, y_offset, 2.5) + root_pos;
-		spawn::spline_tangent(tangent0, SplineTangent::ID(0), &mut meshes, &mut materials, &mut commands);
-		let tangent1		= Vec3::new(2.0, y_offset, 7.5) + root_pos;
-		spawn::spline_tangent(tangent1, SplineTangent::ID(1), &mut meshes, &mut materials, &mut commands);
+		match herr_io.spline.as_ref() {
+		Some(spline) => {
+			let key0	= spline.get(0).unwrap();
+			match key0.interpolation {
+				Interpolation::StrokeBezier(V0, V1) => {
+					spawn::spline_tangent(root_e, V0, SplineTangent::ID(0), &mut meshes, &mut materials, &mut commands);
+				},
+				_ => (),
+			};
+			spawn::spline_control_point(root_e, key0.value, SplineControlPoint::ID(0), &mut meshes, &mut materials, &mut commands);
 
-		let control_point0 = Vec3::new(0.0, y_offset, 0.0) + root_pos;
-		spawn::spline_control_point(control_point0, SplineControlPoint::ID(0), &mut meshes, &mut materials, &mut commands);
-		let control_point1 = Vec3::new(0.0, y_offset, herr_io.z_limit) + root_pos;
-		spawn::spline_control_point(control_point1, SplineControlPoint::ID(1), &mut meshes, &mut materials, &mut commands);
+			let key1	= spline.get(1).unwrap();
+			match key1.interpolation {
+				Interpolation::StrokeBezier(V0, V1) => {
+					spawn::spline_tangent(root_e, V0, SplineTangent::ID(1), &mut meshes, &mut materials, &mut commands);
+				},
+				_ => (),
+			};
+			spawn::spline_control_point(root_e, key1.value, SplineControlPoint::ID(1), &mut meshes, &mut materials, &mut commands);
+		}
+		None => (),
+		}
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
@@ -400,8 +412,6 @@ pub fn display_events_system(
 //	}
 }
 
-use splines :: { Interpolation, Key, Spline };
-
 pub fn setup_herringbone_brick_road(
 	io					: &mut ResMut<HerringboneIO>,
 	meshes				: &mut ResMut<Assets<Mesh>>,
@@ -431,8 +441,8 @@ pub fn setup_herringbone_brick_road(
 	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
 	//
 	//
-	let tangent0		= Vec3::new(2.5, y_offset, 2.5);
-	let tangent1		= Vec3::new(2.0, y_offset, 7.5);
+	let tangent0		= Vec3::new(0.0, y_offset, 2.5);
+	let tangent1		= Vec3::new(0.0, y_offset, 7.5);
 	// z_limit is used both for final coordinate and for final value of t to have road length tied to spline length and vice versa
 	let control_point0_pos = Vec3::new(0.0, y_offset, 0.0);
 	let control_point1_pos = Vec3::new(0.0, y_offset, io.z_limit);
@@ -503,19 +513,13 @@ pub fn on_spline_tangent_moved(
 	mut io				: ResMut<HerringboneIO>,
 		time			: Res<Time>,
 		q_tangent 		: Query<(&Transform, &SplineTangent), Changed<Transform>>,
-		q_root			: Query<&Transform, With<ObjectRoot>>,
 ) {
 	if time.seconds_since_startup() < 1.0 {
 		return;
 	}
 
-	let root_pos		= match q_root.get_single() {
-		Ok(pos)			=> *pos,
-		Err(_)			=> Transform::identity(),
-	};
-
 	for (tform, tan) in q_tangent.iter() {
-		let tan_pos		= tform.translation - root_pos.translation;
+		let tan_pos		= tform.translation;
 		match tan {
 			SplineTangent::ID(id) => {
 				io.set_spline_interpolation(*id, Interpolation::StrokeBezier(tan_pos, tan_pos));
@@ -532,19 +536,13 @@ pub fn on_spline_control_point_moved(
 	mut io				: ResMut<HerringboneIO>,
 		time			: Res<Time>,
 		q_controlp 		: Query<(&Transform, &SplineControlPoint), Changed<Transform>>,
-		q_root			: Query<&Transform, With<ObjectRoot>>,
 ) {
 	if time.seconds_since_startup() < 1.0 {
 		return;
 	}
 
-	let root_pos		= match q_root.get_single() {
-		Ok(pos)			=> *pos,
-		Err(_)			=> Transform::identity(),
-	};
-
 	for (tform, controlp) in q_controlp.iter() {
-		let controlp_pos = tform.translation - root_pos.translation;
+		let controlp_pos = tform.translation;
 		match controlp {
 			SplineControlPoint::ID(id) => {
 				io.set_spline_control_point(*id, controlp_pos);

@@ -87,51 +87,51 @@ pub fn world_axis(
 }
 
 pub fn spline_tangent(
+	parent_e			: Entity,
 	pos					: Vec3,
 	handle				: SplineTangent,
 	meshes				: &mut ResMut<Assets<Mesh>>,
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
 ) -> Entity {
-	// let axis_cube		= ass.load("utils/axis_cube.gltf#Scene0");
-	commands.spawn_bundle(PbrBundle {
-		mesh			: meshes.add			(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
-		material		: materials.add			(Color::INDIGO.into()),
+	let mut id = Entity::from_raw(0);
+	commands.entity(parent_e).with_children(|parent| {
+	id = parent.spawn_bundle(PbrBundle {
+		mesh			: meshes.add		(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
+		material		: materials.add		(Color::INDIGO.into()),
 		transform		: Transform::from_translation(pos),
 		..Default::default()
 	})
 	.insert				(handle)
 	.insert_bundle		(PickableBundle::default())
 	.insert				(Draggable::default())
-
-	// .with_children(|parent| {
-	// 	parent.spawn_scene(axis_cube);
-	// })
-	.id()
+	.id();
+	});
+	id
 }
 
 pub fn spline_control_point(
+	parent_e			: Entity,
 	pos					: Vec3,
 	handle				: SplineControlPoint,
 	meshes				: &mut ResMut<Assets<Mesh>>,
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
 ) -> Entity {
-	// let axis_cube		= ass.load("utils/axis_cube.gltf#Scene0");
-	commands.spawn_bundle(PbrBundle {
-		mesh			: meshes.add			(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
-		material		: materials.add			(Color::BEIGE.into()),
+	let mut id = Entity::from_raw(0);
+	commands.entity(parent_e).with_children(|parent| {
+	id = parent.spawn_bundle(PbrBundle {
+		mesh			: meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+		material		: materials.add		(Color::BEIGE.into()),
 		transform		: Transform::from_translation(pos),
 		..Default::default()
 	})
 	.insert				(handle)
 	.insert_bundle		(PickableBundle::default())
 	.insert				(Draggable::default())
-
-	// .with_children(|parent| {
-	// 	parent.spawn_scene(axis_cube);
-	// })
-	.id()
+	.id();
+	});
+	id
 }
 
 pub fn object_root(
@@ -140,10 +140,9 @@ pub fn object_root(
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
 ) -> Entity {
-	// let axis_cube		= ass.load("utils/axis_cube.gltf#Scene0");
 	commands.spawn_bundle(PbrBundle {
-		mesh			: meshes.add			(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
-		material		: materials.add			(Color::LIME_GREEN.into()),
+		mesh			: meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+		material		: materials.add		(Color::LIME_GREEN.into()),
 		transform		: Transform::from_translation(pos),
 		..Default::default()
 	})
@@ -151,10 +150,6 @@ pub fn object_root(
 	.insert_bundle		(PickableBundle::default())
 	.insert				(Draggable::default())
 	// .insert				(GizmoTransformable)
-
-	// .with_children(|parent| {
-	// 	parent.spawn_scene(axis_cube);
-	// })
 	.id()
 }
 
