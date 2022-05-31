@@ -43,7 +43,7 @@
 26. (done!)respawn button
 27. (done!)make kinematic(fixed) button
 28. (?)adjustable ranges for density, sizes etc
-29. trailer
+29. attachable trailer
 30. (done!)serialize configs and save/load
 31. more wheels
 32. two wheels
@@ -51,7 +51,7 @@
 34. turn off vehicle controls when using gui
 35. show gui dialog instead of println error messages
 36. controller support
-37. pick objects around
+37. (done!)pick objects around
 38. spawn objects around
 39. try circuis rides in circle on walls
 40. indicate car front,right,left
@@ -62,6 +62,21 @@
 45. show a list of vehicles in directory
 46. incorporate model into config
 47. add respawn functions for different vehicle parts
-48. split project to multiple files
+48. (done!)split project to multiple files
+49. herringbone brick road
+49.1. (done!)draw straight pattern
+49.2. (done!)with seams
+49.3. spline
+49.3.1. (done!)basic support
+49.3.2. (done!)tangents/handles
+49.3.3. multiple control points
+49.3.4. multiple handles
+49.3.5. rotate tiles along spline normal
+49.3.6. verticality
+49.4. movable root
+49.5. borders
+49.6. render models
+49.7. random rotation/artifacts on tiles
+49.8. optimize spawning huge amounts of dynamic tiles (dynamic -> fixed after a few seconds or sleeping maybe)
 
 next milestone: fully configurable vehicle with an environment to test it
