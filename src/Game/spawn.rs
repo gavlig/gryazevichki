@@ -2,6 +2,7 @@ use bevy			::	prelude :: { * };
 use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	FlyCamera;
 use bevy_mod_picking::	{ * };
+// use bevy_transform_gizmo :: { * };
 use splines			::	{ Interpolation, Key, Spline };
 
 use bevy::render::mesh::shape as render_shape;
@@ -23,6 +24,7 @@ pub fn camera(
 //		.insert			(Collider::ball(1.0))
 		.insert			(FlyCamera{ yaw : 195.0, pitch : 7.0,  ..default() })
 		.insert_bundle	(PickingCameraBundle::default())
+		// .insert			(GizmoPickSource::default())
 		.insert			(NameComponent{ name: "Camera".to_string() })
 		.id				();
 

@@ -4,6 +4,7 @@ use bevy_fly_camera	::	{ FlyCameraPlugin };
 use bevy_egui		::	{ * };
 use bevy_atmosphere	::	{ * };
 use bevy_mod_picking::	{ * };
+// use bevy_transform_gizmo :: { * }; 
 
 use iyes_loopless	::	prelude :: { * };
 
@@ -35,6 +36,7 @@ fn main() {
 		.add_plugin				(FlyCameraPlugin)
 		.add_plugin				(EguiPlugin)
 		.add_plugins			(DefaultPickingPlugins)
+		// .add_plugin				(TransformGizmoPlugin::default())
 		// it glitches and hides the ground
 		// .add_plugin				(AtmospherePlugin {
 		// 	dynamic				: true,  // Set to false since we aren't changing the sky's appearance

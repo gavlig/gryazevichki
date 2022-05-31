@@ -30,5 +30,6 @@ bevy_mod_picking = "0.6"
 bevy_mod_raycast = "0.4.0"
 iyes_loopless = "0.5.1"
 splines = { version = "4.1.0", features = ["glam"] }
+#bevy_transform_gizmo = { path = "../bevy_transform_gizmo/" }
 
 [patch.crates-io]
