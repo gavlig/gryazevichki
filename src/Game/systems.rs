@@ -391,6 +391,8 @@ pub fn display_events_system(
 //	}
 }
 
+use splines :: { Interpolation, Key, Spline };
+
 pub fn setup_herringbone_brick_road(
 	io					: &mut ResMut<HerringboneIO>,
 	meshes				: &mut ResMut<Assets<Mesh>>,
@@ -415,8 +417,6 @@ pub fn setup_herringbone_brick_road(
 	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
 	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
 
-	use splines :: { Interpolation, Key, Spline };
-
 	let y_offset		= 0.5;
 
 	let h0				= Vec3::new(2.5, 0.5, 2.5);
@@ -434,9 +434,6 @@ pub fn herringbone_brick_road_system(
 	mut io				: ResMut<HerringboneIO>,
 	mut despawn			: ResMut<DespawnResource>,
 		time			: Res<Time>,
-
-	mut meshes			: ResMut<Assets<Mesh>>,
-	mut materials		: ResMut<Assets<StandardMaterial>>,
 		ass				: Res<AssetServer>,
 
 		query			: Query<Entity, With<Herringbone>>,
@@ -448,12 +445,7 @@ pub fn herringbone_brick_road_system(
 			despawn.entities.push(e);
 		}
 	
-		//setup_herringbone_brick_road(&mut io, &mut meshes, &mut materials, &ass, &mut commands);
-		io.iter = 0;
-		io.x = 0;
-		io.z = 0;
-		io.finished = false;
-		io.finished_hor = false;
+		io.reset_changed();
 	
 		step.reset		= false;
 	}
@@ -503,7 +495,7 @@ pub fn on_spline_handle_moved(
 		let h_pos = t.translation;
 		match h {
 			SplineHandle::ID(id) => {
-				io.set_spline_interpolation(*id, h_pos);
+				io.set_spline_interpolation(*id, Interpolation::StrokeBezier(h_pos, h_pos));
 				step.reset = true;
 				step.next = true;
 				step.instant = true;

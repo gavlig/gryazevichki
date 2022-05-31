@@ -327,6 +327,9 @@ pub struct HerringboneIO {
 	pub finished_hor	: bool,
 	pub finished		: bool,
 
+	pub spline			: Option<Spline<f32, Vec3>>,
+	pub prev_spline_p	: Option<Vec3>,
+
 	// read only
 	pub body_type 		: RigidBody,
 	pub offset 			: Vec3,
@@ -336,9 +339,6 @@ pub struct HerringboneIO {
 	pub x_limit			: f32,
 	pub z_limit			: f32,
 	pub limit			: u32,
-
-	pub spline			: Option<Spline<f32, Vec3>>,
-	pub prev_p			: Vec3,
 
 	// cant copy
 	pub mesh			: Handle<Mesh>,
@@ -354,6 +354,9 @@ impl Default for HerringboneIO {
 			finished_hor: false,
 			finished	: false,
 
+			spline		: None,
+			prev_spline_p: None,
+
 			body_type 	: RigidBody::Fixed,
 			offset 		: Vec3::ZERO,
 			hsize 		: Vec3::ZERO,
@@ -362,9 +365,6 @@ impl Default for HerringboneIO {
 			x_limit		: 0.0,
 			z_limit		: 0.0,
 			limit		: 0,
-
-			spline		: None,
-			prev_p		: Vec3::ZERO,
 
 			mesh		: Handle::<Mesh>::default(),
 			material	: Handle::<StandardMaterial>::default(),
@@ -375,6 +375,14 @@ impl Default for HerringboneIO {
 impl HerringboneIO {
 	pub fn set_default(&mut self) {
 		*self			= Self::default();
+	}
+
+	pub fn reset_changed(&mut self) {
+		self.iter 		= 0;
+		self.x 			= 0;
+		self.z 			= 0;
+		self.finished 	= false;
+		self.finished_hor = false;
 	}
 
 	pub fn clone(&self) -> Self {
@@ -395,16 +403,16 @@ impl HerringboneIO {
 			limit		: self.limit,
 
 			spline		: self.spline.clone(),
-			prev_p		: self.prev_p,
+			prev_spline_p: self.prev_spline_p.clone(),
 
 			mesh		: self.mesh.clone_weak(),
 			material	: self.material.clone_weak(),
 		}
 	}
 
-	pub fn set_spline_interpolation(&mut self, id : usize, h : Vec3) {
-		use splines :: { Interpolation };
-		*self.spline.as_mut().unwrap().get_mut(id).unwrap().interpolation = Interpolation::StrokeBezier(h, h);
+	pub fn set_spline_interpolation(&mut self, id : usize, interpolation : Interpolation<f32, Vec3>) { // TODO: declare Interpolation<f32, Vec3> somewhere?
+		
+		*self.spline.as_mut().unwrap().get_mut(id).unwrap().interpolation = interpolation;
 	}
 }
 
@@ -460,18 +468,31 @@ pub fn herringbone_brick_road_iter(
 	
 	offset_z 			+= ((io.z + 0) as f32) * seam * 0.5;
 
+	let mut pose 		= Transform::from_translation(io.offset.clone());
+	pose.translation.x	+= offset_x;
+	pose.translation.z	+= offset_z;
+	pose.rotation		= rotation;
+
 	// let me interject for a moment with a spline
-
 	let t = offset_z;
-	let mut offset_x_spline = 0.0;
 
+	
 	if t < 10. {
-		let mut p = io.spline.as_ref().unwrap().sample(t).unwrap();
-		offset_x_spline = p.x;
+		let spline_p = io.spline.as_ref().unwrap().sample(t).unwrap();
 
-		p += io.offset;
-		p.x += offset_x;
+		// translate
+		pose.translation.x += spline_p.x;
 
+		// rotate
+		if io.prev_spline_p.is_some() {
+			let spline_dir	= (spline_p - io.prev_spline_p.unwrap()).normalize();
+			let spline_r = Quat::from_rotation_arc(Vec3::Z, spline_dir);
+			pose.rotation *= spline_r;
+		}
+
+		io.prev_spline_p	= Some(spline_p);
+
+		// 
 		// let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
 		// commands.spawn_bundle(
 		// 	TransformBundle {
@@ -484,10 +505,7 @@ pub fn herringbone_brick_road_iter(
 		// });
 	}
 
-	let mut pose 		= Transform::from_translation(io.offset.clone());
-	pose.translation.x	+= offset_x + offset_x_spline;
-	pose.translation.z	+= offset_z;
-	pose.rotation		= rotation;
+	
 
 	let (mut me, mut ma) = (io.mesh.clone_weak(), io.material.clone_weak());
 	match (io.x, io.z) {
