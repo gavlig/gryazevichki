@@ -78,5 +78,6 @@
 49.6. render models
 49.7. random rotation/artifacts on tiles
 49.8. optimize spawning huge amounts of dynamic tiles (dynamic -> fixed after a few seconds or sleeping maybe)
+49.9. sync io limits and spline t
 
 next milestone: fully configurable vehicle with an environment to test it
