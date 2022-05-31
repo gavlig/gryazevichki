@@ -66,7 +66,10 @@ fn main() {
 		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_start_system)
 		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_system)
 		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_stop_system)
-		.add_system_to_stage	(CoreStage::PostUpdate, on_spline_handle_moved)
+
+		.add_system_to_stage	(CoreStage::PostUpdate, on_spline_tangent_moved)
+		.add_system_to_stage	(CoreStage::PostUpdate, on_spline_control_point_moved)
+		.add_system_to_stage	(CoreStage::PostUpdate, on_object_root_moved)
 
  		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
  		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)

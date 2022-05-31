@@ -86,9 +86,9 @@ pub fn world_axis(
 	});
 }
 
-pub fn spline_handle(
+pub fn spline_tangent(
 	pos					: Vec3,
-	handle				: SplineHandle,
+	handle				: SplineTangent,
 	meshes				: &mut ResMut<Assets<Mesh>>,
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
@@ -103,6 +103,54 @@ pub fn spline_handle(
 	.insert				(handle)
 	.insert_bundle		(PickableBundle::default())
 	.insert				(Draggable::default())
+
+	// .with_children(|parent| {
+	// 	parent.spawn_scene(axis_cube);
+	// })
+	.id()
+}
+
+pub fn spline_control_point(
+	pos					: Vec3,
+	handle				: SplineControlPoint,
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	mut commands		: &mut Commands
+) -> Entity {
+	// let axis_cube		= ass.load("utils/axis_cube.gltf#Scene0");
+	commands.spawn_bundle(PbrBundle {
+		mesh			: meshes.add			(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+		material		: materials.add			(Color::BEIGE.into()),
+		transform		: Transform::from_translation(pos),
+		..Default::default()
+	})
+	.insert				(handle)
+	.insert_bundle		(PickableBundle::default())
+	.insert				(Draggable::default())
+
+	// .with_children(|parent| {
+	// 	parent.spawn_scene(axis_cube);
+	// })
+	.id()
+}
+
+pub fn object_root(
+	pos					: Vec3,
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	mut commands		: &mut Commands
+) -> Entity {
+	// let axis_cube		= ass.load("utils/axis_cube.gltf#Scene0");
+	commands.spawn_bundle(PbrBundle {
+		mesh			: meshes.add			(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+		material		: materials.add			(Color::LIME_GREEN.into()),
+		transform		: Transform::from_translation(pos),
+		..Default::default()
+	})
+	.insert				(ObjectRoot)
+	.insert_bundle		(PickableBundle::default())
+	.insert				(Draggable::default())
+	// .insert				(GizmoTransformable)
 
 	// .with_children(|parent| {
 	// 	parent.spawn_scene(axis_cube);
@@ -154,30 +202,30 @@ pub fn friction_tests(
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	commands			: &mut Commands
 ) {
-	let num = 5;
-	let offset = Vec3::new(0.0, 0.0, 3.0);
-	let line_hsize = Vec3::new(5.0, 0.025, 30.0);
+	let num				= 5;
+	let offset			= Vec3::new(0.0, 0.0, 3.0);
+	let line_hsize 		= Vec3::new(5.0, 0.025, 30.0);
 
-	for i in 0..=num {
-		let mut pos = offset.clone();
-		pos.x = i as f32 * ((line_hsize.x * 2.0) + 0.5);
+	for i in 0..= num {
+		let mut pos 	= offset.clone();
+		pos.x			= i as f32 * ((line_hsize.x * 2.0) + 0.5);
 
-		let friction = i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
+		let friction 	= i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
 		let friction_inv = 1.0 - friction;
-		let color = Color::rgb(friction_inv, friction_inv, friction_inv);
+		let color 		= Color::rgb(friction_inv, friction_inv, friction_inv);
 
 		commands
 			.spawn_bundle(PbrBundle {
-				mesh		: meshes.add			(Mesh::from(render_shape::Box::new(line_hsize.x * 2.0, line_hsize.y * 2.0, line_hsize.z * 2.0))),
-				material	: materials.add			(color.into()),
+				mesh	: meshes.add	(Mesh::from(render_shape::Box::new(line_hsize.x * 2.0, line_hsize.y * 2.0, line_hsize.z * 2.0))),
+				material: materials.add	(color.into()),
 				..Default::default()
 			})
-			.insert(RigidBody::Fixed)
-			.insert(Transform::from_translation(pos))
-			.insert(GlobalTransform::default())
-			.insert(Collider::cuboid(line_hsize.x, line_hsize.y, line_hsize.z))
-			.insert(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
-//			.insert(ColliderDebugColor(color));
+			.insert		(RigidBody		::Fixed)
+			.insert		(Transform		::from_translation(pos))
+			.insert		(GlobalTransform::default())
+			.insert		(Collider		::cuboid(line_hsize.x, line_hsize.y, line_hsize.z))
+			.insert		(Friction 		{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+//			.insert		(ColliderDebugColor(color));
 	}
 }
 
@@ -326,18 +374,21 @@ pub struct HerringboneIO {
 	pub x 				: u32,
 	pub z 				: u32,
 	pub iter			: u32,
+	pub orientation		: Orientation2D,
 	pub finished_hor	: bool,
 	pub finished		: bool,
+	pub translation 	: Vec3,
+	pub rotation		: Quat,
 
 	pub spline			: Option<Spline<f32, Vec3>>,
 	pub prev_spline_p	: Option<Vec3>,
 
-	// read only
+	// read only - ish
 	pub body_type 		: RigidBody,
-	pub offset 			: Vec3,
 	pub hsize 			: Vec3,
 	pub seam			: f32,
-	pub orientation		: Orientation2D,
+	
+	// read only
 	pub x_limit			: f32,
 	pub z_limit			: f32,
 	pub limit			: u32,
@@ -353,17 +404,18 @@ impl Default for HerringboneIO {
 			x 			: 0,
 			z 			: 0,
 			iter		: 0,
+			orientation	: Orientation2D::Horizontal,
 			finished_hor: false,
 			finished	: false,
+			translation : Vec3::ZERO,
+			rotation	: Quat::IDENTITY,
 
 			spline		: None,
 			prev_spline_p: None,
 
 			body_type 	: RigidBody::Fixed,
-			offset 		: Vec3::ZERO,
 			hsize 		: Vec3::ZERO,
 			seam		: 0.01,
-			orientation	: Orientation2D::Horizontal,
 			x_limit		: 0.0,
 			z_limit		: 0.0,
 			limit		: 0,
@@ -392,20 +444,22 @@ impl HerringboneIO {
 			x 			: self.x,
 			z 			: self.z,
 			iter		: self.iter,
+			orientation	: self.orientation,
 			finished_hor: self.finished_hor,
 			finished	: self.finished,
-
-			body_type 	: self.body_type,
-			offset 		: self.offset,
-			hsize 		: self.hsize,
-			seam		: self.seam,
-			orientation	: self.orientation,
-			x_limit		: self.x_limit,
-			z_limit		: self.z_limit,
-			limit		: self.limit,
+			translation : self.translation,
+			rotation	: self.rotation,
 
 			spline		: self.spline.clone(),
 			prev_spline_p: self.prev_spline_p.clone(),
+
+			body_type 	: self.body_type,
+			hsize 		: self.hsize,
+			seam		: self.seam,
+			
+			x_limit		: self.x_limit,
+			z_limit		: self.z_limit,
+			limit		: self.limit,
 
 			mesh		: self.mesh.clone_weak(),
 			material	: self.material.clone_weak(),
@@ -413,8 +467,12 @@ impl HerringboneIO {
 	}
 
 	pub fn set_spline_interpolation(&mut self, id : usize, interpolation : Interpolation<f32, Vec3>) { // TODO: declare Interpolation<f32, Vec3> somewhere?
-		
 		*self.spline.as_mut().unwrap().get_mut(id).unwrap().interpolation = interpolation;
+	}
+
+	pub fn set_spline_control_point(&mut self, id : usize, controlp_pos : Vec3) { // TODO: declare Key<f32, Vec3> somewhere?
+		let t = controlp_pos.z;
+		self.spline.as_mut().unwrap().replace(id, |k : &Key<f32, Vec3>| { Key::new(t, controlp_pos, k.interpolation) });
 	}
 }
 
@@ -496,7 +554,24 @@ pub fn herringbone_brick_road_iter(
 
 	// spline is in the same local space as each brick is
 	let t				= offset_z + seam_offset_z;
-	let spline_p		= io.spline.as_ref().unwrap().sample(t).unwrap();
+	let spline_p		= match io.spline.as_ref() {
+		// ok, we have a spline, sample it
+		Some(spline)	=> match spline.sample(t) {
+
+		// ok, sample was a success, get the point from it
+		Some(p)			=> p,
+		// sample wasnt a succes, try previuos point on spline
+		None			=> {
+			println!	("NONE t: {}", t);
+			match io.prev_spline_p {
+				Some(p)	=> p,
+				None	=> Vec3::ZERO,
+			}
+		},
+		},
+		// there is no spline, no offset
+		None			=> Vec3::ZERO,
+	};
 	let spline_r		= match io.prev_spline_p {
 		Some(prev_spline_p) => {
 			let spline_dir	= (spline_p - prev_spline_p).normalize();
@@ -511,11 +586,25 @@ pub fn herringbone_brick_road_iter(
 	//
 	//
 
-	let mut pose 		= Transform::from_translation(io.offset.clone());
+	let mut pose 		= Transform::identity();
 
-	pose.translation.x	+= offset_x + seam_offset_x + spline_p.x;
-	pose.translation.z	+= offset_z + seam_offset_z; // spline is sampled by z so it doesnt bring any offset
-	pose.rotation		= init_rotation * spline_r;
+	// root offset
+	pose.translation	= io.translation;
+	pose.rotation		= io.rotation;
+
+	//
+	pose.translation.x	-= io.x_limit / 2.0;
+
+	// tile offset/rotation
+	pose.translation.x	+= offset_x + seam_offset_x;
+	pose.translation.z	+= offset_z + seam_offset_z;
+	pose.rotation		*= init_rotation;
+
+	// spline
+	pose.translation.x	+= spline_p.x;
+	// spline is sampled by z so it doesnt bring any offset on z
+
+	pose.rotation		*= spline_r;
 
 	// spawn
 	//

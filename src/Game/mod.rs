@@ -133,6 +133,14 @@ impl Default for PhysicsConfig {
 }
 
 #[derive(Component)]
-pub enum SplineHandle {
+pub struct ObjectRoot;
+
+#[derive(Component)]
+pub enum SplineTangent {
+	ID(usize)
+}
+
+#[derive(Component)]
+pub enum SplineControlPoint {
 	ID(usize)
 }

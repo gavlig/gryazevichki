@@ -77,11 +77,20 @@ pub fn setup_world_system(
 
 		use splines :: { Interpolation, Key, Spline };
 
+		let y_offset	= 0.5;
 
-		let h0			= Vec3::new(2.5, 0.5, 2.5);
-		spawn::spline_handle(h0, SplineHandle::ID(0), &mut meshes, &mut materials, &mut commands);
-		let h1			= Vec3::new(2.0, 0.5, 7.5);
-		spawn::spline_handle(h1, SplineHandle::ID(1), &mut meshes, &mut materials, &mut commands);
+		let root_pos	= herr_io.translation;
+		spawn::object_root(root_pos, &mut meshes, &mut materials, &mut commands);
+
+		let tangent0		= Vec3::new(2.5, y_offset, 2.5) + root_pos;
+		spawn::spline_tangent(tangent0, SplineTangent::ID(0), &mut meshes, &mut materials, &mut commands);
+		let tangent1		= Vec3::new(2.0, y_offset, 7.5) + root_pos;
+		spawn::spline_tangent(tangent1, SplineTangent::ID(1), &mut meshes, &mut materials, &mut commands);
+
+		let control_point0 = Vec3::new(0.0, y_offset, 0.0) + root_pos;
+		spawn::spline_control_point(control_point0, SplineControlPoint::ID(0), &mut meshes, &mut materials, &mut commands);
+		let control_point1 = Vec3::new(0.0, y_offset, herr_io.z_limit) + root_pos;
+		spawn::spline_control_point(control_point1, SplineControlPoint::ID(1), &mut meshes, &mut materials, &mut commands);
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
@@ -411,7 +420,7 @@ pub fn setup_herringbone_brick_road(
 	io.limit			= 100;
 
 	io.body_type		= RigidBody::Fixed;
-	io.offset			= Vec3::new(1.0, hsize.y, 1.0);
+	io.translation		= Vec3::new(1.0, hsize.y, 1.0);
 	io.hsize			= hsize;
 	io.seam				= 0.01;
 	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
@@ -489,25 +498,90 @@ pub fn herringbone_brick_road_system(
 	}
 }
 
-pub fn on_spline_handle_moved(
+pub fn on_spline_tangent_moved(
 	mut step			: ResMut<HerringboneStepRequest>,
 	mut io				: ResMut<HerringboneIO>,
 		time			: Res<Time>,
-		q_handle 		: Query<(&Transform, &SplineHandle), Changed<Transform>>,
+		q_tangent 		: Query<(&Transform, &SplineTangent), Changed<Transform>>,
+		q_root			: Query<&Transform, With<ObjectRoot>>,
 ) {
 	if time.seconds_since_startup() < 1.0 {
 		return;
 	}
 
-	for (t, h) in q_handle.iter() {
-		let h_pos = t.translation;
-		match h {
-			SplineHandle::ID(id) => {
-				io.set_spline_interpolation(*id, Interpolation::StrokeBezier(h_pos, h_pos));
+	let root_pos		= match q_root.get_single() {
+		Ok(pos)			=> *pos,
+		Err(_)			=> Transform::identity(),
+	};
+
+	for (tform, tan) in q_tangent.iter() {
+		let tan_pos		= tform.translation - root_pos.translation;
+		match tan {
+			SplineTangent::ID(id) => {
+				io.set_spline_interpolation(*id, Interpolation::StrokeBezier(tan_pos, tan_pos));
 				step.reset = true;
 				step.next = true;
 				step.instant = true;
 			},
 		}
 	}
+}
+
+pub fn on_spline_control_point_moved(
+	mut step			: ResMut<HerringboneStepRequest>,
+	mut io				: ResMut<HerringboneIO>,
+		time			: Res<Time>,
+		q_controlp 		: Query<(&Transform, &SplineControlPoint), Changed<Transform>>,
+		q_root			: Query<&Transform, With<ObjectRoot>>,
+) {
+	if time.seconds_since_startup() < 1.0 {
+		return;
+	}
+
+	let root_pos		= match q_root.get_single() {
+		Ok(pos)			=> *pos,
+		Err(_)			=> Transform::identity(),
+	};
+
+	for (tform, controlp) in q_controlp.iter() {
+		let controlp_pos = tform.translation - root_pos.translation;
+		match controlp {
+			SplineControlPoint::ID(id) => {
+				io.set_spline_control_point(*id, controlp_pos);
+
+				// io.x_limit = 
+
+				step.reset = true;
+				step.next = true;
+				step.instant = true;
+			},
+		}
+	}
+}
+
+pub fn on_object_root_moved(
+	mut step			: ResMut<HerringboneStepRequest>,
+	mut io				: ResMut<HerringboneIO>,
+		time			: Res<Time>,
+		q_root			: Query<&Transform, (With<ObjectRoot>, Changed<Transform>)>,
+) {
+	if time.seconds_since_startup() < 1.0 {
+		return;
+	}
+
+	if q_root.is_empty() {
+		return;
+	}
+
+	let root_pos		= match q_root.get_single() {
+		Ok(pos)			=> *pos,
+		Err(_)			=> Transform::identity(),
+	};
+
+	io.translation		= root_pos.translation;
+	io.rotation			= root_pos.rotation;
+
+	step.reset 			= true;
+	step.next 			= true;
+	step.instant 		= true;
 }
