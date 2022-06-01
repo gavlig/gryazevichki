@@ -11,6 +11,7 @@ pub mod Ui;
 pub use Ui			:: *;			
 
 mod spawn;
+pub use spawn::Tile;
 pub use spawn::HerringboneStepRequest;
 pub use spawn::HerringboneIO;
 pub use spawn::Herringbone;
@@ -144,3 +145,6 @@ pub enum SplineTangent {
 pub enum SplineControlPoint {
 	ID(usize)
 }
+
+#[derive(Component)]
+pub struct Gizmo;

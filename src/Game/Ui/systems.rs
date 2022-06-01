@@ -282,7 +282,7 @@ pub fn coords_on_hover_ui_system(
 	
 		if !window.physical_cursor_position().is_none() {
 			egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
-				ui.label(format!("#[{}] offx: {:.2} offz: {:.2} x: {} z: {}", io.iter, transform.translation.x - io.translation.x, transform.translation.z - io.translation.z, io.x, io.z));
+				ui.label(format!("#[{}] offx: {:.2} offz: {:.2} x: {} z: {}", io.iter, transform.translation.x - io.transform.translation.x, transform.translation.z - io.transform.translation.z, io.x, io.z));
 			});
 		}
 	}

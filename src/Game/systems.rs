@@ -93,8 +93,10 @@ pub fn setup_world_system(
 
 		let y_offset	= 0.5;
 
-		let root_pos	= herr_io.translation;
+		let root_pos	= Vec3::new(1.0, 0.5, 1.0);
 		let root_e		= spawn::object_root(root_pos, &mut meshes, &mut materials, &mut commands);
+
+		herr_io.parent = Some(root_e);
 
 		match herr_io.spline.as_ref() {
 		Some(spline) => {
@@ -400,19 +402,17 @@ pub fn mouse_dragging_start_system(
 }
 
 pub fn mouse_dragging_system(
-	mut polylines		: ResMut<Assets<Polyline>>,
-    mut q_red			: Query<&Handle<Polyline>, With<RedLine>>,
-	mut q_green			: Query<&Handle<Polyline>, With<GreenLine>>,
-	mut q_blue			: Query<&Handle<Polyline>, With<BlueLine>>,
-
-	pick_source_query	: Query<&PickingCamera>,
-	mut draggable		: Query<
+	mut mouse_wheel_events	: EventReader<MouseWheel>,
+		pick_source_query	: Query<&PickingCamera>,
+	mut draggable			: Query<
 	(
 		Entity,
 		&mut Transform,
 		&mut Draggable
 	), With<DraggableActive>
-	>
+	>,
+		q_gizmo				: Query<Entity, With<Gizmo>>,
+		q_tile				: Query<Entity, With<Tile>>,
 ) {
 	let pick_source 	= pick_source_query.single();
 	if pick_source.ray().is_none() {
@@ -426,31 +426,53 @@ pub fn mouse_dragging_system(
 	let (entity, mut transform, mut drag) = draggable.single_mut();
 	let ray 			= pick_source.ray().unwrap();
 
-	let mut new_pick	= false;
+	let mut picked		= false;
 	if let Some(intersections) = pick_source.intersect_list() {
-		if intersections.len() > 1 {
-			drag.distance = std::f32::MAX;
-		}
-		for (e, data) in intersections.iter() {
-			if *e == entity {
+		let mut i		= 0;
+		let cnt			= intersections.len();
+		
+		while i < cnt {
+			let (e, data) = intersections[i];
+			i			+= 1;
+
+			if e == entity {
 				continue;
 			}
 
-			drag.distance = std::primitive::f32::min(data.distance(), drag.distance);
-			new_pick	= true;
+			if q_gizmo.get(e).is_ok() {
+				continue;
+			}
+
+			if q_tile.get(e).is_ok() {
+				continue;
+			}
+
+			if !picked {
+				picked 	= true;
+				drag.distance = data.distance();
+			} else {
+				drag.distance = std::primitive::f32::min(data.distance(), drag.distance);
+			}
 		}
 	}
 
-	if new_pick {
-		drag.distance -= 0.3;
-	}
 
-	let mut cur_pos 	= ray.origin() + ray.direction() * drag.distance;
+	let offset_from_picked = 0.5;
+
+	let mut cur_pos 	= ray.origin() + ray.direction() * (drag.distance - offset_from_picked);
 	let mut delta 		= cur_pos - drag.start_pos;
 	// TODO: implement blender-like controls g + axis etc
 
 	transform.translation = drag.init_transform.translation + delta;
-	// rotation coming
+
+	for event in mouse_wheel_events.iter() {
+		let dy = match event.unit {
+			MouseScrollUnit::Line => event.y * 5.,
+			MouseScrollUnit::Pixel => event.y,
+		};
+		screen_print!("event.y: {:.3} dy: {:.3}", event.y, dy);
+		transform.rotation *= Quat::from_rotation_y(dy.to_radians());
+    }
 }
 
 pub fn mouse_dragging_stop_system(
@@ -514,12 +536,11 @@ pub fn setup_herringbone_brick_road(
 
 	io.set_default		();
 
-	io.x_limit			= 10.0;
-	io.z_limit			= 10.0;
+	io.width			= 10.0;
+	io.length			= 10.0;
 	io.limit			= 100;
 
 	io.body_type		= RigidBody::Fixed;
-	io.translation		= Vec3::new(1.0, hsize.y, 1.0);
 	io.hsize			= hsize;
 	io.seam				= 0.01;
 	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
@@ -534,10 +555,10 @@ pub fn setup_herringbone_brick_road(
 	let tangent1		= Vec3::new(0.0, y_offset, 7.5);
 	// z_limit is used both for final coordinate and for final value of t to have road length tied to spline length and vice versa
 	let control_point0_pos = Vec3::new(0.0, y_offset, 0.0);
-	let control_point1_pos = Vec3::new(0.0, y_offset, io.z_limit);
+	let control_point1_pos = Vec3::new(0.0, y_offset, io.length);
 	// z_limit as final 't' value lets us probe spline from any z offset of a tile
 	let t0				= 0.0;
-	let t1				= io.z_limit;
+	let t1				= io.length;
 
 	let control_point0	= Key::new(t0, control_point0_pos, Interpolation::StrokeBezier(tangent0, tangent0));
 	let control_point1	= Key::new(t1, control_point1_pos, Interpolation::StrokeBezier(tangent1, tangent1));
@@ -664,9 +685,6 @@ pub fn on_object_root_moved(
 		Ok(pos)			=> *pos,
 		Err(_)			=> Transform::identity(),
 	};
-
-	io.translation		= root_pos.translation;
-	io.rotation			= root_pos.rotation;
 
 	step.reset 			= true;
 	step.next 			= true;

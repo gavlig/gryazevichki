@@ -105,6 +105,7 @@ pub fn spline_tangent(
 		..Default::default()
 	})
 	.insert				(handle)
+	.insert				(Gizmo)
 	.insert_bundle		(PickableBundle::default())
 	.insert				(Draggable::default())
 	.id();
@@ -129,6 +130,7 @@ pub fn spline_control_point(
 		..Default::default()
 	})
 	.insert				(handle)
+	.insert				(Gizmo)
 	.insert_bundle		(PickableBundle::default())
 	.insert				(Draggable::default())
 	.id();
@@ -149,6 +151,7 @@ pub fn object_root(
 		..Default::default()
 	})
 	.insert				(ObjectRoot)
+	.insert				(Gizmo)
 	.insert_bundle		(PickableBundle::default())
 	.insert				(Draggable::default())
 	// .insert				(GizmoTransformable)
@@ -341,6 +344,9 @@ pub fn wall(
 }
 
 #[derive(Component)]
+pub struct Tile;
+
+#[derive(Component)]
 pub struct Herringbone;
 
 pub struct HerringboneStepRequest {
@@ -374,8 +380,8 @@ pub struct HerringboneIO {
 	pub orientation		: Orientation2D,
 	pub finished_hor	: bool,
 	pub finished		: bool,
-	pub translation 	: Vec3,
-	pub rotation		: Quat,
+	pub transform		: Transform,
+	pub parent			: Option<Entity>,
 
 	pub spline			: Option<Spline<f32, Vec3>>,
 	pub prev_spline_p	: Option<Vec3>,
@@ -386,8 +392,8 @@ pub struct HerringboneIO {
 	pub seam			: f32,
 	
 	// read only
-	pub x_limit			: f32,
-	pub z_limit			: f32,
+	pub width			: f32,
+	pub length			: f32,
 	pub limit			: u32,
 
 	// cant copy
@@ -404,8 +410,8 @@ impl Default for HerringboneIO {
 			orientation	: Orientation2D::Horizontal,
 			finished_hor: false,
 			finished	: false,
-			translation : Vec3::ZERO,
-			rotation	: Quat::IDENTITY,
+			transform	: Transform::identity(),
+			parent		: None,
 
 			spline		: None,
 			prev_spline_p: None,
@@ -413,8 +419,8 @@ impl Default for HerringboneIO {
 			body_type 	: RigidBody::Fixed,
 			hsize 		: Vec3::ZERO,
 			seam		: 0.01,
-			x_limit		: 0.0,
-			z_limit		: 0.0,
+			width		: 0.0,
+			length		: 0.0,
 			limit		: 0,
 
 			mesh		: Handle::<Mesh>::default(),
@@ -444,8 +450,8 @@ impl HerringboneIO {
 			orientation	: self.orientation,
 			finished_hor: self.finished_hor,
 			finished	: self.finished,
-			translation : self.translation,
-			rotation	: self.rotation,
+			transform	: self.transform,
+			parent		: self.parent,
 
 			spline		: self.spline.clone(),
 			prev_spline_p: self.prev_spline_p.clone(),
@@ -454,8 +460,8 @@ impl HerringboneIO {
 			hsize 		: self.hsize,
 			seam		: self.seam,
 			
-			x_limit		: self.x_limit,
-			z_limit		: self.z_limit,
+			width		: self.width,
+			length		: self.length,
 			limit		: self.limit,
 
 			mesh		: self.mesh.clone_weak(),
@@ -584,12 +590,8 @@ pub fn herringbone_brick_road_iter(
 
 	let mut pose 		= Transform::identity();
 
-	// root offset
-	pose.translation	= io.translation;
-	pose.rotation		= io.rotation;
-
-	//
-	pose.translation.x	-= io.x_limit / 2.0;
+	// half width shift to appear in the middle
+	pose.translation.x	-= io.width / 2.0;
 
 	// tile offset/rotation
 	pose.translation.x	+= offset_x + seam_offset_x;
@@ -615,25 +617,42 @@ pub fn herringbone_brick_road_iter(
 		_ => (),
 	}
 
-	commands.spawn_bundle(PbrBundle{ mesh: me, material: ma, ..default() })
-		.insert			(io.body_type)
-		.insert			(pose)
-		.insert			(GlobalTransform::default())
-		.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
-		// .insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
-		.insert_bundle	(PickableBundle::default())
-		// .insert			(Draggable::default())
-		.insert			(Herringbone)
-		.insert			(io.clone());
+	{
+		macro_rules! insert_tile_components {
+			($a:expr) => {
+				$a	
+				.insert			(io.body_type)
+				.insert			(io.transform * pose)
+				.insert			(GlobalTransform::default())
+				.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
+				// .insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+				.insert_bundle	(PickableBundle::default())
+				// .insert			(Draggable::default())
+				.insert			(Herringbone)
+				.insert			(Tile)
+				.insert			(io.clone());
+			}
+		}
+
+		let bundle = PbrBundle{ mesh: me, material: ma, ..default() };
+
+		if io.parent.is_some() {
+			commands.entity(io.parent.unwrap()).with_children(|parent| {
+				insert_tile_components!(parent.spawn_bundle(bundle));
+			});
+		} else {
+			insert_tile_components!(commands.spawn_bundle(bundle));
+		}
+	}
 
 	// if only io.limit is given set limits in cordinates anyway because otherwise we don't know where to stop not on diagonal
 	if io.iter == io.limit {
-		if io.x_limit == 0.0 {
-			io.x_limit = offset_x;
+		if io.width == 0.0 {
+			io.width = offset_x;
 		}
 
-		if io.z_limit == 0.0 {
-			io.z_limit = offset_z;
+		if io.length == 0.0 {
+			io.length = offset_z;
 		}
 	}
 
@@ -647,8 +666,8 @@ pub fn herringbone_brick_road_iter(
 	let newoffz	= calc_offset_z		(io.z as f32, iter1, io.orientation)
 				+ calc_seam_offset_z(io.z as f32, iter1, io.orientation, seam);
 
-	if ((newoffx >= io.x_limit) && (io.x_limit != 0.0))
-	|| ((newoffz >= io.z_limit) && (io.z_limit != 0.0))
+	if ((newoffx >= io.width) && (io.width != 0.0))
+	|| ((newoffz >= io.length) && (io.length != 0.0))
 	|| (io.iter >= io.limit && io.limit != 0)
 	{
 		let prev_orientation = io.orientation.clone();
@@ -665,10 +684,10 @@ pub fn herringbone_brick_road_iter(
 			let newoffz	= calc_offset_z		((io.z + 1) as f32, io.iter as f32, io.orientation)
 						+ calc_seam_offset_z((io.z + 1) as f32, io.iter as f32, io.orientation, seam);
 
-			if newoffx < io.x_limit && !io.finished_hor {
+			if newoffx < io.width && !io.finished_hor {
 				io.x	+= 1;
 				// println!("x =+ 1 new offx {:.3}", newoffx);
-			} else if newoffz < io.z_limit {
+			} else if newoffz < io.length {
 				io.x	= 0;
 				io.z	+= 1;
 				io.finished_hor = true;

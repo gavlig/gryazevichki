@@ -73,7 +73,8 @@
 49.3.4. multiple handles
 49.3.5. (done!)rotate tiles along spline normal
 49.3.6. verticality
-49.4. ()movable root
+49.4. (done!)movable root
+49.4.1 bug: when root is rotated dragging control points is broken
 49.5. borders
 49.6. render models
 49.7. random rotation/artifacts on tiles

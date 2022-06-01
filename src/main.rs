@@ -42,7 +42,7 @@ fn main() {
 
 		.add_plugin				(PolylinePlugin)
 		.add_plugin				(DebugLinesPlugin::default())
-		.add_plugin				(OverlayPlugin { font_size: 32.0, ..default() })
+		.add_plugin				(OverlayPlugin { font_size: 12.0, fallback_color: Color::rgb(0.1, 0.1, 0.1), ..default() })
 		// .add_plugin				(TransformGizmoPlugin::default())
 		// it glitches and hides the ground
 		// .add_plugin				(AtmospherePlugin {
@@ -66,6 +66,7 @@ fn main() {
 		.add_system				(vehicle_params_ui_system.run_in_state(GameMode::Editor))
 
 // 		.add_system				(daylight_cycle)
+		.add_system				(show_fps)
 
  		.add_system_to_stage	(CoreStage::Last, save_vehicle_config_system)
  		.add_system_to_stage	(CoreStage::Last, load_vehicle_config_system)
@@ -122,6 +123,16 @@ fn _spawn_gltf(
 	}).with_children(|parent| {
 		parent.spawn_scene(my_gltf);
 	});
+}
+
+fn show_fps(time: Res<Time>) {
+	let current_time = time.seconds_since_startup();
+    let at_interval = |t: f64| current_time % t < time.delta_seconds_f64();
+    if at_interval(0.1) {
+        let last_fps = 1.0 / time.delta_seconds();
+        screen_print!("fps: {last_fps:.0}");
+        screen_print!("current time: {current_time:.2}")
+    }
 }
 
 fn _screen_print_text(time: Res<Time>) {
