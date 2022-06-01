@@ -428,14 +428,15 @@ pub fn mouse_dragging_system(
 
 	let mut new_pick	= false;
 	if let Some(intersections) = pick_source.intersect_list() {
-		let mut new_min = std::f32::MAX;
+		if intersections.len() > 1 {
+			drag.distance = std::f32::MAX;
+		}
 		for (e, data) in intersections.iter() {
 			if *e == entity {
 				continue;
 			}
 
-			new_min 	= std::primitive::f32::min(data.distance(), new_min);
-			drag.distance = new_min;
+			drag.distance = std::primitive::f32::min(data.distance(), drag.distance);
 			new_pick	= true;
 		}
 	}
@@ -453,11 +454,11 @@ pub fn mouse_dragging_system(
 }
 
 pub fn mouse_dragging_stop_system(
-		btn					: Res<Input<MouseButton>>,
-		draggable_active	: Query<Entity, With<DraggableActive>>,
-	mut commands			: Commands
+		btn				: Res<Input<MouseButton>>,
+		draggable_active: Query<Entity, With<DraggableActive>>,
+	mut commands		: Commands
 ) {
-	let just_released = btn.just_released(MouseButton::Left);
+	let just_released	= btn.just_released(MouseButton::Left);
 	if !just_released {
 		return;
 	}
@@ -466,8 +467,8 @@ pub fn mouse_dragging_stop_system(
 		return;
 	}
 
-	let entity = draggable_active.single();
-	commands.entity(entity).remove::<DraggableActive>();
+	let draggable			= draggable_active.single();
+	commands.entity(draggable).remove::<DraggableActive>();
 }
 
 #[derive(Default)]
