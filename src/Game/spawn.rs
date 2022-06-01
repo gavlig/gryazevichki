@@ -282,24 +282,24 @@ pub fn spheres(
 
 	for i in 0 ..= num {
 		for j in 0 ..= num {
-			let mut pose 	= Transform::from_translation(offset.clone());
+			let mut pose = Transform::from_translation(offset.clone());
 			pose.translation.x += i as f32 * ((r * 2.0) + 1.0);
 			pose.translation.z += j as f32 * ((r * 2.0) + 1.0);
 
-			let friction 	= i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
+			let friction = i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
 			let friction_inv = 1.0 - friction;
-			let color		= Color::rgb(friction_inv, friction_inv, friction_inv);
+			let color	= Color::rgb(friction_inv, friction_inv, friction_inv);
 
 			commands.spawn_bundle(PbrBundle {
-				mesh			: meshes.add	(Mesh::from(render_shape::UVSphere{ radius : r, ..default() })),
-				material		: materials.add	(color.into()),
+				mesh	: meshes.add	(Mesh::from(render_shape::UVSphere{ radius : r, ..default() })),
+				material: materials.add	(color.into()),
 				..default()
 			})
-			.insert				(RigidBody::Dynamic)
-			.insert				(pose)
-			.insert				(GlobalTransform::default())
-			.insert				(Collider::ball(r));
-		//	.insert				(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+			.insert		(RigidBody::Dynamic)
+			.insert		(pose)
+			.insert		(GlobalTransform::default())
+			.insert		(Collider::ball(r));
+		//	.insert		(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		}
 	}
 }
@@ -316,24 +316,24 @@ pub fn wall(
 
 	for i in 0 ..= num {
 		for j in 0 ..= 5 {
-			let mut pose 	= Transform::from_translation(offset.clone());
+			let mut pose = Transform::from_translation(offset.clone());
 			pose.translation.x += i as f32 * (hsize.x * 2.0);// + 0.05;
 			pose.translation.y += j as f32 * (hsize.y * 2.0);// + 0.4;
 
-			let friction 	= i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
+			let friction = i as f32 * (1.0 / num as f32); // so that when i == num => friction == 1
 			let friction_inv = 1.0 - friction;
-			let color		= Color::rgb(friction_inv, friction_inv, friction_inv);
+			let color	= Color::rgb(friction_inv, friction_inv, friction_inv);
 
 			commands.spawn_bundle(PbrBundle {
-				mesh			: meshes.add	(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0))),
-				material		: materials.add	(color.into()),
+				mesh	: meshes.add	(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0))),
+				material: materials.add	(color.into()),
 				..default()
 			})
-			.insert				(RigidBody::Dynamic)
-			.insert				(pose)
-			.insert				(GlobalTransform::default())
-			.insert				(Collider::cuboid(hsize.x, hsize.y, hsize.z));
-		//	.insert				(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
+			.insert		(RigidBody::Dynamic)
+			.insert		(pose)
+			.insert		(GlobalTransform::default())
+			.insert		(Collider::cuboid(hsize.x, hsize.y, hsize.z));
+		//	.insert		(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		}
 	}
 }
