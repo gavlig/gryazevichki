@@ -8,6 +8,7 @@ use bevy_mod_raycast:: { * };
 use bevy_polyline	:: { prelude :: * };
 use bevy_prototype_debug_lines :: { * };
 use iyes_loopless	:: { prelude :: * };
+use bevy_debug_text_overlay :: { screen_print };
 
 use std				:: { path::PathBuf };
 use splines			:: { Interpolation, Key, Spline };
@@ -413,7 +414,7 @@ pub fn mouse_dragging_system(
 	), With<DraggableActive>
 	>
 ) {
-	let pick_source = pick_source_query.single();
+	let pick_source 	= pick_source_query.single();
 	if pick_source.ray().is_none() {
 		return;
 	}
@@ -423,82 +424,29 @@ pub fn mouse_dragging_system(
 	}
 	
 	let (entity, mut transform, mut drag) = draggable.single_mut();
+	let ray 			= pick_source.ray().unwrap();
 
-	let ray = pick_source.ray().unwrap();
-
-	let mut drag_distance = drag.distance;
+	let mut new_pick	= false;
 	if let Some(intersections) = pick_source.intersect_list() {
+		let mut new_min = std::f32::MAX;
 		for (e, data) in intersections.iter() {
 			if *e == entity {
 				continue;
 			}
 
-			drag_distance = std::primitive::f32::min(data.distance(), drag_distance);
+			new_min 	= std::primitive::f32::min(data.distance(), new_min);
+			drag.distance = new_min;
+			new_pick	= true;
 		}
 	}
-	
 
-	let mut cur_pos = ray.origin() + ray.direction() * drag_distance;
+	if new_pick {
+		drag.distance -= 0.3;
+	}
+
+	let mut cur_pos 	= ray.origin() + ray.direction() * drag.distance;
+	let mut delta 		= cur_pos - drag.start_pos;
 	// TODO: implement blender-like controls g + axis etc
-	let mut delta = cur_pos - drag.start_pos;
-
-
-	//
-
-	let mut origin = ray.origin();
-
-	let mut target = cur_pos;
-
-	if false {
-		let red_line	= polylines.get_mut(q_red.single()).unwrap();
-		red_line.vertices.resize(10, Vec3::ZERO);
-		red_line.vertices[0] = origin;
-		red_line.vertices[1] = target;
-		red_line.vertices[2] = target + Vec3::Z * 0.3;
-		red_line.vertices[3] = target;
-		red_line.vertices[4] = target - Vec3::Z * 0.3;
-		red_line.vertices[5] = target;
-		red_line.vertices[6] = target + Vec3::Y * 0.2;
-		red_line.vertices[7] = target;
-		red_line.vertices[8] = target - Vec3::Y * 0.2;
-		red_line.vertices[9] = target;
-	}
-	
-	target = ray.origin() + ray.direction() * drag_distance;
-
-	if false {
-		let green_line	= polylines.get_mut(q_green.single()).unwrap();
-		green_line.vertices.resize(10, Vec3::ZERO);
-		green_line.vertices[0] = origin;
-		green_line.vertices[1] = target;
-		green_line.vertices[2] = target + Vec3::X * 0.3;
-		green_line.vertices[3] = target;
-		green_line.vertices[4] = target - Vec3::X * 0.3;
-		green_line.vertices[5] = target;
-		green_line.vertices[6] = target + Vec3::Z * 0.2;
-		green_line.vertices[7] = target;
-		green_line.vertices[8] = target - Vec3::Z * 0.2;
-		green_line.vertices[9] = target;
-	}
-	
-	target = ray.origin() + ray.direction() * drag_distance;
-
-	if false {
-		let blue_line	= polylines.get_mut(q_blue.single()).unwrap();
-		blue_line.vertices.resize(10, Vec3::ZERO);
-		blue_line.vertices[0] = origin;
-		blue_line.vertices[1] = target;
-		blue_line.vertices[2] = target + Vec3::X * 0.2;
-		blue_line.vertices[3] = target;
-		blue_line.vertices[4] = target - Vec3::X * 0.2;
-		blue_line.vertices[5] = target;
-		blue_line.vertices[6] = target + Vec3::Y * 0.3;
-		blue_line.vertices[7] = target;
-		blue_line.vertices[8] = target - Vec3::Y * 0.3;
-		blue_line.vertices[9] = target;
-	}
-
-	//
 
 	transform.translation = drag.init_transform.translation + delta;
 	// rotation coming
