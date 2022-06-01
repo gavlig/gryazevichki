@@ -16,20 +16,24 @@ opt-level = 3
 
 [dependencies]
 
-scopeguard = "1.1.0"
-directories = "4.0"
-ron = "0.7"
-serde = { version = "1", features = ["derive"] }
-bevy = { version = "0.7" } #, features = ["dynamic"] }
-rapier3d = { git = "https://github.com/gavlig/rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render", "parallel" ] }
-bevy_rapier3d = { git = "https://github.com/gavlig/bevy_rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render", "parallel" ] }
-bevy_egui = "0.13"
-bevy_fly_camera = { git = "https://github.com/gavlig/bevy_fly_camera.git", branch = "gryazevichki" }
-bevy_atmosphere = "0.3.1"
-bevy_mod_picking = "0.6" 
-bevy_mod_raycast = "0.4.0"
-iyes_loopless = "0.5.1"
-splines = { version = "4.1.0", features = ["glam"] }
+scopeguard			= "1.1.0"
+directories 		= "4.0"
+ron 				= "0.7"
+serde 				= { version = "1", features = ["derive"] }
+bevy 				= { version = "0.7" } #, features = ["dynamic"] }
+rapier3d 			= { git = "https://github.com/gavlig/rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render", "parallel" ] }
+bevy_rapier3d 		= { git = "https://github.com/gavlig/bevy_rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render", "parallel" ] }
+bevy_egui 			= "0.13"
+bevy_fly_camera		= { git = "https://github.com/gavlig/bevy_fly_camera.git", branch = "gryazevichki" }
+bevy_atmosphere		= "0.3.1"
+bevy_mod_picking	= "0.6" 
+bevy_mod_raycast	= "0.4.0"
+iyes_loopless 		= "0.5.1"
+bevy_polyline		= "0.2"
+bevy_prototype_debug_lines = { version = "0.7.1", features = [ "3d" ] }
+splines 			= { version = "4.1.0", features = ["glam"] }
 #bevy_transform_gizmo = { path = "../bevy_transform_gizmo/" }
 
-[patch.crates-io]
+#[patch.crates-io]
+#bevy_rapier3d		= { path = "../bevy_rapier/bevy_rapier3d/", features = [ "simd-stable", "debug-render", "parallel" ] }
+#rapier3d			= { path = "../rapier/crates/rapier3d/", features = [ "simd-stable", "debug-render", "parallel" ] }

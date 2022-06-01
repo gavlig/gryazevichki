@@ -5,6 +5,8 @@ use bevy_rapier3d	:: { prelude :: * };
 use bevy_fly_camera	:: { FlyCamera };
 use bevy_mod_picking:: { * };
 use bevy_mod_raycast:: { * };
+use bevy_polyline	:: { prelude :: * };
+use bevy_prototype_debug_lines :: { * };
 use iyes_loopless	:: { prelude :: * };
 
 use std				:: { path::PathBuf };
@@ -33,6 +35,15 @@ pub fn setup_camera_system(
 	}
 }
 
+#[derive(Component)]
+pub struct RedLine;
+
+#[derive(Component)]
+pub struct GreenLine;
+
+#[derive(Component)]
+pub struct BlueLine;
+
 pub fn setup_world_system(
 	mut _configuration	: ResMut<RapierConfiguration>,
 	mut	phys_ctx		: ResMut<DebugRenderContext>,
@@ -41,7 +52,10 @@ pub fn setup_world_system(
 	mut	meshes			: ResMut<Assets<Mesh>>,
 	mut	materials		: ResMut<Assets<StandardMaterial>>,
 		ass				: Res<AssetServer>,
-	mut commands		: Commands
+	mut commands		: Commands,
+
+	mut polylines		: ResMut<Assets<Polyline>>,
+	mut polyline_materials: ResMut<Assets<PolylineMaterial>>,
 ) {
 //	configuration.timestep_mode = TimestepMode::VariableTimestep;
 	phys_ctx.enabled	= false;
@@ -103,6 +117,54 @@ pub fn setup_world_system(
 		}
 		None => (),
 		}
+	}
+
+	// polyline
+	if false {
+		commands.spawn_bundle(PolylineBundle {
+			polyline: polylines.add(Polyline {
+				vertices: vec![-Vec3::Z, Vec3::Z],
+				..default()
+			}),
+			material: polyline_materials.add(PolylineMaterial {
+				width: 20.0,
+				color: Color::RED,
+				perspective: true,
+				..default()
+			}),
+			..default()
+		})
+		.insert(RedLine);
+		
+		commands.spawn_bundle(PolylineBundle {
+			polyline: polylines.add(Polyline {
+				vertices: vec![-Vec3::Z, Vec3::Z],
+				..default()
+			}),
+			material: polyline_materials.add(PolylineMaterial {
+				width: 20.0,
+				color: Color::SEA_GREEN,
+				perspective: true,
+				..default()
+			}),
+			..default()
+		})
+		.insert(GreenLine);
+	
+		commands.spawn_bundle(PolylineBundle {
+			polyline: polylines.add(Polyline {
+				vertices: vec![-Vec3::Z, Vec3::Z],
+				..default()
+			}),
+			material: polyline_materials.add(PolylineMaterial {
+				width: 20.0,
+				color: Color::MIDNIGHT_BLUE,
+				perspective: true,
+				..default()
+			}),
+			..default()
+		})
+		.insert(BlueLine);
 	}
 
 	let veh_file		= Some(PathBuf::from("corvette.ron"));
@@ -337,6 +399,11 @@ pub fn mouse_dragging_start_system(
 }
 
 pub fn mouse_dragging_system(
+	mut polylines		: ResMut<Assets<Polyline>>,
+    mut q_red			: Query<&Handle<Polyline>, With<RedLine>>,
+	mut q_green			: Query<&Handle<Polyline>, With<GreenLine>>,
+	mut q_blue			: Query<&Handle<Polyline>, With<BlueLine>>,
+
 	pick_source_query	: Query<&PickingCamera>,
 	mut draggable		: Query<
 	(
@@ -374,6 +441,64 @@ pub fn mouse_dragging_system(
 	let mut cur_pos = ray.origin() + ray.direction() * drag_distance;
 	// TODO: implement blender-like controls g + axis etc
 	let mut delta = cur_pos - drag.start_pos;
+
+
+	//
+
+	let mut origin = ray.origin();
+
+	let mut target = cur_pos;
+
+	if false {
+		let red_line	= polylines.get_mut(q_red.single()).unwrap();
+		red_line.vertices.resize(10, Vec3::ZERO);
+		red_line.vertices[0] = origin;
+		red_line.vertices[1] = target;
+		red_line.vertices[2] = target + Vec3::Z * 0.3;
+		red_line.vertices[3] = target;
+		red_line.vertices[4] = target - Vec3::Z * 0.3;
+		red_line.vertices[5] = target;
+		red_line.vertices[6] = target + Vec3::Y * 0.2;
+		red_line.vertices[7] = target;
+		red_line.vertices[8] = target - Vec3::Y * 0.2;
+		red_line.vertices[9] = target;
+	}
+	
+	target = ray.origin() + ray.direction() * drag_distance;
+
+	if false {
+		let green_line	= polylines.get_mut(q_green.single()).unwrap();
+		green_line.vertices.resize(10, Vec3::ZERO);
+		green_line.vertices[0] = origin;
+		green_line.vertices[1] = target;
+		green_line.vertices[2] = target + Vec3::X * 0.3;
+		green_line.vertices[3] = target;
+		green_line.vertices[4] = target - Vec3::X * 0.3;
+		green_line.vertices[5] = target;
+		green_line.vertices[6] = target + Vec3::Z * 0.2;
+		green_line.vertices[7] = target;
+		green_line.vertices[8] = target - Vec3::Z * 0.2;
+		green_line.vertices[9] = target;
+	}
+	
+	target = ray.origin() + ray.direction() * drag_distance;
+
+	if false {
+		let blue_line	= polylines.get_mut(q_blue.single()).unwrap();
+		blue_line.vertices.resize(10, Vec3::ZERO);
+		blue_line.vertices[0] = origin;
+		blue_line.vertices[1] = target;
+		blue_line.vertices[2] = target + Vec3::X * 0.2;
+		blue_line.vertices[3] = target;
+		blue_line.vertices[4] = target - Vec3::X * 0.2;
+		blue_line.vertices[5] = target;
+		blue_line.vertices[6] = target + Vec3::Y * 0.3;
+		blue_line.vertices[7] = target;
+		blue_line.vertices[8] = target - Vec3::Y * 0.3;
+		blue_line.vertices[9] = target;
+	}
+
+	//
 
 	transform.translation = drag.init_transform.translation + delta;
 	// rotation coming

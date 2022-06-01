@@ -1,6 +1,6 @@
-use bevy			::	prelude :: *;
-use bevy_rapier3d	::	prelude :: *;
-use rapier3d		::	dynamics :: { JointAxis };
+use bevy			::	prelude		:: { * };
+use bevy_rapier3d	::	prelude		:: { ImpulseJoint };
+use rapier3d		::	dynamics	:: { JointAxis };
 
 use super			::	{ RespawnableEntity };
 
