@@ -6,6 +6,7 @@ use bevy_atmosphere	::	{ * };
 use bevy_mod_picking::	{ * };
 use bevy_polyline	::	{ * };
 use bevy_prototype_debug_lines	:: { * };
+use bevy_debug_text_overlay		:: { screen_print, OverlayPlugin };
 // use bevy_transform_gizmo :: { * }; 
 
 use iyes_loopless	::	prelude :: { * };
@@ -38,8 +39,10 @@ fn main() {
 		.add_plugin				(FlyCameraPlugin)
 		.add_plugin				(EguiPlugin)
 		.add_plugins			(DefaultPickingPlugins)
+
 		.add_plugin				(PolylinePlugin)
 		.add_plugin				(DebugLinesPlugin::default())
+		.add_plugin				(OverlayPlugin { font_size: 32.0, ..default() })
 		// .add_plugin				(TransformGizmoPlugin::default())
 		// it glitches and hides the ground
 		// .add_plugin				(AtmospherePlugin {
@@ -119,4 +122,22 @@ fn _spawn_gltf(
 	}).with_children(|parent| {
 		parent.spawn_scene(my_gltf);
 	});
+}
+
+fn _screen_print_text(time: Res<Time>) {
+    let current_time = time.seconds_since_startup();
+    let at_interval = |t: f64| current_time % t < time.delta_seconds_f64();
+    let x = (13, 3.4, vec![1,2,3,4,5,6,7,8]);
+    if at_interval(0.1) {
+        let last_fps = 1.0 / time.delta_seconds();
+        screen_print!(col: Color::CYAN, "fps: {last_fps:.0}");
+        screen_print!("current time: {current_time:.2}")
+    }
+    if at_interval(2.0) {
+        let col = Color::FUCHSIA;
+        screen_print!(sec: 0.5, col: col, "every two seconds: {}, {:?}", x.0, x.2)
+    }
+    if at_interval(5.0) {
+        screen_print!(sec: 3.0, "every five seconds: {x:#?}");
+    }
 }

@@ -30,6 +30,8 @@ pub fn camera(
 
 	game.camera			= Some(camera);
 	println!			("camera Entity ID {:?}", camera);
+
+	commands.spawn_bundle(UiCameraBundle::default());
 }
 
 pub fn ground(
@@ -557,7 +559,6 @@ pub fn herringbone_brick_road_iter(
 		Some(p)			=> p,
 		// sample wasnt a succes, try previuos point on spline
 		None			=> {
-			println!	("NONE t: {}", t);
 			match io.prev_spline_p {
 				Some(p)	=> p,
 				None	=> Vec3::ZERO,
