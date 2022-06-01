@@ -337,13 +337,14 @@ pub fn mouse_dragging_start_system(
 }
 
 pub fn mouse_dragging_system(
-	pick_source_query : Query<&PickingCamera>,
-	mut draggable: Query<
+	pick_source_query	: Query<&PickingCamera>,
+	mut draggable		: Query<
 	(
+		Entity,
 		&mut Transform,
-		&Draggable
+		&mut Draggable
 	), With<DraggableActive>
-	>,
+	>
 ) {
 	let pick_source = pick_source_query.single();
 	if pick_source.ray().is_none() {
@@ -354,14 +355,28 @@ pub fn mouse_dragging_system(
 		return;
 	}
 	
-	let (mut transform, drag) = draggable.single_mut();
+	let (entity, mut transform, mut drag) = draggable.single_mut();
 
 	let ray = pick_source.ray().unwrap();
-	let mut cur_pos = ray.origin() + ray.direction() * drag.distance;
-	cur_pos.y = drag.start_pos.y; // TODO: implement blender-like controls g + axis etc
-	let delta = cur_pos - drag.start_pos;
+
+	let mut drag_distance = drag.distance;
+	if let Some(intersections) = pick_source.intersect_list() {
+		for (e, data) in intersections.iter() {
+			if *e == entity {
+				continue;
+			}
+
+			drag_distance = std::primitive::f32::min(data.distance(), drag_distance);
+		}
+	}
+	
+
+	let mut cur_pos = ray.origin() + ray.direction() * drag_distance;
+	// TODO: implement blender-like controls g + axis etc
+	let mut delta = cur_pos - drag.start_pos;
 
 	transform.translation = drag.init_transform.translation + delta;
+	// rotation coming
 }
 
 pub fn mouse_dragging_stop_system(

@@ -52,7 +52,7 @@ pub fn ground(
 		.insert			(Collider::cuboid(ground_size, ground_height, ground_size))
 		.insert			(Transform::from_xyz(0.0, -ground_height, 0.0))
 		.insert			(GlobalTransform::default())
-//		.insert			(PickableMesh::default())
+		.insert			(PickableMesh::default())
 		.id				();
 		
 	println!			("ground Entity ID {:?}", ground);
