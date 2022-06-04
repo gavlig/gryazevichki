@@ -49,7 +49,7 @@ pub fn setup_world_system(
 	mut _configuration	: ResMut<RapierConfiguration>,
 	mut	phys_ctx		: ResMut<DebugRenderContext>,
 	mut game			: ResMut<GameState>,
-	mut herr_io			: ResMut<HerringboneIO>,
+	mut herr_io			: ResMut<Herringbone::IO>,
 	mut	meshes			: ResMut<Assets<Mesh>>,
 	mut	materials		: ResMut<Assets<StandardMaterial>>,
 		ass				: Res<AssetServer>,
@@ -89,12 +89,12 @@ pub fn setup_world_system(
 
 	if true {
 		// TODO: make it startup system instead
-		setup_herringbone_brick_road(&mut herr_io, &mut meshes, &mut materials, &ass, &mut commands);
+		Herringbone::brick_road_setup(&mut herr_io, &mut meshes, &mut materials, &ass, &mut commands);
 
 		let y_offset	= 0.5;
 
-		let root_pos	= Vec3::new(1.0, 0.5, 1.0);
-		let root_e		= spawn::object_root(root_pos, &mut meshes, &mut materials, &mut commands);
+		let root_pos	= Vec3::new(1.0, y_offset, 1.0);
+		let root_e		= Herringbone::spawn::object_root(root_pos, &mut meshes, &mut materials, &mut commands);
 
 		herr_io.parent = Some(root_e);
 
@@ -103,20 +103,20 @@ pub fn setup_world_system(
 			let key0	= spline.get(0).unwrap();
 			match key0.interpolation {
 				Interpolation::StrokeBezier(V0, V1) => {
-					spawn::spline_tangent(root_e, V0, SplineTangent::ID(0), &mut meshes, &mut materials, &mut commands);
+					Herringbone::spawn::spline_tangent(root_e, V0, SplineTangent::ID(0), &mut meshes, &mut materials, &mut commands);
 				},
 				_ => (),
 			};
-			spawn::spline_control_point(root_e, key0.value, SplineControlPoint::ID(0), &mut meshes, &mut materials, &mut commands);
+			Herringbone::spawn::spline_control_point(root_e, key0.value, SplineControlPoint::ID(0), &mut meshes, &mut materials, &mut commands);
 
 			let key1	= spline.get(1).unwrap();
 			match key1.interpolation {
 				Interpolation::StrokeBezier(V0, V1) => {
-					spawn::spline_tangent(root_e, V0, SplineTangent::ID(1), &mut meshes, &mut materials, &mut commands);
+					Herringbone::spawn::spline_tangent(root_e, V0, SplineTangent::ID(1), &mut meshes, &mut materials, &mut commands);
 				},
 				_ => (),
 			};
-			spawn::spline_control_point(root_e, key1.value, SplineControlPoint::ID(1), &mut meshes, &mut materials, &mut commands);
+			Herringbone::spawn::spline_control_point(root_e, key1.value, SplineControlPoint::ID(1), &mut meshes, &mut materials, &mut commands);
 		}
 		None => (),
 		}
@@ -300,7 +300,7 @@ pub fn input_misc_system(
 		_game		: Res<GameState>,
 		time		: Res<Time>,
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
-	mut step		: ResMut<HerringboneStepRequest>,
+	mut step		: ResMut<Herringbone::StepRequest>,
 	mut exit		: EventWriter<AppExit>,
 	mut query		: Query<&mut FlyCamera>,
 ) {
@@ -431,7 +431,7 @@ pub fn mouse_dragging_system(
 	), With<DraggableActive>
 	>,
 		q_gizmo				: Query<Entity, With<Gizmo>>,
-		q_tile				: Query<Entity, With<Tile>>,
+		q_tile				: Query<Entity, With<Herringbone::Tile>>,
 ) {
 	if draggable.is_empty() {
 		return;
@@ -626,172 +626,4 @@ pub fn display_events_system(
 //			ContactEvent::Stopped(collider1, collider2) => println!("Received contact STOP event: collider1 {:?} collider2 {:?}", collider1.entity(), collider2.entity()),
 //		}
 //	}
-}
-
-pub fn setup_herringbone_brick_road(
-	io					: &mut ResMut<HerringboneIO>,
-	meshes				: &mut ResMut<Assets<Mesh>>,
-	materials			: &mut ResMut<Assets<StandardMaterial>>,
-	ass					: &Res<AssetServer>,
-	mut commands		: &mut Commands
-) {
-//	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
-	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
-//	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
-
-	io.set_default		();
-
-	io.width			= 10.0;
-	io.length			= 10.0;
-	io.limit			= 100;
-
-	io.body_type		= RigidBody::Fixed;
-	io.hsize			= hsize;
-	io.seam				= 0.01;
-	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
-	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
-
-	let y_offset		= 0.5;
-	
-	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
-	//
-	//
-	let tangent0		= Vec3::new(0.0, y_offset, 2.5);
-	let tangent1		= Vec3::new(0.0, y_offset, 7.5);
-	// z_limit is used both for final coordinate and for final value of t to have road length tied to spline length and vice versa
-	let control_point0_pos = Vec3::new(0.0, y_offset, 0.0);
-	let control_point1_pos = Vec3::new(0.0, y_offset, io.length);
-	// z_limit as final 't' value lets us probe spline from any z offset of a tile
-	let t0				= 0.0;
-	let t1				= io.length;
-
-	let control_point0	= Key::new(t0, control_point0_pos, Interpolation::StrokeBezier(tangent0, tangent0));
-	let control_point1	= Key::new(t1, control_point1_pos, Interpolation::StrokeBezier(tangent1, tangent1));
-
-	io.spline 			= Some(Spline::from_vec(vec![control_point0, control_point1]));
-}
-
-pub fn herringbone_brick_road_system(
-	mut step			: ResMut<HerringboneStepRequest>,
-	mut io				: ResMut<HerringboneIO>,
-	mut despawn			: ResMut<DespawnResource>,
-		time			: Res<Time>,
-		ass				: Res<AssetServer>,
-
-		query			: Query<Entity, With<Herringbone>>,
-
-	mut commands		: Commands
-) {
-	if step.reset {
-		for e in query.iter() {
-			despawn.entities.push(e);
-		}
-	
-		io.reset_changed();
-	
-		step.reset		= false;
-	}
-
-	let do_spawn 		= step.next || step.animate;
-	if !do_spawn || io.finished {
-		return;
-	}
-
-	let cur_time		= time.seconds_since_startup();
-	if (cur_time - step.last_update) < step.anim_delay_sec && !step.instant {
-		return;
-	}
-
-	step.last_update 	= cur_time;
-
-	if !step.instant {
-		spawn::herringbone_brick_road_iter(&mut io, &ass, &mut commands);
-	} else {
-		loop {
-			spawn::herringbone_brick_road_iter(&mut io, &ass, &mut commands);
-			if io.finished {
-				step.instant = false;
-				break;
-			}
-		}
-	}
-
-	step.next			= false;
-
-	if io.finished {
-		step.animate	= false;
-	}
-}
-
-pub fn on_spline_tangent_moved(
-	mut step			: ResMut<HerringboneStepRequest>,
-	mut io				: ResMut<HerringboneIO>,
-		time			: Res<Time>,
-		q_tangent 		: Query<(&Transform, &SplineTangent), Changed<Transform>>,
-) {
-	if time.seconds_since_startup() < 1.0 {
-		return;
-	}
-
-	for (tform, tan) in q_tangent.iter() {
-		let tan_pos		= tform.translation;
-		match tan {
-			SplineTangent::ID(id) => {
-				io.set_spline_interpolation(*id, Interpolation::StrokeBezier(tan_pos, tan_pos));
-				step.reset = true;
-				step.next = true;
-				step.instant = true;
-			},
-		}
-	}
-}
-
-pub fn on_spline_control_point_moved(
-	mut step			: ResMut<HerringboneStepRequest>,
-	mut io				: ResMut<HerringboneIO>,
-		time			: Res<Time>,
-		q_controlp 		: Query<(&Transform, &SplineControlPoint), Changed<Transform>>,
-) {
-	if time.seconds_since_startup() < 1.0 {
-		return;
-	}
-
-	for (tform, controlp) in q_controlp.iter() {
-		let controlp_pos = tform.translation;
-		match controlp {
-			SplineControlPoint::ID(id) => {
-				io.set_spline_control_point(*id, controlp_pos);
-
-				// io.x_limit = 
-
-				step.reset = true;
-				step.next = true;
-				step.instant = true;
-			},
-		}
-	}
-}
-
-pub fn on_object_root_moved(
-	mut step			: ResMut<HerringboneStepRequest>,
-	mut io				: ResMut<HerringboneIO>,
-		time			: Res<Time>,
-		q_root			: Query<&Transform, (With<ObjectRoot>, Changed<Transform>)>,
-) {
-	if time.seconds_since_startup() < 1.0 {
-		return;
-	}
-
-	if q_root.is_empty() {
-		return;
-	}
-
-	let root_pos		= match q_root.get_single() {
-		Ok(pos)			=> *pos,
-		Err(_)			=> Transform::identity(),
-	};
-
-	step.reset 			= true;
-	step.next 			= true;
-	step.instant 		= true;
 }

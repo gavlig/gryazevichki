@@ -81,7 +81,7 @@
 49.8. optimize spawning huge amounts of dynamic tiles (dynamic -> fixed after a few seconds or sleeping maybe)
 49.9. (done!)sync io limits and spline t
 49.10. refactor IO thing and setup
-49.11. move to own file
+49.11. (done!)move to own file
 50. make utils for debug drawing
 
 next milestone: fully configurable vehicle with an environment to test it

@@ -267,7 +267,7 @@ pub fn vehicle_params_ui_system(
 pub fn coords_on_hover_ui_system(
 	mut windows			: ResMut<Windows>,
 	mut ui_context		: ResMut<EguiContext>,
-		q_hover			: Query<(Entity, &Hover, &HerringboneIO, &Transform)>,
+		q_hover			: Query<(Entity, &Hover, &Herringbone::IO, &Transform)>,
 ) {
 	if q_hover.is_empty() {
 		return;

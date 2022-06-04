@@ -28,8 +28,8 @@ fn main() {
 		.insert_resource		(DespawnResource	::default())
 		.insert_resource		(AtmosphereMat		::default()) // Default Earth sky
 
-		.insert_resource		(HerringboneIO		::default())
-		.insert_resource		(HerringboneStepRequest::default())
+		.insert_resource		(Herringbone::IO::default())
+		.insert_resource		(Herringbone::StepRequest::default())
 
 		.add_loopless_state		(GameMode::InGame)
 
@@ -60,7 +60,7 @@ fn main() {
  		.add_system				(input_misc_system)
  		.add_system				(vehicle_controls_system) // TODO: probably split input processing from gamelogic here
 		// game logic 
-		.add_system				(herringbone_brick_road_system)
+		.add_system				(Herringbone::brick_road_system)
 		// ui
 		.add_system				(coords_on_hover_ui_system.run_in_state(GameMode::Editor))
 		.add_system				(vehicle_params_ui_system.run_in_state(GameMode::Editor))
@@ -75,9 +75,9 @@ fn main() {
 		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_system)
 		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_stop_system)
 
-		.add_system_to_stage	(CoreStage::PostUpdate, on_spline_tangent_moved)
-		.add_system_to_stage	(CoreStage::PostUpdate, on_spline_control_point_moved)
-		.add_system_to_stage	(CoreStage::PostUpdate, on_object_root_moved)
+		.add_system_to_stage	(CoreStage::PostUpdate, Herringbone::on_spline_tangent_moved)
+		.add_system_to_stage	(CoreStage::PostUpdate, Herringbone::on_spline_control_point_moved)
+		.add_system_to_stage	(CoreStage::PostUpdate, Herringbone::on_object_root_moved)
 
  		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
  		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)

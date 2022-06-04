@@ -9,13 +9,10 @@ pub use systems		:: *;
 pub mod Vehicle;
 pub use Vehicle		:: *;
 pub mod Ui;
-pub use Ui			:: *;			
+pub use Ui			:: *;
+pub mod Herringbone;
 
 mod spawn;
-pub use spawn::Tile;
-pub use spawn::HerringboneStepRequest;
-pub use spawn::HerringboneIO;
-pub use spawn::Herringbone;
 
 pub type PickingObject = bevy_mod_raycast::RayCastSource<PickingRaycastSet>;
 
