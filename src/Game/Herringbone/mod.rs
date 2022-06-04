@@ -156,6 +156,101 @@ impl IO {
 	}
 }
 
+pub fn brick_road_setup(
+	io					: &mut ResMut<IO>,
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	ass					: &Res<AssetServer>,
+	mut commands		: &mut Commands
+) {
+//	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
+	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
+//	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
+
+	io.set_default		();
+
+	io.width			= 5.0;
+	io.length			= 10.0;
+	io.limit			= 100;
+
+	io.body_type		= RigidBody::Fixed;
+	io.hsize			= hsize;
+	io.seam				= 0.01;
+	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
+	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
+
+	let y_offset		= 0.5;
+	
+	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
+	//
+	//
+	let tangent0		= Vec3::new(0.0, y_offset, 2.5);
+	let tangent1		= Vec3::new(0.0, y_offset, 7.5);
+	// z_limit is used both for final coordinate and for final value of t to have road length tied to spline length and vice versa
+	let control_point0_pos = Vec3::new(0.0, y_offset, 0.0);
+	let control_point1_pos = Vec3::new(0.0, y_offset, io.length);
+	// z_limit as final 't' value lets us probe spline from any z offset of a tile
+	let t0				= 0.0;
+	let t1				= io.length;
+
+	let control_point0	= Key::new(t0, control_point0_pos, Interpolation::StrokeBezier(tangent0, tangent0));
+	let control_point1	= Key::new(t1, control_point1_pos, Interpolation::StrokeBezier(tangent1, tangent1));
+
+	io.spline 			= Some(Spline::from_vec(vec![control_point0, control_point1]));
+}
+
+pub fn brick_road_system(
+	mut step			: ResMut<StepRequest>,
+	mut io				: ResMut<IO>,
+	mut despawn			: ResMut<DespawnResource>,
+		time			: Res<Time>,
+		ass				: Res<AssetServer>,
+
+		query			: Query<Entity, With<Herringbone>>,
+
+	mut commands		: Commands
+) {
+	if step.reset {
+		for e in query.iter() {
+			despawn.entities.push(e);
+		}
+	
+		io.reset_changed();
+	
+		step.reset		= false;
+	}
+
+	let do_spawn 		= step.next || step.animate;
+	if !do_spawn || io.finished {
+		return;
+	}
+
+	let cur_time		= time.seconds_since_startup();
+	if (cur_time - step.last_update) < step.anim_delay_sec && !step.instant {
+		return;
+	}
+
+	step.last_update 	= cur_time;
+
+	if !step.instant {
+		brick_road_iter(&mut io, &ass, &mut commands);
+	} else {
+		loop {
+			brick_road_iter(&mut io, &ass, &mut commands);
+			if io.finished {
+				step.instant = false;
+				break;
+			}
+		}
+	}
+
+	step.next			= false;
+
+	if io.finished {
+		step.animate	= false;
+	}
+}
+
 pub fn brick_road_iter(
 	mut io				: &mut IO,
 		ass				: &Res<AssetServer>,
@@ -388,101 +483,6 @@ pub fn brick_road_iter(
 	}
 
 	io.iter				+= 1;
-}
-
-pub fn brick_road_setup(
-	io					: &mut ResMut<IO>,
-	meshes				: &mut ResMut<Assets<Mesh>>,
-	materials			: &mut ResMut<Assets<StandardMaterial>>,
-	ass					: &Res<AssetServer>,
-	mut commands		: &mut Commands
-) {
-//	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
-	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
-//	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
-
-	io.set_default		();
-
-	io.width			= 10.0;
-	io.length			= 10.0;
-	io.limit			= 100;
-
-	io.body_type		= RigidBody::Fixed;
-	io.hsize			= hsize;
-	io.seam				= 0.01;
-	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
-	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
-
-	let y_offset		= 0.5;
-	
-	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
-	//
-	//
-	let tangent0		= Vec3::new(0.0, y_offset, 2.5);
-	let tangent1		= Vec3::new(0.0, y_offset, 7.5);
-	// z_limit is used both for final coordinate and for final value of t to have road length tied to spline length and vice versa
-	let control_point0_pos = Vec3::new(0.0, y_offset, 0.0);
-	let control_point1_pos = Vec3::new(0.0, y_offset, io.length);
-	// z_limit as final 't' value lets us probe spline from any z offset of a tile
-	let t0				= 0.0;
-	let t1				= io.length;
-
-	let control_point0	= Key::new(t0, control_point0_pos, Interpolation::StrokeBezier(tangent0, tangent0));
-	let control_point1	= Key::new(t1, control_point1_pos, Interpolation::StrokeBezier(tangent1, tangent1));
-
-	io.spline 			= Some(Spline::from_vec(vec![control_point0, control_point1]));
-}
-
-pub fn brick_road_system(
-	mut step			: ResMut<StepRequest>,
-	mut io				: ResMut<IO>,
-	mut despawn			: ResMut<DespawnResource>,
-		time			: Res<Time>,
-		ass				: Res<AssetServer>,
-
-		query			: Query<Entity, With<Herringbone>>,
-
-	mut commands		: Commands
-) {
-	if step.reset {
-		for e in query.iter() {
-			despawn.entities.push(e);
-		}
-	
-		io.reset_changed();
-	
-		step.reset		= false;
-	}
-
-	let do_spawn 		= step.next || step.animate;
-	if !do_spawn || io.finished {
-		return;
-	}
-
-	let cur_time		= time.seconds_since_startup();
-	if (cur_time - step.last_update) < step.anim_delay_sec && !step.instant {
-		return;
-	}
-
-	step.last_update 	= cur_time;
-
-	if !step.instant {
-		brick_road_iter(&mut io, &ass, &mut commands);
-	} else {
-		loop {
-			brick_road_iter(&mut io, &ass, &mut commands);
-			if io.finished {
-				step.instant = false;
-				break;
-			}
-		}
-	}
-
-	step.next			= false;
-
-	if io.finished {
-		step.animate	= false;
-	}
 }
 
 pub fn on_spline_tangent_moved(
