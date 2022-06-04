@@ -73,6 +73,8 @@
 49.3.4. multiple handles
 49.3.5. (done!)rotate tiles along spline normal
 49.3.6. verticality
+49.3.7. move tangents with control points
+49.3.8. extend road with control points
 49.4. (done!)movable root
 49.4.1 (fixed!)bug: when root is rotated dragging control points is broken
 49.5. borders

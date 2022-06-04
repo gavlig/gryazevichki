@@ -230,18 +230,15 @@ pub fn brick_road_iter(
 	//
 	//
 
-	// println!			("no spline {} x = {} z = {} offx {:.2} offz {:.2} {:?} body_type: {:?}", io.iter, io.x, io.z, offset_x + seam_offset_x, offset_z + seam_offset_z, io.orientation, io.body_type);
-
 	// spline is in the same local space as each brick is
 	let t				= offset_z + seam_offset_z;
 	let spline_p		= match io.spline.as_ref() {
 		// ok, we have a spline, sample it
 		Some(spline)	=> match spline.sample(t) {
-
-		// ok, sample was a success, get the point from it
-		Some(p)			=> p,
-		// sample wasnt a succes, try previuos point on spline
-		None			=> {
+			// ok, sample was a success, get the point from it
+			Some(p)		=> p,
+			// sample wasnt a succes, try previuos point on spline
+			None		=> {
 			match io.prev_spline_p {
 				Some(p)	=> p,
 				None	=> Vec3::ZERO,
@@ -255,6 +252,18 @@ pub fn brick_road_iter(
 		Some(prev_spline_p) => {
 			let spline_dir	= (spline_p - prev_spline_p).normalize();
 			Quat::from_rotation_arc(Vec3::Z, spline_dir)
+		},
+		// if there is no previous point we try to just move t forward or backward if possible and sample there
+		None if io.spline.as_ref().is_some() => {
+			let spline	= io.spline.as_ref().unwrap();
+			let t		= if t >= lenx { t - lenx } else { t + lenx };
+			match spline.sample(t) {
+				Some(prev_spline_p) => {
+					let spline_dir = (spline_p - prev_spline_p).normalize();
+					Quat::from_rotation_arc(Vec3::Z, spline_dir)
+				},
+				None		=> Quat::IDENTITY,
+			}
 		},
 		None => Quat::IDENTITY,
 	};
@@ -351,6 +360,8 @@ pub fn brick_road_iter(
 
 		io.iter			= 0;
 		io.orientation.flip();
+
+		io.prev_spline_p = None;
 
 		// println!		("Flipped orientation x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
 
