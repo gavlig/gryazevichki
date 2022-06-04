@@ -63,14 +63,13 @@ pub struct IO {
 	pub spline			: Option<Spline<f32, Vec3>>,
 	pub prev_spline_p	: Option<Vec3>,
 
-	// read only - ish
 	pub body_type 		: RigidBody,
 	pub hsize 			: Vec3,
 	pub seam			: f32,
 	
-	// read only
 	pub width			: f32,
 	pub length			: f32,
+	pub init_offset_z	: f32,
 	pub limit			: u32,
 
 	// cant copy
@@ -91,13 +90,14 @@ impl Default for IO {
 			parent		: None,
 
 			spline		: None,
-			prev_spline_p: None,
+			prev_spline_p : None,
 
 			body_type 	: RigidBody::Fixed,
 			hsize 		: Vec3::ZERO,
 			seam		: 0.01,
 			width		: 0.0,
 			length		: 0.0,
+			init_offset_z : 0.0,
 			limit		: 0,
 
 			mesh		: Handle::<Mesh>::default(),
@@ -131,7 +131,7 @@ impl IO {
 			parent		: self.parent,
 
 			spline		: self.spline.clone(),
-			prev_spline_p: self.prev_spline_p.clone(),
+			prev_spline_p : self.prev_spline_p.clone(),
 
 			body_type 	: self.body_type,
 			hsize 		: self.hsize,
@@ -139,6 +139,7 @@ impl IO {
 			
 			width		: self.width,
 			length		: self.length,
+			init_offset_z : self.init_offset_z,
 			limit		: self.limit,
 
 			mesh		: self.mesh.clone_weak(),
@@ -262,6 +263,7 @@ pub fn brick_road_iter(
 	};
 
 	let seam			= io.seam;
+	let length			= io.length - io.init_offset_z;
 
 	let hlenz			= io.hsize.z;
 	let lenz			= hlenz * 2.0;
@@ -321,12 +323,29 @@ pub fn brick_road_iter(
 	let seam_offset_x 	= calc_seam_offset_x(io.x as f32, io.z as f32, iter0, io.orientation, seam);
 	let seam_offset_z 	= calc_seam_offset_z(io.z as f32, iter0, io.orientation, seam);
 
+	// Start constructing tile pose
+	//
+	//
+
+	let mut pose 		= Transform::identity();
+
+	// half width shift to appear in the middle
+	pose.translation.x	-= io.width / 2.0;
+
+	// external offset for convenience
+	pose.translation.z	+= io.init_offset_z;
+
+	// tile offset/rotation
+	pose.translation.x	+= offset_x + seam_offset_x;
+	pose.translation.z	+= offset_z + seam_offset_z;
+	pose.rotation		*= init_rotation;
+
 	// now let me interject for a moment with a spline (Hi Freya!)
 	//
 	//
 
 	// spline is in the same local space as each brick is
-	let t				= offset_z + seam_offset_z;
+	let t				= pose.translation.z;
 	let spline_p		= match io.spline.as_ref() {
 		// ok, we have a spline, sample it
 		Some(spline)	=> match spline.sample(t) {
@@ -364,20 +383,6 @@ pub fn brick_road_iter(
 	};
 
 	io.prev_spline_p	= Some(spline_p);
-
-	// Final pose
-	//
-	//
-
-	let mut pose 		= Transform::identity();
-
-	// half width shift to appear in the middle
-	pose.translation.x	-= io.width / 2.0;
-
-	// tile offset/rotation
-	pose.translation.x	+= offset_x + seam_offset_x;
-	pose.translation.z	+= offset_z + seam_offset_z;
-	pose.rotation		*= init_rotation;
 
 	// spline
 	pose.translation.x	+= spline_p.x;
@@ -448,7 +453,7 @@ pub fn brick_road_iter(
 				+ calc_seam_offset_z(io.z as f32, iter1, io.orientation, seam);
 
 	if ((newoffx >= io.width) && (io.width != 0.0))
-	|| ((newoffz >= io.length) && (io.length != 0.0))
+	|| ((newoffz >= length) && (length != 0.0))
 	|| (io.iter >= io.limit && io.limit != 0)
 	{
 		let prev_orientation = io.orientation.clone();
@@ -470,7 +475,7 @@ pub fn brick_road_iter(
 			if newoffx < io.width && !io.finished_hor {
 				io.x	+= 1;
 				// println!("x =+ 1 new offx {:.3}", newoffx);
-			} else if newoffz < io.length {
+			} else if newoffz < length {
 				io.x	= 0;
 				io.z	+= 1;
 				io.finished_hor = true;
@@ -524,7 +529,11 @@ pub fn on_spline_control_point_moved(
 			SplineControlPoint::ID(id) => {
 				io.set_spline_control_point(*id, controlp_pos);
 
-				// io.x_limit = 
+				match *id {
+					0 => io.init_offset_z = controlp_pos.z,
+					1 => io.length = controlp_pos.z,
+					_ => (),
+				};
 
 				step.reset = true;
 				step.next = true;
