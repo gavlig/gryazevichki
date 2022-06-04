@@ -62,6 +62,7 @@ pub struct IO {
 
 	pub spline			: Option<Spline<f32, Vec3>>,
 	pub prev_spline_p	: Option<Vec3>,
+	pub control_points	: Option<Vec<SplineControlPointEntity>>,
 
 	pub body_type 		: RigidBody,
 	pub hsize 			: Vec3,
@@ -91,6 +92,7 @@ impl Default for IO {
 
 			spline		: None,
 			prev_spline_p : None,
+			control_points : None,
 
 			body_type 	: RigidBody::Fixed,
 			hsize 		: Vec3::ZERO,
@@ -132,6 +134,7 @@ impl IO {
 
 			spline		: self.spline.clone(),
 			prev_spline_p : self.prev_spline_p.clone(),
+			control_points : None, // self.control_points.clone(),
 
 			body_type 	: self.body_type,
 			hsize 		: self.hsize,
@@ -376,10 +379,10 @@ pub fn brick_road_iter(
 					let spline_dir = (spline_p - prev_spline_p).normalize();
 					Quat::from_rotation_arc(Vec3::Z, spline_dir)
 				},
-				None		=> Quat::IDENTITY,
+				None	=> Quat::IDENTITY,
 			}
 		},
-		None => Quat::IDENTITY,
+		None 			=> Quat::IDENTITY,
 	};
 
 	io.prev_spline_p	= Some(spline_p);
@@ -495,6 +498,7 @@ pub fn on_spline_tangent_moved(
 	mut io				: ResMut<IO>,
 		time			: Res<Time>,
 		q_tangent 		: Query<(&Transform, &SplineTangent), Changed<Transform>>,
+		q_controlp 		: Query<&Transform>,
 ) {
 	if time.seconds_since_startup() < 1.0 {
 		return;
@@ -508,6 +512,21 @@ pub fn on_spline_tangent_moved(
 				step.reset = true;
 				step.next = true;
 				step.instant = true;
+
+				let control_points = io.control_points.as_mut().unwrap();
+				match *id {
+					0 => {
+						let controlp_e = control_points[0].entity;
+						let controlp_pos = q_controlp.get(controlp_e).unwrap();
+						control_points[0].tangent_offset = tan_pos - controlp_pos.translation;
+					},
+					1 => {
+						let controlp_e = control_points[1].entity;
+						let controlp_pos = q_controlp.get(controlp_e).unwrap();
+						control_points[1].tangent_offset = tan_pos - controlp_pos.translation;
+					},
+					_ => (),
+				};
 			},
 		}
 	}
@@ -517,6 +536,7 @@ pub fn on_spline_control_point_moved(
 	mut step			: ResMut<StepRequest>,
 	mut io				: ResMut<IO>,
 		time			: Res<Time>,
+	mut	q_tangent 		: Query<&mut Transform, (With<SplineTangent>, Without<SplineControlPoint>)>,
 		q_controlp 		: Query<(&Transform, &SplineControlPoint), Changed<Transform>>,
 ) {
 	if time.seconds_since_startup() < 1.0 {
@@ -530,8 +550,22 @@ pub fn on_spline_control_point_moved(
 				io.set_spline_control_point(*id, controlp_pos);
 
 				match *id {
-					0 => io.init_offset_z = controlp_pos.z,
-					1 => io.length = controlp_pos.z,
+					0 => {
+						io.init_offset_z = controlp_pos.z;
+
+						let control_points = io.control_points.as_mut().unwrap();
+						let tan_e = control_points[0].tangent_entity;
+						let mut transform = q_tangent.get_mut(tan_e).unwrap();
+						transform.translation = controlp_pos + control_points[0].tangent_offset;
+					},
+					1 => {
+						io.length = controlp_pos.z;
+
+						let control_points = io.control_points.as_mut().unwrap();
+						let tan_e = control_points[1].tangent_entity;
+						let mut transform = q_tangent.get_mut(tan_e).unwrap();
+						transform.translation = controlp_pos + control_points[1].tangent_offset;
+					},
 					_ => (),
 				};
 

@@ -146,5 +146,21 @@ pub enum SplineControlPoint {
 	ID(usize)
 }
 
+pub struct SplineControlPointEntity {
+	pub entity			: Entity,
+	pub tangent_entity	: Entity,
+	pub tangent_offset	: Vec3,
+}
+
+impl Default for SplineControlPointEntity {
+	fn default() -> Self {
+		Self {
+			entity		: Entity::from_raw(0),
+			tangent_entity : Entity::from_raw(0),
+			tangent_offset : Vec3::ZERO,
+		}
+	}
+}
+
 #[derive(Component)]
 pub struct Gizmo;
