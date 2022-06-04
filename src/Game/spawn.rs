@@ -3,7 +3,6 @@ use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	FlyCamera;
 use bevy_mod_picking::	{ * };
 // use bevy_transform_gizmo :: { * };
-use splines			::	{ Interpolation, Key, Spline };
 
 use bevy::render::mesh::shape as render_shape;
 use std::f32::consts::	{ * };
@@ -270,5 +269,33 @@ pub fn wall(
 			.insert		(Collider::cuboid(hsize.x, hsize.y, hsize.z));
 		//	.insert		(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
 		}
+	}
+}
+
+use splines :: { Interpolation, Key };
+
+impl SplineControlPEntity {
+	pub fn new(
+		  id		: usize
+		, key		: &Key<f32, Vec3>
+		, parent	: Entity
+		, meshes	: &mut ResMut<Assets<Mesh>>
+		, materials	: &mut ResMut<Assets<StandardMaterial>>
+		, commands	: &mut Commands
+	) -> Self 
+	{
+		let mut scpe 	= SplineControlPEntity::default();
+		match key.interpolation {
+			Interpolation::StrokeBezier(V0, V1) => {
+				scpe.tangent_offset = V0 - key.value;
+				scpe.tangent_entity =
+				Herringbone::spawn::spline_tangent(parent, V0, SplineTangent::ID(id), meshes, materials, commands);
+			},
+			_ => (),
+		};
+		scpe.entity =
+		Herringbone::spawn::spline_control_point(parent, key.value, SplineControlPoint::ID(id), meshes, materials, commands);
+
+		scpe
 	}
 }

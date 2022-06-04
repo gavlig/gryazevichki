@@ -100,33 +100,13 @@ pub fn setup_world_system(
 
 		match herr_io.spline.as_ref() {
 		Some(spline) => {
-			let mut key0_e = SplineControlPointEntity::default();
 			let key0	= spline.get(0).unwrap();
-			match key0.interpolation {
-				Interpolation::StrokeBezier(V0, V1) => {
-					key0_e.tangent_offset = V0 - key0.value;
-					key0_e.tangent_entity =
-					Herringbone::spawn::spline_tangent(root_e, V0, SplineTangent::ID(0), &mut meshes, &mut materials, &mut commands);
-				},
-				_ => (),
-			};
-			key0_e.entity =
-			Herringbone::spawn::spline_control_point(root_e, key0.value, SplineControlPoint::ID(0), &mut meshes, &mut materials, &mut commands);
+			let mut key0_e = SplineControlPEntity::new(0, key0, root_e, &mut meshes, &mut materials, &mut commands);
 
 			//
 
-			let mut key1_e = SplineControlPointEntity::default();
 			let key1	= spline.get(1).unwrap();
-			match key1.interpolation {
-				Interpolation::StrokeBezier(V0, V1) => {
-					key1_e.tangent_offset = V0 - key1.value;
-					key1_e.tangent_entity =
-					Herringbone::spawn::spline_tangent(root_e, V0, SplineTangent::ID(1), &mut meshes, &mut materials, &mut commands);
-				},
-				_ => (),
-			};
-			key1_e.entity = 
-			Herringbone::spawn::spline_control_point(root_e, key1.value, SplineControlPoint::ID(1), &mut meshes, &mut materials, &mut commands);
+			let mut key1_e = SplineControlPEntity::new(1, key1, root_e, &mut meshes, &mut materials, &mut commands);
 
 			//
 

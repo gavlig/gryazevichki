@@ -75,6 +75,7 @@
 49.3.6. verticality
 49.3.7. (done!)move tangents with control points
 49.3.8. (done!)extend road with control points
+49.3.9. make tangent a child of control point to avoid extra calculations
 49.4. (done!)movable root
 49.4.1 (fixed!)bug: when root is rotated dragging control points is broken
 49.5. borders

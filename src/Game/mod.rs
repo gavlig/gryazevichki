@@ -146,13 +146,13 @@ pub enum SplineControlPoint {
 	ID(usize)
 }
 
-pub struct SplineControlPointEntity {
+pub struct SplineControlPEntity {
 	pub entity			: Entity,
 	pub tangent_entity	: Entity,
 	pub tangent_offset	: Vec3,
 }
 
-impl Default for SplineControlPointEntity {
+impl Default for SplineControlPEntity {
 	fn default() -> Self {
 		Self {
 			entity		: Entity::from_raw(0),

@@ -62,7 +62,7 @@ pub struct IO {
 
 	pub spline			: Option<Spline<f32, Vec3>>,
 	pub prev_spline_p	: Option<Vec3>,
-	pub control_points	: Option<Vec<SplineControlPointEntity>>,
+	pub control_points	: Option<Vec<SplineControlPEntity>>,
 
 	pub body_type 		: RigidBody,
 	pub hsize 			: Vec3,
