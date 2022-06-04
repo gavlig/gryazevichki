@@ -123,14 +123,14 @@ pub fn setup_world_system(
 	}
 
 	// polyline
-	if false {
+	if true {
 		commands.spawn_bundle(PolylineBundle {
 			polyline: polylines.add(Polyline {
 				vertices: vec![-Vec3::Z, Vec3::Z],
 				..default()
 			}),
 			material: polyline_materials.add(PolylineMaterial {
-				width: 20.0,
+				width: 100.0,
 				color: Color::RED,
 				perspective: true,
 				..default()
@@ -145,7 +145,7 @@ pub fn setup_world_system(
 				..default()
 			}),
 			material: polyline_materials.add(PolylineMaterial {
-				width: 20.0,
+				width: 100.0,
 				color: Color::SEA_GREEN,
 				perspective: true,
 				..default()
@@ -160,7 +160,7 @@ pub fn setup_world_system(
 				..default()
 			}),
 			material: polyline_materials.add(PolylineMaterial {
-				width: 20.0,
+				width: 100.0,
 				color: Color::MIDNIGHT_BLUE,
 				perspective: true,
 				..default()
@@ -350,22 +350,26 @@ pub fn input_misc_system(
 
 #[derive(Component, Default)]
 pub struct Draggable {
-	pub start_pos		: Vec3,
-	pub distance		: f32,
-	pub init_transform	: Transform,
+	pub init_transform	: GlobalTransform,
+	pub started_picking	: bool,
+	pub init_pick_distance : f32,
+	pub pick_distance	: f32,
 }
 
 #[derive(Component)]
 pub struct DraggableActive;
 
+#[derive(Component)]
+pub struct DraggableRaycast;
+
 pub fn mouse_dragging_start_system(
 		btn					: Res<Input<MouseButton>>,
-		pick_source_query	: Query<&PickingCamera>,
+		pick_source_query	: Query<&PickingObject, With<Camera>>,
 	mut interactions 		: Query<
 	(
 		Entity,
 		&Interaction,
-		&Transform,
+		&GlobalTransform,
 		&mut Draggable,
 	), Without<DraggableActive>
 	>,
@@ -377,7 +381,8 @@ pub fn mouse_dragging_start_system(
 	}
 
 	let pick_source = pick_source_query.single();
-	let top_pick = pick_source.intersect_top();
+	let ray 		= pick_source.ray().unwrap();
+	let top_pick 	= pick_source.intersect_top();
 
 	// There is at least one entity under the cursor
 	if top_pick.is_none() {
@@ -386,27 +391,41 @@ pub fn mouse_dragging_start_system(
 	
 	let (topmost_entity, intersection) = top_pick.unwrap();
 	
-	if let Ok((entity, interaction, transform, mut drag)) = interactions.get_mut(topmost_entity) {
+	if let Ok((clicked_entity, interaction, global_transform, mut drag)) = interactions.get_mut(topmost_entity) {
 		if *interaction != Interaction::Clicked {
 			return;
 		}
 
-		let cur_pos = intersection.position();
+		drag.init_transform = global_transform.clone();
 
-		drag.start_pos = cur_pos;
-		drag.distance = intersection.distance();
-		drag.init_transform = transform.clone();
+		commands.entity(clicked_entity).insert(DraggableActive);
 
-		commands.entity(entity).insert(DraggableActive);
+		// rotating a child caster so that raycast points to the ground. It is used to keep draggable on the same-ish offset above the ground
+		let mut transform	= Transform::identity();
+		transform.look_at	(-Vec3::Y, -Vec3::Z);
+
+		commands.entity(clicked_entity).with_children(|parent| {
+			parent.spawn_bundle(TransformBundle{ local : transform, ..default() })
+				.insert		(PickingObject::new_transform_empty())
+				.insert		(DraggableRaycast);
+		});
 	}
 }
 
 pub fn mouse_dragging_system(
+	mut polylines			: ResMut<Assets<Polyline>>,
+	mut q_green				: Query<&Handle<Polyline>, With<GreenLine>>,
+	mut q_blue				: Query<&Handle<Polyline>, With<BlueLine>>,
+
 	mut mouse_wheel_events	: EventReader<MouseWheel>,
-		pick_source_query	: Query<&PickingCamera>,
+		q_transform			: Query<&GlobalTransform, Without<DraggableActive>>,
+		q_draggable_pick	: Query<&PickingObject, With<DraggableRaycast>>,
+		q_mouse_pick		: Query<&PickingCamera, With<Camera>>,
 	mut draggable			: Query<
 	(
 		Entity,
+		Option<&Parent>,
+		&GlobalTransform,
 		&mut Transform,
 		&mut Draggable
 	), With<DraggableActive>
@@ -414,28 +433,62 @@ pub fn mouse_dragging_system(
 		q_gizmo				: Query<Entity, With<Gizmo>>,
 		q_tile				: Query<Entity, With<Tile>>,
 ) {
-	let pick_source 	= pick_source_query.single();
-	if pick_source.ray().is_none() {
-		return;
-	}
-
 	if draggable.is_empty() {
 		return;
 	}
 	
-	let (entity, mut transform, mut drag) = draggable.single_mut();
-	let ray 			= pick_source.ray().unwrap();
+	let mouse_pick 			= q_mouse_pick.single();
+	let mouse_ray 			= mouse_pick.ray().unwrap();
 
-	let mut picked		= false;
-	if let Some(intersections) = pick_source.intersect_list() {
-		let mut i		= 0;
-		let cnt			= intersections.len();
+	let draggable_pick 		= q_draggable_pick.single();
+	let draggable_ray		= draggable_pick.ray().unwrap();
+
+	let (draggable_e, draggable_parent, global_transform, mut transform, mut drag) = draggable.single_mut();
+
+	if let Some(intersections) = draggable_pick.intersect_list() {
+		let mut picked		= false;
+		let mut new_distance = 0.0;
+		for (e_ref, data) in intersections.iter() {
+			let e			= *e_ref;
+			if e == draggable_e {
+				continue;
+			}
+
+			if q_gizmo.get(e).is_ok() {
+				continue;
+			}
+
+			if q_tile.get(e).is_ok() {
+				continue;
+			}
+
+			if !picked {
+				picked 		= true;
+				new_distance = data.distance();
+			} else {
+				new_distance = std::primitive::f32::min(data.distance(), new_distance);
+			}
+		}
+
+		if !drag.started_picking {
+			drag.init_pick_distance = new_distance;
+			drag.started_picking = true;
+		}
+
+		drag.pick_distance = new_distance;
+	}
+
+	//
+
+	let mut picked			= false;
+	let mut new_distance	= 0.0;
+	if let Some(intersections) = mouse_pick.intersect_list() {
+		let mut i			= 0;
+		let cnt				= intersections.len();
 		
-		while i < cnt {
-			let (e, data) = intersections[i];
-			i			+= 1;
-
-			if e == entity {
+		for (e_ref, data) in intersections.iter() {
+			let e			= *e_ref;
+			if e == draggable_e {
 				continue;
 			}
 
@@ -449,22 +502,32 @@ pub fn mouse_dragging_system(
 
 			if !picked {
 				picked 	= true;
-				drag.distance = data.distance();
+				new_distance = data.distance();
 			} else {
-				drag.distance = std::primitive::f32::min(data.distance(), drag.distance);
+				new_distance = std::primitive::f32::min(data.distance(), new_distance);
 			}
 		}
 	}
 
+	let picked_pos  = mouse_ray.origin() + mouse_ray.direction() * new_distance;
 
-	let offset_from_picked = 0.5;
+	let (x1, y1, z1) = mouse_ray.origin().into();
+	let (x2, y2, z2) = picked_pos.into();
 
-	let mut cur_pos 	= ray.origin() + ray.direction() * (drag.distance - offset_from_picked);
-	let mut delta 		= cur_pos - drag.start_pos;
+	let y = drag.init_transform.translation.y + (drag.pick_distance - drag.init_pick_distance);
+	let x = ((y - y1) * (x2 - x1)) / (y2 - y1) + x1;
+	let z = ((y - y1) * (z2 - z1)) / (y2 - y1) + z1;
+
+	let mut final_translation : Vec3 = [x, y, z].into();
+
+	if let Some(draggable_parent_e) = draggable_parent {
+		let parent_transform	= q_transform.get(draggable_parent_e.0).unwrap();
+		let mat					= parent_transform.compute_matrix();
+		final_translation 		= mat.inverse().transform_point3(final_translation);
+	}
+
+	transform.translation = final_translation;
 	// TODO: implement blender-like controls g + axis etc
-
-	transform.translation = drag.init_transform.translation + delta;
-
 	for event in mouse_wheel_events.iter() {
 		let dy = match event.unit {
 			MouseScrollUnit::Line => event.y * 5.,
@@ -473,11 +536,49 @@ pub fn mouse_dragging_system(
 		screen_print!("event.y: {:.3} dy: {:.3}", event.y, dy);
 		transform.rotation *= Quat::from_rotation_y(dy.to_radians());
     }
+
+	// TODO: make utils from this
+	if false {
+		let origin = draggable_ray.origin();
+		let target = draggable_ray.origin() + draggable_ray.direction() * 2.0;
+		let line	= polylines.get_mut(q_green.single()).unwrap();
+		line.vertices.resize(10, Vec3::ZERO);
+		line.vertices[0] = origin;
+		line.vertices[1] = target;
+		line.vertices[2] = target + Vec3::X * 0.2;
+		line.vertices[3] = target;
+		line.vertices[4] = target - Vec3::X * 0.2;
+		line.vertices[5] = target;
+		line.vertices[6] = target + Vec3::Z * 0.2;
+		line.vertices[7] = target;
+		line.vertices[8] = target - Vec3::Z * 0.2;
+		line.vertices[9] = target;
+	}
+
+	if false {
+		let origin = mouse_ray.origin();
+		let target = mouse_ray.origin() + mouse_ray.direction() * new_distance;
+		let line	= polylines.get_mut(q_blue.single()).unwrap();
+		line.vertices.resize(10, Vec3::ZERO);
+		line.vertices[0] = origin;
+		line.vertices[1] = target;
+		line.vertices[2] = target + Vec3::X * 0.2;
+		line.vertices[3] = target;
+		line.vertices[4] = target - Vec3::X * 0.2;
+		line.vertices[5] = target;
+		line.vertices[6] = target + Vec3::Z * 0.2;
+		line.vertices[7] = target;
+		line.vertices[8] = target - Vec3::Z * 0.2;
+		line.vertices[9] = target;
+	}
 }
 
 pub fn mouse_dragging_stop_system(
 		btn				: Res<Input<MouseButton>>,
-		draggable_active: Query<Entity, With<DraggableActive>>,
+		q_draggable_active : Query<Entity, With<DraggableActive>>,
+		q_draggable_picking : Query<Entity, With<DraggableRaycast>>,
+
+	mut despawn			: ResMut<DespawnResource>,
 	mut commands		: Commands
 ) {
 	let just_released	= btn.just_released(MouseButton::Left);
@@ -485,12 +586,16 @@ pub fn mouse_dragging_stop_system(
 		return;
 	}
 
-	if draggable_active.is_empty() {
+	if q_draggable_active.is_empty() {
 		return;
 	}
 
-	let draggable			= draggable_active.single();
+	let draggable		= q_draggable_active.single();
 	commands.entity(draggable).remove::<DraggableActive>();
+
+	// despawn a child that is used for picking
+	let picking			= q_draggable_picking.single();
+	despawn.entities.push(picking);
 }
 
 #[derive(Default)]

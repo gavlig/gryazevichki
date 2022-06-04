@@ -1,4 +1,5 @@
 use bevy			::	{ prelude :: * };
+use bevy_mod_picking::	{ PickingRaycastSet };
 
 use std				:: 	{ path::PathBuf };
 use serde			::	{ Deserialize, Serialize };
@@ -15,6 +16,8 @@ pub use spawn::Tile;
 pub use spawn::HerringboneStepRequest;
 pub use spawn::HerringboneIO;
 pub use spawn::Herringbone;
+
+pub type PickingObject = bevy_mod_raycast::RayCastSource<PickingRaycastSet>;
 
 pub struct GameState {
 	  pub camera				: Option<Entity>

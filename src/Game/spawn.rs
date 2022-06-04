@@ -96,12 +96,14 @@ pub fn spline_tangent(
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
 ) -> Entity {
-	let mut id = Entity::from_raw(0);
+	let mut id 			= Entity::from_raw(0);
+	let transform		= Transform::from_translation(pos);
+
 	commands.entity(parent_e).with_children(|parent| {
 	id = parent.spawn_bundle(PbrBundle {
 		mesh			: meshes.add		(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
 		material		: materials.add		(Color::INDIGO.into()),
-		transform		: Transform::from_translation(pos),
+		transform		: transform,
 		..Default::default()
 	})
 	.insert				(handle)
@@ -121,12 +123,14 @@ pub fn spline_control_point(
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
 ) -> Entity {
-	let mut id = Entity::from_raw(0);
+	let mut id 			= Entity::from_raw(0);
+	let transform		= Transform::from_translation(pos);
+
 	commands.entity(parent_e).with_children(|parent| {
 	id = parent.spawn_bundle(PbrBundle {
 		mesh			: meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
 		material		: materials.add		(Color::BEIGE.into()),
-		transform		: Transform::from_translation(pos),
+		transform		: transform,
 		..Default::default()
 	})
 	.insert				(handle)
@@ -144,10 +148,12 @@ pub fn object_root(
 	materials			: &mut ResMut<Assets<StandardMaterial>>,
 	mut commands		: &mut Commands
 ) -> Entity {
+	let transform		= Transform::from_translation(pos);
+
 	commands.spawn_bundle(PbrBundle {
 		mesh			: meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
 		material		: materials.add		(Color::LIME_GREEN.into()),
-		transform		: Transform::from_translation(pos),
+		transform		: transform,
 		..Default::default()
 	})
 	.insert				(ObjectRoot)
