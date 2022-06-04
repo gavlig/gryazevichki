@@ -364,7 +364,8 @@ pub struct DraggableRaycast;
 
 pub fn mouse_dragging_start_system(
 		btn					: Res<Input<MouseButton>>,
-		pick_source_query	: Query<&PickingObject, With<Camera>>,
+		q_draggable_pick	: Query<&PickingObject, With<DraggableRaycast>>,
+		q_mouse_pic			: Query<&PickingObject, With<Camera>>,
 	mut interactions 		: Query<
 	(
 		Entity,
@@ -380,7 +381,11 @@ pub fn mouse_dragging_start_system(
 		return;
 	}
 
-	let pick_source = pick_source_query.single();
+	if !q_draggable_pick.is_empty() {
+		return;
+	}
+
+	let pick_source = q_mouse_pic.single();
 	let ray 		= pick_source.ray().unwrap();
 	let top_pick 	= pick_source.intersect_top();
 
@@ -436,7 +441,7 @@ pub fn mouse_dragging_system(
 	if draggable.is_empty() {
 		return;
 	}
-	
+
 	let mouse_pick 			= q_mouse_pick.single();
 	let mouse_ray 			= mouse_pick.ray().unwrap();
 
@@ -604,7 +609,7 @@ pub struct DespawnResource {
 }
 
 pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
-	if time.seconds_since_startup() > 5.0 {
+	if time.seconds_since_startup() > 0.1 {
 		for entity in &despawn.entities {
 //			println!("Despawning entity {:?}", entity);
 			commands.entity(*entity).despawn_recursive();
