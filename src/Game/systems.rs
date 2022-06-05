@@ -315,6 +315,9 @@ pub fn input_misc_system(
 
 		if key.pressed(KeyCode::LControl) && btn.just_pressed(MouseButton::Left) {
 			control.new_spline_point = true;
+			control.reset	= true;
+			control.instant	= true;
+			control.next 	= true;
 		}
 	}
 }

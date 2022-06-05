@@ -1,7 +1,9 @@
 use super           	:: { Herringbone :: * };
+use crate				:: { Game };
 
 pub fn brick_road_system(
-	mut q_spline		: Query<(&mut Spline, &mut Control, &mut Config, &mut TileState), Changed<Control>>,
+	mut q_spline		: Query<(Entity, &GlobalTransform, &mut Spline, &mut Control, &mut Config, &mut TileState), Changed<Control>>,
+		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
 
 	mut despawn			: ResMut<DespawnResource>,
 		time			: Res<Time>,
@@ -9,15 +11,15 @@ pub fn brick_road_system(
 
 		q_tiles			: Query<Entity, With<Herringbone2>>,
 
-		_meshes			: ResMut<Assets<Mesh>>,
-		_materials		: ResMut<Assets<StandardMaterial>>,
+	mut	meshes			: ResMut<Assets<Mesh>>,
+	mut	materials		: ResMut<Assets<StandardMaterial>>,
 	mut commands		: Commands
 ) {
 	if q_spline.is_empty() {
 		return;
 	}
 
-	let (mut spline, mut control, mut config, mut tile_state) = q_spline.single_mut();
+	let (root_e, transform, mut spline, mut control, mut config, mut tile_state) = q_spline.single_mut();
 
 	if control.reset {
 		for e in q_tiles.iter() {
@@ -29,10 +31,36 @@ pub fn brick_road_system(
 		control.reset	= false;
 	}
 
-	if control.new_spline_point {
-		// let spline 		= spline_wcontrols.spline;
-		// let key0		= spline.get(0).unwrap();
-		// let mut key0_e 	= SplineControlPEntity::new(0, key0, state.parent, &mut meshes, &mut materials, &mut commands);
+	while control.new_spline_point {
+		let mouse_pick 	= q_mouse_pick.single();
+		let top_pick 	= mouse_pick.intersect_top();
+
+		// There is at least one entity under the cursor
+		if top_pick.is_none() {
+			break;
+		}
+		
+		let (_topmost_entity, intersection) = top_pick.unwrap();
+		let mut new_pos	= intersection.position();
+		new_pos			-= transform.translation; // world space -> object space
+
+		// TODO: use line equation here too to put handle precisely under cursor
+		new_pos.y		= 0.5;
+		let tan			= new_pos - Vec3::Z;
+
+		let new_key_id	= spline.len();
+		let key			= SplineKey::new(new_pos.z, new_pos, SplineInterpolation::StrokeBezier(tan, tan));
+		spline.add		(key);
+		//
+		let mut sargs = SpawnArguments {
+			meshes : &mut meshes,
+			materials : &mut materials,
+			commands : &mut commands,
+		};
+		let key_e 		= Game::spawn::spline_control_point(new_key_id, &key, root_e, true, &mut sargs);
+		commands.entity(root_e).add_child(key_e);
+		//
+		config.limit_z	= new_pos.z;
 
 		control.new_spline_point = false;
 	}
@@ -119,16 +147,13 @@ pub fn on_spline_control_point_moved(
 		match controlp {
 			SplineControlPoint::ID(id) => {
 				spline.set_control_point(*id, controlp_pos);
+				let last_id = spline.len() - 1;
 
-				match *id {
-					0 => {
-						config.offset_z = controlp_pos.z;
-					},
-					1 => {
-						config.limit_z = controlp_pos.z;
-					},
-					_ => (),
-				};
+				if *id == 0 {
+					config.offset_z = controlp_pos.z;
+				} else if *id == last_id {
+					config.limit_z = controlp_pos.z;
+				}
 
 				control.reset = true;
 				control.next = true;

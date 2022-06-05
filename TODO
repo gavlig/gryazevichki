@@ -69,13 +69,13 @@
 49.3. spline
 49.3.1. (done!)basic support
 49.3.2. (done!)tangents/handles
-49.3.3. multiple control points
-49.3.4. multiple handles
+49.3.3. (wip)multiple control points
+49.3.4. (wip)multiple handles
 49.3.5. (done!)rotate tiles along spline normal
 49.3.6. verticality
 49.3.7. (done!)move tangents with control points
 49.3.8. (done!)extend road with control points
-49.3.9. make tangent a child of control point to avoid extra calculations
+49.3.9. (done!)make tangent a child of control point to avoid extra calculations
 49.4. (done!)movable root
 49.4.1 (fixed!)bug: when root is rotated dragging control points is broken
 49.5. borders
@@ -85,7 +85,8 @@
 49.9. (done!)sync io limits and spline t
 49.10. (done!)refactor IO thing and setup
 49.11. (done!)move to own file
-49.12. instancing
+49.12. (almost)instancing
+49.13. make sure draggable doesnt twitch when we start dragging
 50. make utils for debug drawing
 
 next milestone: fully configurable vehicle with an environment to test it

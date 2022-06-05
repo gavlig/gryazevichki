@@ -1,7 +1,7 @@
 use bevy			::	prelude :: *;
 use bevy_rapier3d	::	prelude :: *;
 use bevy_egui		::	{ egui, EguiContext };
-use bevy_mod_picking::	{ * };
+// use bevy_mod_picking::	{ * };
 
 use super           :: egui_ext	:: FileDialog;
 use super           :: egui_ext	:: toggle_switch;
@@ -261,27 +261,27 @@ pub fn vehicle_params_ui_system(
 //	}
 }
 
-pub fn coords_on_hover_ui_system(
-	mut windows			: ResMut<Windows>,
-	mut ui_context		: ResMut<EguiContext>,
-		q_hover			: Query<(Entity, &Hover, &Herringbone::TileState)>,
-) {
-	if q_hover.is_empty() {
-		return;
-	}
+// pub fn coords_on_hover_ui_system(
+// 	mut windows			: ResMut<Windows>,
+// 	mut ui_context		: ResMut<EguiContext>,
+// 		q_hover			: Query<(Entity, &Hover, &Herringbone::TileState)>,
+// ) {
+// 	if q_hover.is_empty() {
+// 		return;
+// 	}
 
-	let window = windows.get_primary_mut().unwrap();
+// 	let window = windows.get_primary_mut().unwrap();
 
-	for (_, hover, state) in q_hover.iter() {
-		if !hover.hovered() {
-			continue;
-		}
+// 	for (_, hover, state) in q_hover.iter() {
+// 		if !hover.hovered() {
+// 			continue;
+// 		}
 	
-		// crashes randomly when we drag something outside window
-		// if !window.physical_cursor_position().is_none() {
-		// 	egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
-		// 		ui.label(format!("#[{}] x: {} z: {}", state.iter, state.x, state.z));
-		// 	});
-		// }
-	}
-}
+// 		// crashes randomly when we drag something outside window
+// 		// if !window.physical_cursor_position().is_none() {
+// 		// 	egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
+// 		// 		ui.label(format!("#[{}] x: {} z: {}", state.iter, state.x, state.z));
+// 		// 	});
+// 		// }
+// 	}
+// }

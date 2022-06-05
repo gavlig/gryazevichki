@@ -17,8 +17,8 @@ pub struct UiPlugin;
 // This plugin is responsible to control the game audio
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app	.add_system	(coords_on_hover_ui_system.run_in_state(GameMode::Editor))
-			.add_system	(vehicle_params_ui_system.run_in_state(GameMode::Editor))
+        app	.add_system	(vehicle_params_ui_system.run_in_state(GameMode::Editor))
+//          .add_system	(coords_on_hover_ui_system.run_in_state(GameMode::Editor))
             ;
     }
 }

@@ -174,6 +174,16 @@ impl Spline {
 	pub fn sample(&self, t: f32) -> Option<Vec3> {
 		self.0.sample(t)
 	}
+
+	// wrapper
+	pub fn add(&mut self, key: SplineKey) {
+		self.0.add(key);
+	}
+
+	// wrapper
+	pub fn len(&self) -> usize {
+	  self.0.len()
+	}
 }
 
 #[derive(Component)]

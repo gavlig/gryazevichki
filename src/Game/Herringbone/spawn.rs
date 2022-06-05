@@ -52,8 +52,6 @@ pub fn brick_road(
 	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent1, tangent1));
 	let spline			= Spline::from_vec(vec![key0, key1]);
 
-	println!("root handle in {}", transform.translation);
-
 	let root_e			= Game::spawn::root_handle(transform, &mut sargs);
 	config.parent 		= root_e;
 
