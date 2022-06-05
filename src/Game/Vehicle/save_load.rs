@@ -6,8 +6,6 @@ use std::path::{ Path, PathBuf };
 
 use ron::ser::{ to_string_pretty, PrettyConfig };
 
-use directories :: { BaseDirs, UserDirs, ProjectDirs };
-
 use super::*;
 
 const VERSION_STR : &str = "version";
@@ -72,6 +70,7 @@ pub fn save_vehicle_config_system(
 	].concat();
 
 	let save_name = file_path_to_string(&game.save_veh_file);
+	// use directories :: { BaseDirs, UserDirs, ProjectDirs };
 	// if let Some(proj_dirs) = ProjectDirs::from("lol", "Gryazevicki Inc",  "Gryazevichki") {
 	// 	save_name = [ proj_dirs.config_dir(), &save_name ].concat();
 	// 	// Lin: /home/user/.config/gryazevichki
@@ -107,7 +106,7 @@ pub fn load_vehicle_config_system(
 ) {
 	if game.load_veh_file.is_none() { return; }
 
-	let mut veh_cfg	= load_vehicle_config(&game.load_veh_file).unwrap();
+	let veh_cfg	= load_vehicle_config(&game.load_veh_file).unwrap();
 
 	game.load_veh_file = None;
 

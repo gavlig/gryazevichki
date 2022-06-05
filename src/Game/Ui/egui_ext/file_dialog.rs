@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::egui::*;
+use bevy_egui::egui::*;
 
 // #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, )]
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -94,7 +94,7 @@ impl FileDialog {
     }
 
     /// Dialog state.
-    pub fn state(&self) -> State {
+    pub fn _state(&self) -> State {
         self.state
     }
 

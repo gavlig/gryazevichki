@@ -1,6 +1,6 @@
 //! taken from egui tutorial in widget galler.
 
-use crate::egui;
+use bevy_egui::egui;
 
 /// iOS-style toggle switch:
 ///

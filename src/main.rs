@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use bevy			::	prelude :: { * };
 use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	{ FlyCameraPlugin };
@@ -7,33 +9,16 @@ use bevy_mod_picking::	{ * };
 use bevy_polyline	::	{ * };
 use bevy_prototype_debug_lines	:: { * };
 use bevy_debug_text_overlay		:: { screen_print, OverlayPlugin };
-// use bevy_transform_gizmo :: { * }; 
-
-use iyes_loopless	::	prelude :: { * };
-
-#[macro_use(defer)] extern crate scopeguard;
 
 mod Game;
-use Game			:: 	{ *, Vehicle::* };
+use Game			:: 	{ GamePlugin };
 
 fn main() {
 	App::new()
-		.insert_resource(ClearColor(Color::rgb(
-			0xF9 as f32 / 255.0,
-			0xF9 as f32 / 255.0,
-			0xFF as f32 / 255.0,
-		)))
-		.insert_resource		(Msaa				::default())
-		.insert_resource		(GameState			::default())
-		.insert_resource		(DespawnResource	::default())
-		.insert_resource		(AtmosphereMat		::default()) // Default Earth sky
-
-		.insert_resource		(Herringbone::IO::default())
-		.insert_resource		(Herringbone::StepRequest::default())
-
-		.add_loopless_state		(GameMode::InGame)
-
 		.add_plugins			(DefaultPlugins)
+
+		.add_plugin				(GamePlugin)
+
 		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
 		.add_plugin				(RapierDebugRenderPlugin::default())
 		.add_plugin				(FlyCameraPlugin)
@@ -43,45 +28,10 @@ fn main() {
 		.add_plugin				(PolylinePlugin)
 		.add_plugin				(DebugLinesPlugin::default())
 		.add_plugin				(OverlayPlugin { font_size: 12.0, fallback_color: Color::rgb(0.1, 0.1, 0.1), ..default() })
-		// .add_plugin				(TransformGizmoPlugin::default())
-		// it glitches and hides the ground
-		// .add_plugin				(AtmospherePlugin {
-		// 	dynamic				: true,  // Set to false since we aren't changing the sky's appearance
-		//     sky_radius			: 10.0,
-		// })
-
-		.add_startup_system		(setup_cursor_visibility_system)
- 		.add_startup_system		(setup_lighting_system)
- 		.add_startup_system		(setup_world_system)
- 		.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
-
-		// input
- 		.add_system				(cursor_visibility_system)
- 		.add_system				(input_misc_system)
- 		.add_system				(vehicle_controls_system) // TODO: probably split input processing from gamelogic here
-		// game logic 
-		.add_system				(Herringbone::brick_road_system)
-		// ui
-		.add_system				(coords_on_hover_ui_system.run_in_state(GameMode::Editor))
-		.add_system				(vehicle_params_ui_system.run_in_state(GameMode::Editor))
 
 // 		.add_system				(daylight_cycle)
 		.add_system				(show_fps)
-
- 		.add_system_to_stage	(CoreStage::Last, save_vehicle_config_system)
- 		.add_system_to_stage	(CoreStage::Last, load_vehicle_config_system)
-
-		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_start_system)
-		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_system)
-		.add_system_to_stage	(CoreStage::PostUpdate, mouse_dragging_stop_system)
-
-		.add_system_to_stage	(CoreStage::PostUpdate, Herringbone::on_spline_tangent_moved)
-		.add_system_to_stage	(CoreStage::PostUpdate, Herringbone::on_spline_control_point_moved)
-		.add_system_to_stage	(CoreStage::PostUpdate, Herringbone::on_object_root_moved)
-
- 		.add_system_to_stage	(CoreStage::PostUpdate, display_events_system)
- 		.add_system_to_stage	(CoreStage::PostUpdate, respawn_vehicle_system)
- 		.add_system_to_stage	(CoreStage::PostUpdate, despawn_system)
+		
 		.run					();
 }
 

@@ -1,5 +1,4 @@
 use bevy			::	prelude :: *;
-use bevy_rapier3d	::	prelude :: *;
 use bevy_egui		::	egui :: { Slider, Ui };
 
 use super			::	{ * };

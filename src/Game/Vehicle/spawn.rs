@@ -70,7 +70,7 @@ pub fn axle_with_joint(
 	ass				: &Res<AssetServer>,
 	mut	commands	: &mut Commands
 ) -> (Entity, Transform) {
-	let axle		= axle(side, body, body_pos, offset, cfg, phys, ass, &mut commands);
+	let axle		= axle(side, body_pos, offset, cfg, phys, ass, &mut commands);
 	let axle_pos	= body_pos * Transform::from_translation(offset);
 
 	let anchor1		= offset;
@@ -109,7 +109,6 @@ pub fn wheel_with_joint(
 
 pub fn axle(
 	side			: WheelSideType,
-	body			: Entity,
 	body_pos		: Transform,
 	offset			: Vec3,
 	cfg				: &AxleConfig,
@@ -173,21 +172,28 @@ pub fn wheel(
 	offset			: Vec3,
 	cfg				: &WheelConfig,
 	phys			: &PhysicsConfig,
-	ass				: &Res<AssetServer>,
+	_ass			: &Res<AssetServer>,
 	commands		: &mut Commands,
 ) -> Entity {
 	let side_name	= wheel_side_name(side);
 	let (sidez, sidex) = wheel_side_to_zx(side);
-	let mut wheel_id = Entity::from_bits(0);
 	let body_type	= if phys.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };
 
 	let phys_rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2); // by default cylinder spawns with its flat surface on the ground and we want the round part
-	let render_rotation = wheel_side_rotation(side);
+//	let render_rotation = wheel_side_rotation(side);
 
 	let wheel_pos 	= axle_pos * Transform::from_translation(offset);//local_pos;
-//    let model		= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
+//	let model		= ass.load("corvette/wheel/corvette_wheel.gltf#Scene0");
 
-	wheel_id 		=
+	// let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
+	// commands.spawn_bundle(
+	// 	TransformBundle {
+	// 		local: wheel_pos,
+	// 		global: GlobalTransform::default(),
+	// }).with_children(|parent| {
+	// 	parent.spawn_scene(axis_cube);
+	// });
+
 	commands.spawn()
 		.insert		(*cfg)
 		.insert		(*phys)
@@ -222,18 +228,7 @@ pub fn wheel(
 		// 		parent.spawn_scene(model);
 		// 	});
 		// })
-		.id			();
-
-	// let axis_cube	= ass.load("utils/axis_cube.gltf#Scene0");
-	// commands.spawn_bundle(
-	// 	TransformBundle {
-	// 		local: wheel_pos,
-	// 		global: GlobalTransform::default(),
-	// }).with_children(|parent| {
-	// 	parent.spawn_scene(axis_cube);
-	// });
-
-	wheel_id
+		.id			()
 }
 
 pub fn axle_joint(
@@ -275,7 +270,7 @@ pub fn body(
 	phys			: &PhysicsConfig,
 	accel_cfg		: &AcceleratorConfig,
 	steer_cfg		: &SteeringConfig,
-	ass				: &Res<AssetServer>,
+	_ass			: &Res<AssetServer>,
 	commands		: &mut Commands,
 ) -> Entity {
 	let body_type	= if phys.fixed { RigidBody::Fixed } else { RigidBody::Dynamic };

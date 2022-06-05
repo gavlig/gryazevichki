@@ -50,7 +50,7 @@ pub fn respawn_vehicle_system(
 		let re_wheel	= game.wheels[side].unwrap();
 
 		let mut axle	= re_axle.entity;
-		let mut axle_pos : Transform;
+		let axle_pos 	: Transform;
 
 		let axle_cfg	= q_axle_cfg.get(axle).unwrap().clone();
 		let axle_phys_cfg = q_phys.get(axle).unwrap().clone();

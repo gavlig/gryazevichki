@@ -1,47 +1,42 @@
 use bevy			:: { prelude :: * };
-use bevy			:: { app::AppExit };
-use bevy			:: { input :: mouse :: * };
 use bevy_rapier3d	:: { prelude :: * };
-use bevy_fly_camera	:: { FlyCamera };
-use bevy_mod_picking:: { * };
-use bevy_mod_raycast:: { * };
-use bevy_polyline	:: { prelude :: * };
-use bevy_prototype_debug_lines :: { * };
-use iyes_loopless	:: { prelude :: * };
-use bevy_debug_text_overlay :: { screen_print };
-
-use std				:: { path::PathBuf };
-use splines			:: { Interpolation, Key, Spline };
-
-use bevy::render::mesh::shape as render_shape;
-use std::f32::consts:: { * };
 
 use super           :: { * };
 
 pub mod spawn;
+pub mod systems;
+pub use systems		:: { * };
 
 #[derive(Component)]
 pub struct Tile;
 
 #[derive(Component)]
-pub struct Herringbone;
+pub struct Herringbone2;
 
-pub struct StepRequest {
+/* coming...
+#[derive(Component)]
+pub struct Herringbone3;
+*/
+
+#[derive(Component)]
+pub struct Control {
 	pub next			: bool,
 	pub animate			: bool,
 	pub reset			: bool,
 	pub instant			: bool,
+	pub new_spline_point: bool,
 	pub last_update		: f64,
 	pub anim_delay_sec	: f64,
 }
 
-impl Default for StepRequest {
+impl Default for Control {
 	fn default() -> Self {
 		Self {
 			next		: false,
 			animate		: false,
 			reset		: false,
 			instant		: false,
+			new_spline_point : false,
 			last_update	: 0.0,
 			anim_delay_sec: 0.001,
 		}
@@ -49,36 +44,17 @@ impl Default for StepRequest {
 }
 
 #[derive(Component)]
-pub struct IO {
-	// going to change
+pub struct TileState {
 	pub x 				: u32,
 	pub z 				: u32,
 	pub iter			: u32,
 	pub orientation		: Orientation2D,
 	pub finished_hor	: bool,
 	pub finished		: bool,
-	pub transform		: Transform,
-	pub parent			: Option<Entity>,
-
-	pub spline			: Option<Spline<f32, Vec3>>,
 	pub prev_spline_p	: Option<Vec3>,
-	pub control_points	: Option<Vec<SplineControlPEntity>>,
-
-	pub body_type 		: RigidBody,
-	pub hsize 			: Vec3,
-	pub seam			: f32,
-	
-	pub width			: f32,
-	pub length			: f32,
-	pub init_offset_z	: f32,
-	pub limit			: u32,
-
-	// cant copy
-	pub mesh			: Handle<Mesh>,
-	pub material		: Handle<StandardMaterial>,
 }
 
-impl Default for IO {
+impl Default for TileState {
 	fn default() -> Self {
 		Self {
 			x 			: 0,
@@ -87,28 +63,13 @@ impl Default for IO {
 			orientation	: Orientation2D::Horizontal,
 			finished_hor: false,
 			finished	: false,
-			transform	: Transform::identity(),
-			parent		: None,
-
-			spline		: None,
 			prev_spline_p : None,
-			control_points : None,
-
-			body_type 	: RigidBody::Fixed,
-			hsize 		: Vec3::ZERO,
-			seam		: 0.01,
-			width		: 0.0,
-			length		: 0.0,
-			init_offset_z : 0.0,
-			limit		: 0,
-
-			mesh		: Handle::<Mesh>::default(),
-			material	: Handle::<StandardMaterial>::default(),
 		}
 	}
 }
 
-impl IO {
+impl TileState {
+	#[allow(dead_code)]
 	pub fn set_default(&mut self) {
 		*self			= Self::default();
 	}
@@ -129,474 +90,83 @@ impl IO {
 			orientation	: self.orientation,
 			finished_hor: self.finished_hor,
 			finished	: self.finished,
-			transform	: self.transform,
-			parent		: self.parent,
-
-			spline		: self.spline.clone(),
 			prev_spline_p : self.prev_spline_p.clone(),
-			control_points : None, // self.control_points.clone(),
+		}
+	}
+}
 
+#[derive(Component)]
+pub struct Config {
+	pub body_type 		: RigidBody,
+	pub hsize 			: Vec3,
+	pub seam			: f32,
+	
+	pub width			: f32,
+	pub limit_z			: f32,
+	pub offset_z		: f32,
+	pub limit_iter		: u32,
+
+	pub parent			: Entity,
+
+	// cant copy
+	pub mesh			: Handle<Mesh>,
+	pub material		: Handle<StandardMaterial>,
+}
+
+impl Default for Config {
+	fn default() -> Self {
+		Self {
+			body_type 	: RigidBody::Fixed,
+			hsize 		: Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0),
+			seam		: 0.01,
+			
+			width		: 4.0,
+			limit_z		: 8.0,
+			offset_z 	: 0.0,
+			limit_iter	: 100,
+
+			parent		: Entity::from_raw(0),
+
+			mesh		: Handle::<Mesh>::default(),
+			material	: Handle::<StandardMaterial>::default(),
+		}
+	}
+}
+
+impl Config {
+	#[allow(dead_code)]
+	pub fn set_default(&mut self) {
+		*self			= Self::default();
+	}
+
+	pub fn clone(&self) -> Self {
+		Self {
 			body_type 	: self.body_type,
 			hsize 		: self.hsize,
 			seam		: self.seam,
 			
 			width		: self.width,
-			length		: self.length,
-			init_offset_z : self.init_offset_z,
-			limit		: self.limit,
+			limit_z		: self.limit_z,
+			offset_z : self.offset_z,
+			limit_iter		: self.limit_iter,
+
+			parent		: self.parent,
 
 			mesh		: self.mesh.clone_weak(),
 			material	: self.material.clone_weak(),
 		}
 	}
-
-	pub fn set_spline_interpolation(&mut self, id : usize, interpolation : Interpolation<f32, Vec3>) { // TODO: declare Interpolation<f32, Vec3> somewhere?
-		*self.spline.as_mut().unwrap().get_mut(id).unwrap().interpolation = interpolation;
-	}
-
-	pub fn set_spline_control_point(&mut self, id : usize, controlp_pos : Vec3) { // TODO: declare Key<f32, Vec3> somewhere?
-		let t = controlp_pos.z;
-		self.spline.as_mut().unwrap().replace(id, |k : &Key<f32, Vec3>| { Key::new(t, controlp_pos, k.interpolation) });
-	}
 }
 
-pub fn brick_road_setup(
-	io					: &mut ResMut<IO>,
-	meshes				: &mut ResMut<Assets<Mesh>>,
-	materials			: &mut ResMut<Assets<StandardMaterial>>,
-	ass					: &Res<AssetServer>,
-	mut commands		: &mut Commands
-) {
-//	let hsize 			= Vec3::new(0.1075 / 2.0, 0.065 / 2.0, 0.215 / 2.0);
-	let hsize 			= Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0);
-//	let hsize 			= Vec3::new(0.1075, 0.065, 0.215);
-
-	io.set_default		();
-
-	io.width			= 5.0;
-	io.length			= 10.0;
-	io.limit			= 100;
-
-	io.body_type		= RigidBody::Fixed;
-	io.hsize			= hsize;
-	io.seam				= 0.01;
-	io.mesh				= meshes.add(Mesh::from(render_shape::Box::new(hsize.x * 2.0, hsize.y * 2.0, hsize.z * 2.0)));
-	io.material			= materials.add(StandardMaterial { base_color: Color::ALICE_BLUE,..default() });
-
-	let y_offset		= 0.5;
-	
-	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
-	//
-	//
-	let tangent0		= Vec3::new(0.0, y_offset, 2.5);
-	let tangent1		= Vec3::new(0.0, y_offset, 7.5);
-	// z_limit is used both for final coordinate and for final value of t to have road length tied to spline length and vice versa
-	let control_point0_pos = Vec3::new(0.0, y_offset, 0.0);
-	let control_point1_pos = Vec3::new(0.0, y_offset, io.length);
-	// z_limit as final 't' value lets us probe spline from any z offset of a tile
-	let t0				= 0.0;
-	let t1				= io.length;
-
-	let control_point0	= Key::new(t0, control_point0_pos, Interpolation::StrokeBezier(tangent0, tangent0));
-	let control_point1	= Key::new(t1, control_point1_pos, Interpolation::StrokeBezier(tangent1, tangent1));
-
-	io.spline 			= Some(Spline::from_vec(vec![control_point0, control_point1]));
-}
-
-pub fn brick_road_system(
-	mut step			: ResMut<StepRequest>,
-	mut io				: ResMut<IO>,
-	mut despawn			: ResMut<DespawnResource>,
-		time			: Res<Time>,
-		ass				: Res<AssetServer>,
-
-		query			: Query<Entity, With<Herringbone>>,
-
-	mut commands		: Commands
-) {
-	if step.reset {
-		for e in query.iter() {
-			despawn.entities.push(e);
-		}
-	
-		io.reset_changed();
-	
-		step.reset		= false;
-	}
-
-	let do_spawn 		= step.next || step.animate;
-	if !do_spawn || io.finished {
-		return;
-	}
-
-	let cur_time		= time.seconds_since_startup();
-	if (cur_time - step.last_update) < step.anim_delay_sec && !step.instant {
-		return;
-	}
-
-	step.last_update 	= cur_time;
-
-	if !step.instant {
-		brick_road_iter(&mut io, &ass, &mut commands);
-	} else {
-		loop {
-			brick_road_iter(&mut io, &ass, &mut commands);
-			if io.finished {
-				step.instant = false;
-				break;
-			}
-		}
-	}
-
-	step.next			= false;
-
-	if io.finished {
-		step.animate	= false;
-	}
-}
-
-pub fn brick_road_iter(
-	mut io				: &mut IO,
-		ass				: &Res<AssetServer>,
-		commands		: &mut Commands
-) {
-	let init_rotation	= match io.orientation {
-	Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
-	Orientation2D::Vertical 	=> Quat::IDENTITY,
-	};
-
-	let seam			= io.seam;
-	let length			= io.length - io.init_offset_z;
-
-	let hlenz			= io.hsize.z;
-	let lenz			= hlenz * 2.0;
-
-	let hlenx			= io.hsize.x;
-	let lenx			= hlenx * 2.0;
-
-	// main tile center calculation without seams
-	//
-	//
-
-	let iter0			= (io.iter + 0) as f32;
-	let iter1			= (io.iter + 1) as f32;
-
-	let calc_offset_x = |x : f32, iter : f32, orientation : Orientation2D| -> f32 {
-		match orientation {
-		Orientation2D::Horizontal 	=> (iter + 1.0) * hlenz 				+ (x * (lenz * 2.0)),
-		Orientation2D::Vertical 	=> (iter + 0.0) * hlenz + (hlenx * 1.0)	+ (x * (lenz * 2.0)),
-		}
-	};
-
-	let calc_offset_z = |z : f32, iter : f32, orientation : Orientation2D| -> f32 {
-		match orientation {
-		Orientation2D::Horizontal 	=> (iter + 0.0) * hlenz + (hlenx * 1.0)	+ (z * (lenz * 2.0)),
-		Orientation2D::Vertical 	=> (iter + 0.0) * hlenz + (hlenz * 2.0) + (z * (lenz * 2.0)),
-		}
-	};
-
-	let offset_x 		= calc_offset_x(io.x as f32, iter0, io.orientation);
-	let offset_z 		= calc_offset_z(io.z as f32, iter0, io.orientation);
-
-	// now seams are tricky
-	//
-	//
-
-	let calc_seam_offset_x = |x : f32, z : f32, iter : f32, orientation : Orientation2D, seam: f32| -> f32 {
-		let mut offset_x = ((iter + 0.0) * seam) + ((x + 0.0) * seam * 3.0);
-
-		if Orientation2D::Horizontal == orientation && z > 0.0 {
-			offset_x 	+= seam * 0.5;
-		}
-
-		offset_x
-	};
-
-	let calc_seam_offset_z = |z : f32, iter : f32, orientation : Orientation2D, seam: f32| -> f32 {
-		let mut offset_z = ((iter + 0.0) * seam) + ((z + 0.0) * seam * 3.0);
-
-		if Orientation2D::Vertical == orientation {
-			offset_z 	+= seam * 1.5;
-		}
-		offset_z 		+= (z + 0.0) * seam * 0.5;
-
-		offset_z
-	};
-
-	let seam_offset_x 	= calc_seam_offset_x(io.x as f32, io.z as f32, iter0, io.orientation, seam);
-	let seam_offset_z 	= calc_seam_offset_z(io.z as f32, iter0, io.orientation, seam);
-
-	// Start constructing tile pose
-	//
-	//
-
-	let mut pose 		= Transform::identity();
-
-	// half width shift to appear in the middle
-	pose.translation.x	-= io.width / 2.0;
-
-	// external offset for convenience
-	pose.translation.z	+= io.init_offset_z;
-
-	// tile offset/rotation
-	pose.translation.x	+= offset_x + seam_offset_x;
-	pose.translation.z	+= offset_z + seam_offset_z;
-	pose.rotation		*= init_rotation;
-
-	// now let me interject for a moment with a spline (Hi Freya!)
-	//
-	//
-
-	// spline is in the same local space as each brick is
-	let t				= pose.translation.z;
-	let spline_p		= match io.spline.as_ref() {
-		// ok, we have a spline, sample it
-		Some(spline)	=> match spline.sample(t) {
-			// ok, sample was a success, get the point from it
-			Some(p)		=> p,
-			// sample wasnt a succes, try previuos point on spline
-			None		=> {
-			match io.prev_spline_p {
-				Some(p)	=> p,
-				None	=> Vec3::ZERO,
-			}
-		},
-		},
-		// there is no spline, no offset
-		None			=> Vec3::ZERO,
-	};
-	let spline_r		= match io.prev_spline_p {
-		Some(prev_spline_p) => {
-			let spline_dir	= (spline_p - prev_spline_p).normalize();
-			Quat::from_rotation_arc(Vec3::Z, spline_dir)
-		},
-		// if there is no previous point we try to just move t forward or backward if possible and sample there
-		None if io.spline.as_ref().is_some() => {
-			let spline	= io.spline.as_ref().unwrap();
-			let t		= if t >= lenx { t - lenx } else { t + lenx };
-			match spline.sample(t) {
-				Some(prev_spline_p) => {
-					let spline_dir = (spline_p - prev_spline_p).normalize();
-					Quat::from_rotation_arc(Vec3::Z, spline_dir)
-				},
-				None	=> Quat::IDENTITY,
-			}
-		},
-		None 			=> Quat::IDENTITY,
-	};
-
-	io.prev_spline_p	= Some(spline_p);
-
-	// spline
-	pose.translation.x	+= spline_p.x;
-	// spline is sampled by z so it doesnt bring any offset on z
-
-	pose.rotation		*= spline_r;
-
-	// spawn
-	//
-	//
-
-	// spawn first brick with a strong reference to keep reference count > 0 and mesh/material from dying when out of scope
-	let (mut me, mut ma) = (io.mesh.clone_weak(), io.material.clone_weak());
-	match (io.x, io.z) {
-		(0, 0) => {
-			(me, ma)	= (io.mesh.clone(), io.material.clone());
-		}
-		_ => (),
-	}
-
-	{
-		macro_rules! insert_tile_components {
-			($a:expr) => {
-				$a	
-				.insert			(io.body_type)
-				.insert			(io.transform * pose)
-				.insert			(GlobalTransform::default())
-				.insert			(Collider::cuboid(io.hsize.x, io.hsize.y, io.hsize.z))
-				// .insert			(Friction{ coefficient : friction, combine_rule : CoefficientCombineRule::Average });
-				.insert_bundle	(PickableBundle::default())
-				// .insert			(Draggable::default())
-				.insert			(Herringbone)
-				.insert			(Tile)
-				.insert			(io.clone());
-			}
-		}
-
-		let bundle = PbrBundle{ mesh: me, material: ma, ..default() };
-
-		if io.parent.is_some() {
-			commands.entity(io.parent.unwrap()).with_children(|parent| {
-				insert_tile_components!(parent.spawn_bundle(bundle));
-			});
-		} else {
-			insert_tile_components!(commands.spawn_bundle(bundle));
-		}
-	}
-
-	// if only io.limit is given set limits in cordinates anyway because otherwise we don't know where to stop not on diagonal
-	if io.iter == io.limit {
-		if io.width == 0.0 {
-			io.width = offset_x;
-		}
-
-		if io.length == 0.0 {
-			io.length = offset_z;
-		}
-	}
-
-	// check for end conditions
-	//
-	//
-
-	let newoffx	= calc_offset_x		(io.x as f32, iter1, io.orientation) 
-				+ calc_seam_offset_x(io.x as f32, io.z as f32, iter1, io.orientation, seam);
-
-	let newoffz	= calc_offset_z		(io.z as f32, iter1, io.orientation)
-				+ calc_seam_offset_z(io.z as f32, iter1, io.orientation, seam);
-
-	if ((newoffx >= io.width) && (io.width != 0.0))
-	|| ((newoffz >= length) && (length != 0.0))
-	|| (io.iter >= io.limit && io.limit != 0)
-	{
-		let prev_orientation = io.orientation.clone();
-
-		io.iter			= 0;
-		io.orientation.flip();
-
-		io.prev_spline_p = None;
-
-		// println!		("Flipped orientation x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
-
-		if prev_orientation == Orientation2D::Vertical {
-			let newoffx	= calc_offset_x		((io.x + 1) as f32, io.iter as f32, io.orientation) 
-						+ calc_seam_offset_x((io.x + 1) as f32, io.z as f32, io.iter as f32, io.orientation, seam);
-
-			let newoffz	= calc_offset_z		((io.z + 1) as f32, io.iter as f32, io.orientation)
-						+ calc_seam_offset_z((io.z + 1) as f32, io.iter as f32, io.orientation, seam);
-
-			if newoffx < io.width && !io.finished_hor {
-				io.x	+= 1;
-				// println!("x =+ 1 new offx {:.3}", newoffx);
-			} else if newoffz < length {
-				io.x	= 0;
-				io.z	+= 1;
-				io.finished_hor = true;
-				// println!("x = 0, z += 1 new offz {:.3}", newoffz);
-			} else {
-				io.finished = true;
-				// println!("herringbone_brick_road_iter finished!");
-			}
-		}
-	}
-
-	io.iter				+= 1;
-}
-
-pub fn on_spline_tangent_moved(
-	mut step			: ResMut<StepRequest>,
-	mut io				: ResMut<IO>,
-		time			: Res<Time>,
-		q_tangent 		: Query<(&Transform, &SplineTangent), Changed<Transform>>,
-		q_controlp 		: Query<&Transform>,
-) {
-	if time.seconds_since_startup() < 1.0 {
-		return;
-	}
-
-	for (tform, tan) in q_tangent.iter() {
-		let tan_pos		= tform.translation;
-		match tan {
-			SplineTangent::ID(id) => {
-				io.set_spline_interpolation(*id, Interpolation::StrokeBezier(tan_pos, tan_pos));
-				step.reset = true;
-				step.next = true;
-				step.instant = true;
-
-				let control_points = io.control_points.as_mut().unwrap();
-				match *id {
-					0 => {
-						let controlp_e = control_points[0].entity;
-						let controlp_pos = q_controlp.get(controlp_e).unwrap();
-						control_points[0].tangent_offset = tan_pos - controlp_pos.translation;
-					},
-					1 => {
-						let controlp_e = control_points[1].entity;
-						let controlp_pos = q_controlp.get(controlp_e).unwrap();
-						control_points[1].tangent_offset = tan_pos - controlp_pos.translation;
-					},
-					_ => (),
-				};
-			},
-		}
-	}
-}
-
-pub fn on_spline_control_point_moved(
-	mut step			: ResMut<StepRequest>,
-	mut io				: ResMut<IO>,
-		time			: Res<Time>,
-	mut	q_tangent 		: Query<&mut Transform, (With<SplineTangent>, Without<SplineControlPoint>)>,
-		q_controlp 		: Query<(&Transform, &SplineControlPoint), Changed<Transform>>,
-) {
-	if time.seconds_since_startup() < 1.0 {
-		return;
-	}
-
-	for (tform, controlp) in q_controlp.iter() {
-		let controlp_pos = tform.translation;
-		match controlp {
-			SplineControlPoint::ID(id) => {
-				io.set_spline_control_point(*id, controlp_pos);
-
-				match *id {
-					0 => {
-						io.init_offset_z = controlp_pos.z;
-
-						let control_points = io.control_points.as_mut().unwrap();
-						let tan_e = control_points[0].tangent_entity;
-						let mut transform = q_tangent.get_mut(tan_e).unwrap();
-						transform.translation = controlp_pos + control_points[0].tangent_offset;
-					},
-					1 => {
-						io.length = controlp_pos.z;
-
-						let control_points = io.control_points.as_mut().unwrap();
-						let tan_e = control_points[1].tangent_entity;
-						let mut transform = q_tangent.get_mut(tan_e).unwrap();
-						transform.translation = controlp_pos + control_points[1].tangent_offset;
-					},
-					_ => (),
-				};
-
-				step.reset = true;
-				step.next = true;
-				step.instant = true;
-			},
-		}
-	}
-}
-
-pub fn on_object_root_moved(
-	mut step			: ResMut<StepRequest>,
-	mut io				: ResMut<IO>,
-		time			: Res<Time>,
-		q_root			: Query<&Transform, (With<ObjectRoot>, Changed<Transform>)>,
-) {
-	if time.seconds_since_startup() < 1.0 {
-		return;
-	}
-
-	if q_root.is_empty() {
-		return;
-	}
-
-	let root_pos		= match q_root.get_single() {
-		Ok(pos)			=> *pos,
-		Err(_)			=> Transform::identity(),
-	};
-
-	step.reset 			= true;
-	step.next 			= true;
-	step.instant 		= true;
+pub struct HerringbonePlugin;
+
+// This plugin is responsible to control the game audio
+impl Plugin for HerringbonePlugin {
+    fn build(&self, app: &mut App) {
+        app	.add_system	(brick_road_system)
+
+			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved)
+			.add_system_to_stage(CoreStage::PostUpdate, on_spline_control_point_moved)
+            ;
+    }
 }

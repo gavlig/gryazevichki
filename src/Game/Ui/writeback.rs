@@ -1,8 +1,5 @@
 use bevy			::	prelude :: *;
 use bevy_rapier3d	::	prelude :: *;
-use bevy_egui		::	egui :: { Slider, Ui };
-
-use super			::	{ * };
 
 pub fn cylinder_hh(
 	new_hh          		: f32,

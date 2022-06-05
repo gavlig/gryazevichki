@@ -2,10 +2,8 @@ use bevy			::	prelude :: { * };
 use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	FlyCamera;
 use bevy_mod_picking::	{ * };
-// use bevy_transform_gizmo :: { * };
 
 use bevy::render::mesh::shape as render_shape;
-use std::f32::consts::	{ * };
 
 use super			::	{ * };
 
@@ -206,9 +204,9 @@ pub fn obstacles(
 }
 
 pub fn spheres(
-	mut meshes			: &mut ResMut<Assets<Mesh>>,
-	mut materials		: &mut ResMut<Assets<StandardMaterial>>,
-	mut commands		: &mut Commands
+	meshes				: &mut ResMut<Assets<Mesh>>,
+	materials			: &mut ResMut<Assets<StandardMaterial>>,
+	commands			: &mut Commands
 ) {
 	let num				= 10;
 	let offset 			= Vec3::new(0.0, 0.0, 25.0);
@@ -247,7 +245,6 @@ pub fn wall(
 	let hsize 			= Vec3::new(1.5, 0.3, 0.3);
 	let offset 			= Vec3::new(-7.5, hsize.y, 10.0);
 
-
 	for i in 0 ..= num {
 		for j in 0 ..= 5 {
 			let mut pose = Transform::from_translation(offset.clone());
@@ -272,30 +269,89 @@ pub fn wall(
 	}
 }
 
-use splines :: { Interpolation, Key };
+pub fn spline_tangent(
+	id					: usize,
+	key					: &SplineKey,
+	parent_e			: Entity,
+	sargs				: &mut SpawnArguments,
+) -> Entity {
+	let mut tan_id 		= Entity::from_raw(0);
+	let cp_pos			= key.value;
+	let tan_pos = match key.interpolation {
+		SplineInterpolation::StrokeBezier(V1, _V2) => V1,
+		_ => key.value,
+	};
+	// For spline calculation tangent is in the same space as the control point.
+	// But in engine it's a child of control point (for convenience) so we have to calculate its pos as a child of control point.
+	let transform		= Transform::from_translation(tan_pos - cp_pos);
 
-impl SplineControlPEntity {
-	pub fn new(
-		  id		: usize
-		, key		: &Key<f32, Vec3>
-		, parent	: Entity
-		, meshes	: &mut ResMut<Assets<Mesh>>
-		, materials	: &mut ResMut<Assets<StandardMaterial>>
-		, commands	: &mut Commands
-	) -> Self 
-	{
-		let mut scpe 	= SplineControlPEntity::default();
-		match key.interpolation {
-			Interpolation::StrokeBezier(V0, V1) => {
-				scpe.tangent_offset = V0 - key.value;
-				scpe.tangent_entity =
-				Herringbone::spawn::spline_tangent(parent, V0, SplineTangent::ID(id), meshes, materials, commands);
-			},
-			_ => (),
-		};
-		scpe.entity =
-		Herringbone::spawn::spline_control_point(parent, key.value, SplineControlPoint::ID(id), meshes, materials, commands);
-
-		scpe
-	}
+	sargs.commands.entity(parent_e).with_children(|parent| {
+		tan_id = parent.spawn_bundle(PbrBundle {
+			mesh		: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
+			material	: sargs.materials.add	(Color::INDIGO.into()),
+			transform	: transform,
+			..Default::default()
+		})
+		.insert			(SplineTangent::ID(id))
+		.insert			(Gizmo)
+		.insert_bundle	(PickableBundle::default())
+		.insert			(Draggable::default())
+		.id();
+	});
+	
+	tan_id
 }
+
+pub fn spline_control_point(
+	id					: usize,
+	key					: &SplineKey,
+	parent_e			: Entity,
+	with_tangent		: bool,
+	sargs				: &mut SpawnArguments,
+) -> Entity {
+	let mut cp_id 		= Entity::from_raw(0);
+	let transform		= Transform::from_translation(key.value);
+
+	sargs.commands.entity(parent_e).with_children(|parent| {
+		cp_id = parent.spawn_bundle(PbrBundle {
+			mesh		: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+			material	: sargs.materials.add	(Color::BEIGE.into()),
+			transform	: transform,
+			..Default::default()
+		})
+		.insert			(SplineControlPoint::ID(id))
+		.insert			(Gizmo)
+		.insert_bundle	(PickableBundle::default())
+		.insert			(Draggable::default())
+		.id();
+	});
+
+	if with_tangent {
+		/*spawn::*/spline_tangent(
+			id,
+			key,
+			cp_id,
+			sargs
+		);
+	}
+
+	cp_id
+}
+
+pub fn root_handle(
+	transform			: Transform,
+	sargs				: &mut SpawnArguments,
+) -> Entity {
+	sargs.commands.spawn_bundle(
+	PbrBundle {
+		mesh		: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+		material	: sargs.materials.add	(Color::LIME_GREEN.into()),
+		transform	: transform,
+		..Default::default()
+	})
+	.insert			(RootHandle)
+	.insert			(Gizmo)
+	.insert_bundle	(PickableBundle::default())
+	.insert			(Draggable::default())
+	.id				()
+}  

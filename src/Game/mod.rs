@@ -1,18 +1,23 @@
 use bevy			::	{ prelude :: * };
 use bevy_mod_picking::	{ PickingRaycastSet };
+use bevy_atmosphere	::	{ * };
+use iyes_loopless	::	prelude :: { * };
 
 use std				:: 	{ path::PathBuf };
 use serde			::	{ Deserialize, Serialize };
 
-pub mod systems;
-pub use systems		:: *;
-pub mod Vehicle;
-pub use Vehicle		:: *;
-pub mod Ui;
-pub use Ui			:: *;
-pub mod Herringbone;
+mod Vehicle;
+use Vehicle			:: *;
+mod Ui;
+use Ui				:: *;
+mod Herringbone;
+use Herringbone		:: *;
 
 mod spawn;
+mod systems;
+use systems			:: *;
+mod draggable;
+use draggable		:: *;
 
 pub type PickingObject = bevy_mod_raycast::RayCastSource<PickingRaycastSet>;
 
@@ -66,6 +71,7 @@ pub enum SideX {
 	Right
 }
 
+#[allow(dead_code)]
 #[derive(Component, Debug, Copy, Clone, PartialEq)]
 pub enum SideY {
 	Top,
@@ -95,8 +101,8 @@ impl Orientation2D {
 
 #[derive(Debug, Clone, Copy)]
 pub struct RespawnableEntity {
-	entity			: Entity,
-	respawn			: bool
+	entity	: Entity,
+	respawn	: bool
 }
 
 impl Default for RespawnableEntity {
@@ -133,8 +139,45 @@ impl Default for PhysicsConfig {
 	}
 }
 
+pub struct SpawnArguments<'a0, 'a1, 'b0, 'b1, 'c, 'd, 'e> {
+	pub meshes					: &'a0 mut ResMut<'a1, Assets<Mesh>>,
+	pub materials				: &'b0 mut ResMut<'b1, Assets<StandardMaterial>>,
+	pub commands				: &'c mut Commands<'d, 'e>
+}
+
+pub type SplineRaw 				= splines::Spline<f32, Vec3>;
+pub type SplineInterpolation 	= splines::Interpolation<f32, Vec3>;
+pub type SplineKey 				= splines::Key<f32, Vec3>;
+
+// wrapper for SplineRaw to have it as a Bevy Component
 #[derive(Component)]
-pub struct ObjectRoot;
+pub struct Spline(pub SplineRaw);
+
+impl Spline {
+	pub fn set_interpolation(&mut self, id : usize, interpolation : SplineInterpolation) {
+		*self.0.get_mut(id).unwrap().interpolation = interpolation;
+	}
+	
+	pub fn set_control_point(&mut self, id : usize, controlp_pos : Vec3) {
+		let t = controlp_pos.z;
+		self.0.replace(id, |k : &SplineKey| { SplineKey::new(t, controlp_pos, k.interpolation) });
+	}
+
+	// wrapper
+	pub fn from_vec(keys: Vec<SplineKey>) -> Self {
+		Self {
+			0 : SplineRaw::from_vec(keys),
+		}
+	}
+
+	// wrapper
+	pub fn sample(&self, t: f32) -> Option<Vec3> {
+		self.0.sample(t)
+	}
+}
+
+#[derive(Component)]
+pub struct RootHandle;
 
 #[derive(Component)]
 pub enum SplineTangent {
@@ -146,21 +189,50 @@ pub enum SplineControlPoint {
 	ID(usize)
 }
 
-pub struct SplineControlPEntity {
-	pub entity			: Entity,
-	pub tangent_entity	: Entity,
-	pub tangent_offset	: Vec3,
-}
-
-impl Default for SplineControlPEntity {
-	fn default() -> Self {
-		Self {
-			entity		: Entity::from_raw(0),
-			tangent_entity : Entity::from_raw(0),
-			tangent_offset : Vec3::ZERO,
-		}
-	}
-}
-
 #[derive(Component)]
 pub struct Gizmo;
+
+pub struct GamePlugin;
+
+impl Plugin for GamePlugin {
+    fn build(&self, app: &mut App) {
+		let clear_color = ClearColor(
+			Color::rgb(
+				0xF9 as f32 / 255.0,
+				0xF9 as f32 / 255.0,
+				0xFF as f32 / 255.0,
+			));
+
+        app	.add_loopless_state(GameMode::InGame)
+
+			.insert_resource(clear_color)
+			.insert_resource(Msaa			::default())
+			.insert_resource(AtmosphereMat	::default()) // Default Earth sky
+
+			.insert_resource(GameState		::default())
+			.insert_resource(DespawnResource::default())
+			
+		
+			.add_plugin		(HerringbonePlugin)
+            .add_plugin		(UiPlugin)
+            .add_plugin		(VehiclePlugin)
+
+			.add_startup_system(setup_cursor_visibility_system)
+			.add_startup_system(setup_lighting_system)
+			.add_startup_system(setup_world_system)
+			.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
+
+			// input
+			.add_system		(cursor_visibility_system)
+			.add_system		(input_misc_system)
+			.add_system		(vehicle_controls_system)
+
+			.add_system_to_stage(CoreStage::PostUpdate, despawn_system)
+
+			.add_system_to_stage(CoreStage::PostUpdate, dragging_start_system)
+			.add_system_to_stage(CoreStage::PostUpdate, dragging_system)
+			.add_system_to_stage(CoreStage::PostUpdate, dragging_stop_system)
+			;
+    }
+}
+

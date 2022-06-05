@@ -14,7 +14,7 @@ use bevy		::	prelude :: *;
 use bevy_rapier3d::	prelude :: *;
 use serde		::	{ Deserialize, Serialize };
 
-use super		::	{ PhysicsConfig, SideX, SideY, SideZ };
+use super		::	{ PhysicsConfig, SideX, SideZ };
 pub use super	::	{ GameState, RespawnableEntity, NameComponent };
 
 #[derive(Default, Serialize, Deserialize)]
@@ -38,19 +38,17 @@ pub enum Part {
 	Wheel,
 	Axle,
 	Body,
-	WheelJoint,
-	AxleJoint,
+	_WheelJoint, // these are not exposed to engine anymore
+	_AxleJoint,
 }
 
 // TODO: all this looks like a bad design, most likely i need a different approach
 use usize as WheelSideType;
 pub const FRONT_RIGHT		: WheelSideType = 0;
 pub const FRONT_LEFT		: WheelSideType = 1;
-pub const FRONT_SPLIT		: WheelSideType	= 2;
 
 pub const REAR_RIGHT		: WheelSideType = 2;
 pub const REAR_LEFT			: WheelSideType = 3;
-pub const REAR_SPLIT		: WheelSideType = 4;
 
 pub const WHEELS_MAX		: WheelSideType = 4;
 
@@ -74,6 +72,7 @@ fn wheel_side_to_zx(side: WheelSideType) -> (SideZ, SideX) {
   }
 }
 
+#[allow(dead_code)]
 fn wheel_side_from_zx(sidez: SideZ, sidex: SideX) -> WheelSideType {
 	match sidez {
 		SideZ::Front		=> {
@@ -105,6 +104,7 @@ fn wheel_side_offset(side: WheelSideType, off: Vec3) -> Vec3 {
 	}
 }
 
+#[allow(dead_code)]
 fn wheel_side_rotation(side: WheelSideType) -> Quat {
 	let default_rotation	= Quat::IDENTITY;
 	let flip_side			= Quat::from_rotation_y(std::f32::consts::PI);
@@ -231,6 +231,7 @@ impl Default for SteeringConfig {
 	}
 }
 
+// TODO: probably split input processing from gamelogic here
 pub fn vehicle_controls_system(
 		key			: Res<Input<KeyCode>>,
 		game		: ResMut<GameState>,
@@ -276,18 +277,30 @@ pub fn vehicle_controls_system(
 	let damping 		= steer_cfg.damping;
 	let damping_release = steer_cfg.damping_release;
 	if key.just_pressed(KeyCode::D) {
-		motor::steer		(-steer_angle, stiffness, damping, fr_axle_joint, &mut query);
-		motor::steer		(-steer_angle, stiffness, damping, fl_axle_joint, &mut query);
+		motor::steer	(-steer_angle, stiffness, damping, fr_axle_joint, &mut query);
+		motor::steer	(-steer_angle, stiffness, damping, fl_axle_joint, &mut query);
 	} else if key.just_released(KeyCode::D) {
-		motor::steer		(0.0, stiffness_release, damping_release, fr_axle_joint, &mut query);
-		motor::steer		(0.0, stiffness_release, damping_release, fl_axle_joint, &mut query);
+		motor::steer	(0.0, stiffness_release, damping_release, fr_axle_joint, &mut query);
+		motor::steer	(0.0, stiffness_release, damping_release, fl_axle_joint, &mut query);
 	}
 
  	if key.just_pressed(KeyCode::A) {
-		motor::steer		(steer_angle, stiffness, damping, fr_axle_joint, &mut query);
-		motor::steer		(steer_angle, stiffness, damping, fl_axle_joint, &mut query);
+		motor::steer	(steer_angle, stiffness, damping, fr_axle_joint, &mut query);
+		motor::steer	(steer_angle, stiffness, damping, fl_axle_joint, &mut query);
 	} else if key.just_released(KeyCode::A) {
-		motor::steer		(0.0, stiffness_release, damping_release, fr_axle_joint, &mut query);
-		motor::steer		(0.0, stiffness_release, damping_release, fl_axle_joint, &mut query);
+		motor::steer	(0.0, stiffness_release, damping_release, fr_axle_joint, &mut query);
+		motor::steer	(0.0, stiffness_release, damping_release, fl_axle_joint, &mut query);
 	}
+}
+
+pub struct VehiclePlugin;
+
+impl Plugin for VehiclePlugin {
+    fn build(&self, app: &mut App) {
+        app	.add_system_to_stage(CoreStage::PostUpdate, respawn_vehicle_system)
+
+			.add_system_to_stage(CoreStage::Last, save_vehicle_config_system)
+ 			.add_system_to_stage(CoreStage::Last, load_vehicle_config_system)
+			;
+    }
 }
