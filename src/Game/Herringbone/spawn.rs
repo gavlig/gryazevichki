@@ -261,6 +261,8 @@ pub fn brick_road_iter(
 		});
 	}
 
+	state.iter			+= 1;
+
 	// check for end conditions
 	//
 	//
@@ -305,6 +307,4 @@ pub fn brick_road_iter(
 			}
 		}
 	}
-
-	state.iter				+= 1;
 }

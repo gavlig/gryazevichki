@@ -77,16 +77,21 @@
 49.3.8. (done!)extend road with control points
 49.3.9. (done!)make tangent a child of control point to avoid extra calculations
 49.4. (done!)movable root
-49.4.1 (fixed!)bug: when root is rotated dragging control points is broken
+49.4.1. (fixed!)bug: when root is rotated dragging control points is broken
 49.5. borders
 49.6. render models
 49.7. random rotation/artifacts on tiles
 49.8. optimize spawning huge amounts of dynamic tiles (dynamic -> fixed after a few seconds or sleeping maybe)
+49.8.1. optimize dragging huge amounts of static tiles
 49.9. (done!)sync io limits and spline t
 49.10. (done!)refactor IO thing and setup
 49.11. (done!)move to own file
 49.12. (almost)instancing
 49.13. make sure draggable doesnt twitch when we start dragging
+49.14. auto rotate control points when spawning new ones for spline
+49.15. fill the gaps between tiles when road is rotated too much
+49.16. properly calculate spline length when using it to set limits instead of using z coordinate
+49.17. fix physics placement, currently it's ignoring y?
 50. make utils for debug drawing
 
 next milestone: fully configurable vehicle with an environment to test it
