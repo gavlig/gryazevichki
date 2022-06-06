@@ -19,6 +19,9 @@ pub struct Herringbone3;
 */
 
 #[derive(Component)]
+pub struct Herringbone2Line;
+
+#[derive(Component)]
 pub struct Control {
 	pub next			: bool,
 	pub animate			: bool,
@@ -171,6 +174,7 @@ impl Plugin for HerringbonePlugin {
         app	.add_system	(brick_road_system)
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved)
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_control_point_moved)
+			.add_system_to_stage(CoreStage::PostUpdate, on_root_handle_moved)
             ;
     }
 }

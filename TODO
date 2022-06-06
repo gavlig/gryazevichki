@@ -87,7 +87,7 @@
 49.9. (done!)sync io limits and spline t
 49.10. (done!)refactor IO thing and setup
 49.11. (done!)move to own file
-49.12. (almost)instancing
+49.12. (done!)instancing
 49.13. (almost)make sure draggable doesnt twitch when we start dragging
 49.14. auto rotate control points when spawning new ones for spline
 49.15. fill the gaps between tiles when road is rotated too much

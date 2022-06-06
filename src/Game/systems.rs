@@ -88,7 +88,9 @@ pub fn setup_world_system(
 			materials : &mut materials,
 			commands : &mut commands,
 		};
-		Herringbone::spawn::brick_road(transform, &config, &mut sargs);
+		Herringbone::spawn::brick_road(transform, &config, false, &mut polylines, &mut polyline_materials, &mut sargs);
+
+		Herringbone::spawn::brick_road(transform, &config, true, &mut polylines, &mut polyline_materials, &mut sargs);
 	}
 
 	// polyline
@@ -270,7 +272,7 @@ pub fn input_misc_system(
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut exit		: EventWriter<AppExit>,
 	mut q_camera	: Query<&mut FlyCamera>,
-	mut q_control	: Query<&mut Control>,
+	mut q_control	: Query<(&mut Control, &Selection)>,
 ) {
 	for mut camera in q_camera.iter_mut() {
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
@@ -292,8 +294,11 @@ pub fn input_misc_system(
 		phys_ctx.enabled = !phys_ctx.enabled;
 	}
 	
-	if !q_control.is_empty() {
-		let mut control = q_control.single_mut();
+	for (mut control, selection) in q_control.iter_mut() {
+		if !selection.selected() {
+			continue;
+		}
+		
 		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::T) {
 			control.next 	= true;
 		}

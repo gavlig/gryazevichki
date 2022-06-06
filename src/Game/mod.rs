@@ -201,7 +201,7 @@ impl Spline {
 	}
 
 	// wrapper
-	pub fn _keys(&self) -> &[SplineKey] {
+	pub fn keys(&self) -> &[SplineKey] {
 		self.0.keys()
 	}
 }

@@ -1,8 +1,12 @@
+use bevy_polyline		:: { prelude :: * };
+
 use super           	:: { Herringbone :: * };
 use crate				:: { Game };
 
 pub fn brick_road_system(
-	mut q_spline		: Query<(Entity, &GlobalTransform, &mut Spline, &mut Control, &mut Herringbone2Config, &mut TileState), Changed<Control>>,
+	mut polylines		: ResMut<Assets<Polyline>>,
+		q_polyline		: Query<&Handle<Polyline>, With<Herringbone2Line>>,
+	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut Control, &mut Herringbone2Config, &mut TileState), Changed<Control>>,
 		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
 
 	mut despawn			: ResMut<DespawnResource>,
@@ -19,79 +23,116 @@ pub fn brick_road_system(
 		return;
 	}
 
-	let (root_e, transform, mut spline, mut control, mut config, mut tile_state) = q_spline.single_mut();
+	let mut sargs = SpawnArguments {
+		meshes		: &mut meshes,
+		materials	: &mut materials,
+		commands	: &mut commands,
+	};
 
-	if control.reset {
-		for e in q_tiles.iter() {
-			despawn.entities.push(e);
-		}
-	
-		tile_state.reset_changed();
-	
-		control.reset	= false;
-	}
-
-	while control.new_spline_point {
-		let mouse_pick 	= q_mouse_pick.single();
-		let top_pick 	= mouse_pick.intersect_top();
-
-		// There is at least one entity under the cursor
-		if top_pick.is_none() {
-			break;
-		}
+	for (root_e, children_e, transform, mut spline, mut control, mut config, mut tile_state) in q_spline.iter_mut() {
+		if control.reset {
+			for e in q_tiles.iter() {
+				if !children_e.contains(&e) {
+					continue;
+				}
+				despawn.entities.push(e);
+			}
 		
-		let (_topmost_entity, intersection) = top_pick.unwrap();
-		let mut new_pos	= intersection.position();
-		new_pos			-= transform.translation; // world space -> object space
-
-		// TODO: use line equation here too to put handle precisely under cursor
-		new_pos.y		= 0.5;
-		let tan0		= new_pos - Vec3::Z * config.init_tangent_offset;
-		let tan1		= new_pos + Vec3::Z * config.init_tangent_offset;
-
-		let t			= new_pos.z;
-		let key			= SplineKey::new(t, new_pos, SplineInterpolation::StrokeBezier(tan0, tan1));
-		spline.add		(key);
-		//
-		let mut sargs = SpawnArguments {
-			meshes		: &mut meshes,
-			materials	: &mut materials,
-			commands	: &mut commands,
-		};
-		let new_key_id	= spline.get_key_id(t);
-		let key_e 		= Game::spawn::spline_control_point(new_key_id, &key, root_e, true, &mut sargs);
-		commands.entity(root_e).add_child(key_e);
-		//
-		config.limit_z	= new_pos.z;
-
-		control.new_spline_point = false;
-	}
-
-	let do_spawn 		= control.next || control.animate;
-	if !do_spawn || tile_state.finished {
-		return;
-	}
-
-	let cur_time		= time.seconds_since_startup();
-	if (cur_time - control.last_update) < control.anim_delay_sec && !control.instant {
-		return;
-	}
-
-	control.last_update = cur_time;
-
-	if !control.instant {
-		spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut commands);
-	} else {
-		while !tile_state.finished {
-			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut commands);
+			tile_state.reset_changed();
+		
+			control.reset = false;
 		}
-		control.instant = false;
-	}
 
-	control.next		= false;
-	if tile_state.finished {
-		control.animate	= false;
+		while control.new_spline_point {
+			new_spline_point(root_e, &q_mouse_pick, transform, config.as_mut(), spline.as_mut(), &mut sargs);
+
+			control.new_spline_point = false;
+		}
+
+		let do_spawn 	= control.next || control.animate;
+		if !do_spawn || tile_state.finished {
+			return;
+		}
+
+		let cur_time	= time.seconds_since_startup();
+		if (cur_time - control.last_update) < control.anim_delay_sec && !control.instant {
+			return;
+		}
+
+		control.last_update = cur_time;
+
+		if !control.instant {
+			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
+		} else {
+			let mut tiles_cnt = 0;
+			while !tile_state.finished {
+				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
+				tiles_cnt += 1;
+			}
+			println!("total tiles: {}", tiles_cnt);
+			control.instant = false;
+		}
+
+		for &child in children_e.iter() {
+			let handle = match q_polyline.get(child) {
+				Ok(handle) => handle,
+				Err(_) => continue,
+			};
+
+			let num 	= 16 * spline.keys().len();
+
+			let line	= polylines.get_mut(handle).unwrap();
+			line.vertices.resize(num, Vec3::ZERO);
+
+			let limit_mz = config.limit_mz;
+			let delta = (config.limit_z - config.limit_mz) / num as f32;
+			for i in 0 .. num {
+				let t = limit_mz + i as f32 * delta;
+				line.vertices[i] = spline.sample(t).unwrap();
+			}
+		}
+
+		control.next	= false;
+		if tile_state.finished {
+			control.animate	= false;
+		}
 	}
+}
+
+fn new_spline_point(
+		root_e		: Entity,
+		q_mouse_pick : &Query<&PickingObject, With<Camera>>,
+		transform	: &GlobalTransform,
+	mut config		: &mut Herringbone2Config,
+	mut spline		: &mut Spline,
+	mut	sargs		: &mut SpawnArguments,
+) {
+	let mouse_pick 	= q_mouse_pick.single();
+	let top_pick 	= mouse_pick.intersect_top();
+
+	// There is at least one entity under the cursor
+	if top_pick.is_none() {
+		return;
+	}
+	
+	let (_topmost_entity, intersection) = top_pick.unwrap();
+	let mut new_pos	= intersection.position();
+	new_pos			-= transform.translation; // world space -> object space
+
+	// TODO: use line equation here too to put handle precisely under cursor
+	new_pos.y		= 0.5;
+	let tan0		= new_pos - Vec3::Z * config.init_tangent_offset;
+	let tan1		= new_pos + Vec3::Z * config.init_tangent_offset;
+
+	let t			= new_pos.z;
+	let key			= SplineKey::new(t, new_pos, SplineInterpolation::StrokeBezier(tan0, tan1));
+	spline.add		(key);
+	//
+	let new_key_id	= spline.get_key_id(t);
+	let key_e 		= Game::spawn::spline_control_point(new_key_id, &key, root_e, true, &mut sargs);
+	sargs.commands.entity(root_e).add_child(key_e);
+	//
+	config.limit_z	= new_pos.z;
 }
 
 pub fn on_spline_tangent_moved(
@@ -187,5 +228,13 @@ pub fn on_spline_control_point_moved(
 				control.instant = true;
 			},
 		}
+	}
+}
+
+pub fn on_root_handle_moved(
+	time : Res<Time>,
+) {
+	if time.seconds_since_startup() < 0.1 {
+		return;
 	}
 }

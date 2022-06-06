@@ -1,6 +1,7 @@
 use bevy				::	prelude :: { * };
 use bevy_rapier3d		::	prelude :: { * };
 use bevy_mod_picking	::	{ * };
+use bevy_polyline		::	{ prelude :: * };
 
 use bevy::render::mesh::shape as render_shape;
 use std::f32::consts	::	{ * };
@@ -10,8 +11,13 @@ use super				::	{ Herringbone :: * };
 use crate :: Game 		as Game;
 
 pub fn brick_road(
-		transform		: Transform,
-		config_in		: &Herringbone2Config,
+	transform			: Transform,
+	config_in			: &Herringbone2Config,
+	debug				: bool,
+
+	polylines			: &mut ResMut<Assets<Polyline>>,
+	polyline_materials 	: &mut ResMut<Assets<PolylineMaterial>>,
+
 	mut sargs			: &mut SpawnArguments,
 ) -> Entity {
 	let mut config		= config_in.clone();
@@ -32,7 +38,7 @@ pub fn brick_road(
 		..default()
 	});
 
-	let offset			= transform.translation;
+	let offset_y		= 0.5;
 	
 	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
 	//
@@ -41,19 +47,33 @@ pub fn brick_road(
 	let tan_offset		= road_len / 4.0;
 	config.init_tangent_offset = tan_offset;
 
-	let t0				= config.limit_mz;
-	let t1				= config.limit_z;
-	
 	// limit_z and offset_z are used both for final tile coordinates and for final value of t to have road length tied to spline length and vice versa
-	let key0_pos		= Vec3::new(0.0, 0.0, config.limit_mz);
+	let mut key0_pos	= Vec3::new(0.0, offset_y, config.limit_mz);
 	
 	// StrokeBezier allows having two tangent points and we're going to use that
-	let tangent00		= Vec3::new(0.0, 0.0, config.limit_mz - tan_offset);
-	let tangent01		= Vec3::new(0.0, 0.0, config.limit_mz + tan_offset);
-	let tangent10		= Vec3::new(0.0, 0.0, road_len - tan_offset);
-	let tangent11		= Vec3::new(0.0, 0.0, road_len + tan_offset);
+	let mut tangent00	= Vec3::new(0.0, offset_y, config.limit_mz - tan_offset);
+	let mut tangent01	= Vec3::new(0.0, offset_y, config.limit_mz + tan_offset);
 
-	let key1_pos		= Vec3::new(0.0, 0.0, config.limit_z);
+	let mut tangent10	= Vec3::new(0.0, offset_y, config.limit_z - tan_offset);
+	let mut tangent11	= Vec3::new(0.0, offset_y, config.limit_z + tan_offset);
+
+	let mut key1_pos	= Vec3::new(0.0, offset_y, config.limit_z);
+
+	if debug {
+		key0_pos		= Vec3::new(config.limit_mz, offset_y, config.limit_mz);
+		
+		// StrokeBezier allows having two tangent points and we're going to use that
+		tangent00		= Vec3::new(config.limit_mz - tan_offset, offset_y, config.limit_mz - tan_offset);
+		tangent01		= Vec3::new(config.limit_mz + tan_offset, offset_y, config.limit_mz + tan_offset);
+
+		tangent10		= Vec3::new(config.limit_z - tan_offset, offset_y, config.limit_z - tan_offset);
+		tangent11		= Vec3::new(config.limit_z + tan_offset, offset_y, config.limit_z + tan_offset);
+
+		key1_pos		= Vec3::new(config.limit_z, offset_y, config.limit_z);
+	}
+
+	let t0				= config.limit_mz;
+	let t1				= (key1_pos - key0_pos).length();
 
 	let key0			= SplineKey::new(t0, key0_pos, SplineInterpolation::StrokeBezier(tangent00, tangent01));
 	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent10, tangent11));
@@ -65,6 +85,22 @@ pub fn brick_road(
 	let key0_e 			= Game::spawn::spline_control_point(0, &key0, root_e, true, &mut sargs);
 	let key1_e 			= Game::spawn::spline_control_point(1, &key1, root_e, true, &mut sargs);
 
+	let line_id = sargs.commands.spawn_bundle(PolylineBundle {
+		polyline : polylines.add(Polyline {
+			vertices	: vec![key0_pos, key1_pos],
+			..default()
+		}),
+		material : polyline_materials.add(PolylineMaterial {
+			width		: 100.0,
+			color		: Color::SEA_GREEN,
+			perspective	: true,
+			..default()
+		}),
+		..default()
+	})
+	.insert				(Herringbone2Line)
+	.id					();
+
 	sargs.commands.entity(root_e)
 		.insert			(config)
 		.insert			(spline)
@@ -72,6 +108,7 @@ pub fn brick_road(
 		.insert			(TileState::default())
 		.add_child		(key0_e)
 		.add_child		(key1_e)
+		.add_child		(line_id)
 		;
 
 	root_e
@@ -83,7 +120,7 @@ pub fn brick_road_iter(
 		spline			: &Spline,
 		debug			: bool,
 		_ass			: &Res<AssetServer>,
-		commands		: &mut Commands
+		sargs			: &mut SpawnArguments,
 ) {
 	let init_rotation	= match state.orientation {
 	Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
@@ -214,25 +251,33 @@ pub fn brick_road_iter(
 
 	state.prev_spline_p = Some(spline_p);
 
+	// applying rotation calculated from spline direction
+	pose.rotation		*= spline_r;
+
+	let cache_x = pose.translation.x;
+	let cache_z = pose.translation.z;
+
 	let mut coef = 1.0;
 	if debug {
-		let x = spline_p.x;
-		let z = pose.translation.z;
-		let s = (x * x + z * z).sqrt();
-		coef = t / s;
+		// let x = spline_p.x;
+		// let z = pose.translation.z;
+		// let s = (x * x + z * z).sqrt();
+		// coef = t / s;
 
-		pose.translation.z *= coef;
-		let Z = pose.translation.z;
-		println!("[{:.3}] x: {:.3} z: {:.3} s: {:.3} t: {:.3} Z: {:.3}", state.iter, state.x, state.z, s, t, Z);
+		// pose.translation.z *= coef;
+		// let Z = pose.translation.z;
+		// // println!("[{:.3}] x: {:.3} z: {:.3} s: {:.3} t: {:.3} Z: {:.3}", state.iter, state.x, state.z, s, t, Z);
 
-		pose.translation.x += spline.clamped_sample(Z).unwrap().x;
+		// pose.translation.x += spline.clamped_sample(Z).unwrap().x;
+
+		pose.translation.x += spline_p.x;
+		pose.translation.z = spline_p.z;
 	} else {
 		// applying offset by x sampled from spline
 		pose.translation.x += spline_p.x;
 	}
 
-	// applying rotation calculated from spline direction
-	pose.rotation		*= spline_r;
+	println!("[{:.3} {:?}] x: {} z: {} ox: {:.3} oz: {:.3} cx: {:.3} cz: {:.3} spx {:.3} spz {:.3}", state.iter, state.orientation, state.x, state.z, pose.translation.x, pose.translation.z, cache_x, cache_z, spline_p.x, spline_p.z );
 
 	// spawning
 	//
@@ -267,7 +312,7 @@ pub fn brick_road_iter(
 
 		let bundle = PbrBundle{ mesh: me, material: ma, ..default() };
 
-		commands.entity(config.parent).with_children(|parent| {
+		sargs.commands.entity(config.parent).with_children(|parent| {
 			insert_tile_components!(parent.spawn_bundle(bundle));
 		});
 	}
@@ -282,7 +327,8 @@ pub fn brick_road_iter(
 				+ calc_seam_offset_x(state.x as f32, state.z as f32, iter1, state.orientation, seam);
 
 	let newoffz	= calc_offset_z		(state.z as f32, iter1, state.orientation)
-				+ calc_seam_offset_z(state.z as f32, iter1, state.orientation, seam);
+				+ calc_seam_offset_z(state.z as f32, iter1, state.orientation, seam)
+				+ config.limit_mz;
 
 	if ((newoffx >= config.width) && (config.width != 0.0))
 	|| ((newoffz >= config.limit_z) && (config.limit_z != 0.0))
@@ -293,6 +339,8 @@ pub fn brick_road_iter(
 		state.iter			= 0;
 		state.orientation.flip();
 
+		println!("FLIP! width: {:.3} limit_z: {:.3} newoffx: {:.3} newoffz: {:.3}", config.width, config.limit_z, newoffx, newoffz);
+
 		state.prev_spline_p = None;
 
 		if prev_orientation == Orientation2D::Vertical {
@@ -300,16 +348,20 @@ pub fn brick_road_iter(
 						+ calc_seam_offset_x((state.x + 1) as f32, state.z as f32, state.iter as f32, state.orientation, seam);
 
 			let newoffz	= calc_offset_z		((state.z + 1) as f32, state.iter as f32, state.orientation)
-						+ calc_seam_offset_z((state.z + 1) as f32, state.iter as f32, state.orientation, seam);
+						+ calc_seam_offset_z((state.z + 1) as f32, state.iter as f32, state.orientation, seam)
+						+ config.limit_mz;
 
 			if newoffx < config.width && !state.finished_hor {
 				state.x	+= 1;
+				println!("x += 1");
 			} else if newoffz < config.limit_z {
 				state.x	= 0;
 				state.z	+= 1;
 				state.finished_hor = true;
+				println!("z += 1, x = 0");
 			} else {
 				state.finished = true;
+				println!("finished!");
 			}
 		}
 	}

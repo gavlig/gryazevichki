@@ -2,7 +2,6 @@ use bevy					:: { prelude :: * };
 use bevy					:: { input :: mouse :: * };
 use bevy_mod_picking		:: { * };
 use bevy_polyline			:: { prelude :: * };
-use bevy_debug_text_overlay :: { screen_print };
 
 use super           		:: { * };
 
@@ -203,7 +202,6 @@ pub fn dragging_system(
 			MouseScrollUnit::Line => event.y * 5.,
 			MouseScrollUnit::Pixel => event.y,
 		};
-		screen_print!("event.y: {:.3} dy: {:.3}", event.y, dy);
 		transform.rotation *= Quat::from_rotation_y(dy.to_radians());
     }
 
