@@ -1,11 +1,11 @@
-use bevy			::	prelude :: { * };
-use bevy_rapier3d	::	prelude :: { * };
-use bevy_fly_camera	::	FlyCamera;
-use bevy_mod_picking::	{ * };
+use bevy				::	prelude :: { * };
+use bevy_rapier3d		::	prelude :: { * };
+use bevy_fly_camera		::	FlyCamera;
+use bevy_mod_picking	::	{ * };
 
 use bevy::render::mesh::shape as render_shape;
 
-use super			::	{ * };
+use super				::	{ * };
 
 pub fn camera(
 	game				: &mut ResMut<GameState>,
@@ -13,13 +13,13 @@ pub fn camera(
 ) {
 	let camera = commands.spawn_bundle(PerspectiveCameraBundle {
 			transform: Transform {
-				translation: Vec3::new(0., 1., 10.),
+				translation: Vec3::new(5., 7., -2.),
 				..default()
 			},
 			..default()
 		})
 //		.insert			(Collider::ball(1.0))
-		.insert			(FlyCamera{ yaw : 195.0, pitch : 7.0,  ..default() })
+		.insert			(FlyCamera{ yaw : -225.0, pitch : 45.0, ..default() })
 		.insert_bundle	(PickingCameraBundle::default())
 // 		.insert			(GizmoPickSource::default())
 		.insert			(NameComponent{ name: "Camera".to_string() })
