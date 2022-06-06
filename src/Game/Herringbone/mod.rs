@@ -25,6 +25,7 @@ pub struct Control {
 	pub reset			: bool,
 	pub instant			: bool,
 	pub new_spline_point: bool,
+	pub debug			: bool,
 	pub last_update		: f64,
 	pub anim_delay_sec	: f64,
 }
@@ -37,6 +38,7 @@ impl Default for Control {
 			reset		: false,
 			instant		: false,
 			new_spline_point : false,
+			debug		: false,
 			last_update	: 0.0,
 			anim_delay_sec: 0.001,
 		}
@@ -123,7 +125,7 @@ impl Default for Herringbone2Config {
 			
 			width		: 4.0,
 			limit_z		: 8.0,
-			limit_mz 	: 0.0,
+			limit_mz 	: 1.0,
 			limit_iter	: 100,
 			init_tangent_offset : 1.0,
 

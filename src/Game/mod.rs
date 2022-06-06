@@ -180,6 +180,11 @@ impl Spline {
 	}
 
 	// wrapper
+	pub fn clamped_sample(&self, t : f32) -> Option<Vec3> {
+		self.0.clamped_sample(t)
+	}
+
+	// wrapper
 	pub fn add(&mut self, key : SplineKey) {
 		self.0.add(key);
 	}

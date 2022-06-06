@@ -80,10 +80,10 @@ pub fn brick_road_system(
 	control.last_update = cur_time;
 
 	if !control.instant {
-		spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &ass, &mut commands);
+		spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut commands);
 	} else {
 		while !tile_state.finished {
-			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &ass, &mut commands);
+			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut commands);
 		}
 		control.instant = false;
 	}

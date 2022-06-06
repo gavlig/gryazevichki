@@ -45,15 +45,15 @@ pub fn brick_road(
 	let t1				= config.limit_z;
 	
 	// limit_z and offset_z are used both for final tile coordinates and for final value of t to have road length tied to spline length and vice versa
-	let key0_pos		= Vec3::new(offset.x, offset.y, config.limit_mz);
+	let key0_pos		= Vec3::new(0.0, 0.0, config.limit_mz);
 	
 	// StrokeBezier allows having two tangent points and we're going to use that
-	let tangent00		= Vec3::new(offset.x, offset.y, -tan_offset);
-	let tangent01		= Vec3::new(offset.x, offset.y, tan_offset);
-	let tangent10		= Vec3::new(offset.x, offset.y, road_len - tan_offset);
-	let tangent11		= Vec3::new(offset.x, offset.y, road_len + tan_offset);
+	let tangent00		= Vec3::new(0.0, 0.0, config.limit_mz - tan_offset);
+	let tangent01		= Vec3::new(0.0, 0.0, config.limit_mz + tan_offset);
+	let tangent10		= Vec3::new(0.0, 0.0, road_len - tan_offset);
+	let tangent11		= Vec3::new(0.0, 0.0, road_len + tan_offset);
 
-	let key1_pos		= Vec3::new(offset.x, offset.y, config.limit_z);
+	let key1_pos		= Vec3::new(0.0, 0.0, config.limit_z);
 
 	let key0			= SplineKey::new(t0, key0_pos, SplineInterpolation::StrokeBezier(tangent00, tangent01));
 	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent10, tangent11));
@@ -81,6 +81,7 @@ pub fn brick_road_iter(
 	mut state			: &mut TileState,
 	mut	config			: &mut Herringbone2Config,
 		spline			: &Spline,
+		debug			: bool,
 		_ass			: &Res<AssetServer>,
 		commands		: &mut Commands
 ) {
@@ -90,7 +91,6 @@ pub fn brick_road_iter(
 	};
 
 	let seam			= config.seam;
-	let road_length		= config.limit_z - config.limit_mz;
 
 	let hlenz			= config.hsize.z;
 	let lenz			= hlenz * 2.0;
@@ -189,10 +189,10 @@ pub fn brick_road_iter(
 	// if there is no previous point we try to just move t forward or backward if possible and sample there
 	if state.prev_spline_p.is_none() {
 		let t			= if (t + lenx) >= config.limit_z { t - lenx * 2.0 } else { t + lenx };
-		state.prev_spline_p = spline.sample(t);
+		state.prev_spline_p = spline.clamped_sample(t);
 	}
 
-	let spline_p		= match spline.sample(t) {
+	let spline_p		= match spline.clamped_sample(t) {
 		// ok, sample was a success, get the point from it
 		Some(p)			=> p,
 		// sample wasnt a succes, try previous point on spline
@@ -214,9 +214,22 @@ pub fn brick_road_iter(
 
 	state.prev_spline_p = Some(spline_p);
 
-	// applying offset by x sampled from spline
-	pose.translation.x	+= spline_p.x;
-	// spline is sampled by z so it doesnt bring any offset on z
+	let mut coef = 1.0;
+	if debug {
+		let x = spline_p.x;
+		let z = pose.translation.z;
+		let s = (x * x + z * z).sqrt();
+		coef = t / s;
+
+		pose.translation.z *= coef;
+		let Z = pose.translation.z;
+		println!("[{:.3}] x: {:.3} z: {:.3} s: {:.3} t: {:.3} Z: {:.3}", state.iter, state.x, state.z, s, t, Z);
+
+		pose.translation.x += spline.clamped_sample(Z).unwrap().x;
+	} else {
+		// applying offset by x sampled from spline
+		pose.translation.x += spline_p.x;
+	}
 
 	// applying rotation calculated from spline direction
 	pose.rotation		*= spline_r;
@@ -272,7 +285,7 @@ pub fn brick_road_iter(
 				+ calc_seam_offset_z(state.z as f32, iter1, state.orientation, seam);
 
 	if ((newoffx >= config.width) && (config.width != 0.0))
-	|| ((newoffz >= road_length) && (road_length != 0.0))
+	|| ((newoffz >= config.limit_z) && (config.limit_z != 0.0))
 	|| (state.iter >= config.limit_iter && config.limit_iter != 0)
 	{
 		let prev_orientation = state.orientation.clone();
@@ -291,7 +304,7 @@ pub fn brick_road_iter(
 
 			if newoffx < config.width && !state.finished_hor {
 				state.x	+= 1;
-			} else if newoffz < road_length {
+			} else if newoffz < config.limit_z {
 				state.x	= 0;
 				state.z	+= 1;
 				state.finished_hor = true;

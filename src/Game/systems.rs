@@ -323,6 +323,13 @@ pub fn input_misc_system(
 			control.instant	= true;
 			control.next 	= true;
 		}
+
+		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Q) {
+			control.debug 	= !control.debug;
+			control.reset	= true;
+			control.instant	= true;
+			control.next 	= true;
+		}
 	}
 }
 
