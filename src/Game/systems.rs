@@ -16,10 +16,12 @@ pub fn setup_camera_system(
 	mut query			: Query<&mut FlyCamera>
 ) {
 	// initialize camera with target to look at
-	if game.camera.is_some() && game.body.is_some() {
+	if game.camera.is_some() {
 		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
-		camera.target 	= Some(game.body.unwrap().entity);
-		println!		("camera.target Entity ID {:?}", camera.target);
+		if game.body.is_some() {
+			camera.target = Some(game.body.unwrap().entity);
+			println!	("camera.target Entity ID {:?}", camera.target);
+		}
 
 		// temp
 		camera.enabled_follow = false;
@@ -137,18 +139,20 @@ pub fn setup_world_system(
 		.insert(BlueLine);
 	}
 
-	let veh_file		= Some(PathBuf::from("corvette.ron"));
-	let veh_cfg			= load_vehicle_config(&veh_file).unwrap();
+	if false {
+		let veh_file	= Some(PathBuf::from("corvette.ron"));
+		let veh_cfg		= load_vehicle_config(&veh_file).unwrap();
 
-	let body_pos 		= Transform::from_xyz(0.0, 5.5, 0.0);
+		let body_pos 	= Transform::from_xyz(0.0, 5.5, 0.0);
 
-	Vehicle::spawn(
-		  &veh_cfg
-		, body_pos
-		, &mut game
-		, &ass
-		, &mut commands
-	);
+		Vehicle::spawn(
+			  &veh_cfg
+			, body_pos
+			, &mut game
+			, &ass
+			, &mut commands
+		);
+	}
 }
 
 pub fn setup_lighting_system(
@@ -287,7 +291,7 @@ pub fn input_misc_system(
 	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Key1) {
 		phys_ctx.enabled = !phys_ctx.enabled;
 	}
-
+	
 	if !q_control.is_empty() {
 		let mut control = q_control.single_mut();
 		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::T) {

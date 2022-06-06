@@ -242,15 +242,20 @@ pub fn vehicle_controls_system(
 	let fr_axle_joint	= game.axles[FRONT_RIGHT];
 	let fl_axle_joint	= game.axles[FRONT_LEFT];
 
-	let rr_wheel_joint	= game.wheels[REAR_RIGHT];
-	let rl_wheel_joint	= game.wheels[REAR_LEFT];
+	let rr_wheel_joint 	= game.wheels[REAR_RIGHT];
+	let rl_wheel_joint 	= game.wheels[REAR_LEFT];
 
-	let accel_cfg = match q_accel_cfg.get(game.body.unwrap().entity) {
+	let body = match game.body {
+		Some(b) => b,
+		None => return,
+	};
+
+	let accel_cfg = match q_accel_cfg.get(body.entity) {
 		Ok(c) => c,
 		Err(_) => return,
 	};
 
-	let steer_cfg = match q_steer_cfg.get(game.body.unwrap().entity) {
+	let steer_cfg = match q_steer_cfg.get(body.entity) {
 		Ok(c) => c,
 		Err(_) => return,
 	};
