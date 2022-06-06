@@ -82,17 +82,13 @@ pub fn brick_road_system(
 	if !control.instant {
 		spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &ass, &mut commands);
 	} else {
-		loop {
+		while !tile_state.finished {
 			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &ass, &mut commands);
-			if tile_state.finished {
-				control.instant = false;
-				break;
-			}
 		}
+		control.instant = false;
 	}
 
-	control.next			= false;
-
+	control.next		= false;
 	if tile_state.finished {
 		control.animate	= false;
 	}
@@ -141,7 +137,8 @@ pub fn on_spline_tangent_moved(
 
 pub fn on_spline_control_point_moved(
 		time			: Res<Time>,
-		q_controlp 		: Query<(&Parent, &Transform, &SplineControlPoint), Changed<Transform>>,
+		q_controlp 		: Query<(&Parent, &Children, &Transform, &SplineControlPoint), Changed<Transform>>,
+		q_tangent 		: Query<(&Transform, &SplineTangent)>,
 	mut q_spline		: Query<(&mut Spline, &mut Control, &mut Herringbone2Config)>,
 ) {
 	if time.seconds_since_startup() < 0.1 {
@@ -152,23 +149,41 @@ pub fn on_spline_control_point_moved(
 		return;
 	}
 
-	for (spline_e, tform, controlp) in q_controlp.iter() {
+	for (spline_e, children_e, control_point_tform, controlp) in q_controlp.iter() {
 		let (mut spline, mut control, mut config) = q_spline.get_mut(spline_e.0).unwrap();
 
-		let controlp_pos = tform.translation;
+		let controlp_pos = control_point_tform.translation;
 		match controlp {
-			SplineControlPoint::ID(id) => {
-				spline.set_control_point(*id, controlp_pos);
+			SplineControlPoint::ID(id_ref) => {
+				let id = *id_ref;
+				spline.set_control_point(id, controlp_pos);
+
+				let mut tan0 = Vec3::ZERO;
+				let mut tan1 = Vec3::ZERO;
+				for tangent_e in children_e.iter() {
+					let (tan_tform, tan) = match q_tangent.get(*tangent_e) {
+						Ok((tf, tn)) => (tf, tn),
+						Err(_) => { continue },
+					};
+					let final_tform = (*control_point_tform) * (*tan_tform);
+					if tan.local_id == 0 {
+						tan0 = final_tform.translation;
+					} else if tan.local_id == 1 {
+						tan1 = final_tform.translation;
+					}
+				}
+				spline.set_interpolation(id, SplineInterpolation::StrokeBezier(tan0, tan1));
+
 				let last_id = spline.len() - 1;
 
-				if *id == 0 {
+				if id == 0 {
 					config.offset_z = controlp_pos.z;
-				} else if *id == last_id {
+				} else if id == last_id {
 					config.limit_z = controlp_pos.z;
 				}
 
-				control.reset = true;
-				control.next = true;
+				control.reset	= true;
+				control.next 	= true;
 				control.instant = true;
 			},
 		}

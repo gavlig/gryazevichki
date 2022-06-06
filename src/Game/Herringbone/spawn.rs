@@ -39,6 +39,7 @@ pub fn brick_road(
 	//
 	let road_len		= config.limit_z - config.offset_z;
 	let tan_offset		= road_len / 4.0;
+	config.init_tangent_offset = tan_offset;
 
 	let t0				= config.offset_z;
 	let t1				= config.limit_z;
@@ -249,7 +250,7 @@ pub fn brick_road_iter(
 //				.insert			(Draggable::default())
 				.insert			(Herringbone2)
 				.insert			(Tile)
-				.insert			(state.clone());
+				.insert			(state.clone())
 			}
 		}
 
