@@ -96,7 +96,7 @@ impl TileState {
 }
 
 #[derive(Component)]
-pub struct Config {
+pub struct Herringbone2Config {
 	pub body_type 		: RigidBody,
 	pub hsize 			: Vec3,
 	pub seam			: f32,
@@ -105,6 +105,7 @@ pub struct Config {
 	pub limit_z			: f32,
 	pub offset_z		: f32,
 	pub limit_iter		: u32,
+	pub init_tangent_offset : f32,
 
 	pub parent			: Entity,
 
@@ -113,7 +114,7 @@ pub struct Config {
 	pub material		: Handle<StandardMaterial>,
 }
 
-impl Default for Config {
+impl Default for Herringbone2Config {
 	fn default() -> Self {
 		Self {
 			body_type 	: RigidBody::Fixed,
@@ -124,6 +125,7 @@ impl Default for Config {
 			limit_z		: 8.0,
 			offset_z 	: 0.0,
 			limit_iter	: 100,
+			init_tangent_offset : 1.0,
 
 			parent		: Entity::from_raw(0),
 
@@ -133,7 +135,7 @@ impl Default for Config {
 	}
 }
 
-impl Config {
+impl Herringbone2Config {
 	#[allow(dead_code)]
 	pub fn set_default(&mut self) {
 		*self			= Self::default();
@@ -147,8 +149,9 @@ impl Config {
 			
 			width		: self.width,
 			limit_z		: self.limit_z,
-			offset_z : self.offset_z,
-			limit_iter		: self.limit_iter,
+			offset_z 	: self.offset_z,
+			limit_iter	: self.limit_iter,
+			init_tangent_offset : self.init_tangent_offset,
 
 			parent		: self.parent,
 
@@ -164,7 +167,6 @@ pub struct HerringbonePlugin;
 impl Plugin for HerringbonePlugin {
     fn build(&self, app: &mut App) {
         app	.add_system	(brick_road_system)
-
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved)
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_control_point_moved)
             ;

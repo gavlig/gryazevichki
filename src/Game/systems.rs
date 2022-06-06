@@ -80,7 +80,7 @@ pub fn setup_world_system(
 
 	if true {
 		let transform = Transform::from_translation(Vec3::new(0.0, 0.5, 0.5));
-		let config = Herringbone::Config::default();
+		let config = Herringbone::Herringbone2Config::default();
 		let mut sargs = SpawnArguments {
 			meshes : &mut meshes,
 			materials : &mut materials,

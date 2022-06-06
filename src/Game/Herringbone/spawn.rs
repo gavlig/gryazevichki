@@ -11,7 +11,7 @@ use crate :: Game 		as Game;
 
 pub fn brick_road(
 		transform		: Transform,
-		config_in		: &Config,
+		config_in		: &Herringbone2Config,
 	mut sargs			: &mut SpawnArguments,
 ) -> Entity {
 	let mut config		= config_in.clone();
@@ -38,18 +38,24 @@ pub fn brick_road(
 	//
 	//
 	let road_len		= config.limit_z - config.offset_z;
+	let tan_offset		= road_len / 4.0;
 
 	let t0				= config.offset_z;
 	let t1				= config.limit_z;
-
-	// z_limit is used both for final coordinate and for final value of t to have road length tied to spline length and vice versa
-	let key0_pos		= Vec3::new(offset.x, offset.y, config.offset_z);
-	let tangent0		= Vec3::new(offset.x, offset.y, road_len / 4.0);
-	let tangent1		= Vec3::new(offset.x, offset.y, road_len - (road_len / 4.0));
-	let key1_pos		= Vec3::new(offset.x, offset.y, config.limit_z);
 	
-	let key0			= SplineKey::new(t0, key0_pos, SplineInterpolation::StrokeBezier(tangent0, tangent0));
-	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent1, tangent1));
+	// limit_z and offset_z are used both for final tile coordinates and for final value of t to have road length tied to spline length and vice versa
+	let key0_pos		= Vec3::new(offset.x, offset.y, config.offset_z);
+	
+	// StrokeBezier allows having two tangent points and we're going to use that
+	let tangent00		= Vec3::new(offset.x, offset.y, -tan_offset);
+	let tangent01		= Vec3::new(offset.x, offset.y, tan_offset);
+	let tangent10		= Vec3::new(offset.x, offset.y, road_len - tan_offset);
+	let tangent11		= Vec3::new(offset.x, offset.y, road_len + tan_offset);
+
+	let key1_pos		= Vec3::new(offset.x, offset.y, config.limit_z);
+
+	let key0			= SplineKey::new(t0, key0_pos, SplineInterpolation::StrokeBezier(tangent00, tangent01));
+	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent10, tangent11));
 	let spline			= Spline::from_vec(vec![key0, key1]);
 
 	let root_e			= Game::spawn::root_handle(transform, &mut sargs);
@@ -72,7 +78,7 @@ pub fn brick_road(
 
 pub fn brick_road_iter(
 	mut state			: &mut TileState,
-	mut	config			: &mut Config,
+	mut	config			: &mut Herringbone2Config,
 		spline			: &Spline,
 		_ass			: &Res<AssetServer>,
 		commands		: &mut Commands

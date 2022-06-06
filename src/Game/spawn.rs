@@ -21,7 +21,7 @@ pub fn camera(
 //		.insert			(Collider::ball(1.0))
 		.insert			(FlyCamera{ yaw : 195.0, pitch : 7.0,  ..default() })
 		.insert_bundle	(PickingCameraBundle::default())
-		// .insert			(GizmoPickSource::default())
+// 		.insert			(GizmoPickSource::default())
 		.insert			(NameComponent{ name: "Camera".to_string() })
 		.id				();
 
@@ -274,32 +274,40 @@ pub fn spline_tangent(
 	key					: &SplineKey,
 	parent_e			: Entity,
 	sargs				: &mut SpawnArguments,
-) -> Entity {
-	let mut tan_id 		= Entity::from_raw(0);
+) -> (Entity, Entity) {
 	let cp_pos			= key.value;
-	let tan_pos = match key.interpolation {
-		SplineInterpolation::StrokeBezier(V1, _V2) => V1,
-		_ => key.value,
+	let (tan_pos0, tan_pos1) = match key.interpolation {
+		SplineInterpolation::StrokeBezier(V0, V1) => (V0, V1),
+		_ => panic!("unsupported interpolation!"),
 	};
+
+	let mut spawn = |local_id, transform| -> Entity {
+		let mut tan_id 	= Entity::from_raw(0);
+		sargs.commands.entity(parent_e).with_children(|parent| {
+			tan_id = parent.spawn_bundle(PbrBundle {
+				mesh	: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
+				material : sargs.materials.add	(Color::INDIGO.into()),
+				transform : transform,
+				..Default::default()
+			})
+			.insert		(SplineTangent{ global_id : id, local_id : local_id })
+			.insert		(Gizmo)
+			.insert_bundle(PickableBundle::default())
+			.insert		(Draggable::default())
+			.id			();
+		});
+
+		tan_id
+	};
+
 	// For spline calculation tangent is in the same space as the control point.
 	// But in engine it's a child of control point (for convenience) so we have to calculate its pos as a child of control point.
-	let transform		= Transform::from_translation(tan_pos - cp_pos);
+	let transform		= Transform::from_translation(tan_pos0 - cp_pos);
+	let tan_id0 		= spawn(0, transform);
+	let transform		= Transform::from_translation(tan_pos1 - cp_pos);
+	let tan_id1 		= spawn(1, transform);
 
-	sargs.commands.entity(parent_e).with_children(|parent| {
-		tan_id = parent.spawn_bundle(PbrBundle {
-			mesh		: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
-			material	: sargs.materials.add	(Color::INDIGO.into()),
-			transform	: transform,
-			..Default::default()
-		})
-		.insert			(SplineTangent::ID(id))
-		.insert			(Gizmo)
-		.insert_bundle	(PickableBundle::default())
-		.insert			(Draggable::default())
-		.id();
-	});
-	
-	tan_id
+	(tan_id0, tan_id1)
 }
 
 pub fn spline_control_point(
@@ -323,7 +331,7 @@ pub fn spline_control_point(
 		.insert			(Gizmo)
 		.insert_bundle	(PickableBundle::default())
 		.insert			(Draggable::default())
-		.id();
+		.id				();
 	});
 
 	if with_tangent {
@@ -344,14 +352,14 @@ pub fn root_handle(
 ) -> Entity {
 	sargs.commands.spawn_bundle(
 	PbrBundle {
-		mesh		: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
-		material	: sargs.materials.add	(Color::LIME_GREEN.into()),
-		transform	: transform,
+		mesh			: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+		material		: sargs.materials.add	(Color::LIME_GREEN.into()),
+		transform		: transform,
 		..Default::default()
 	})
-	.insert			(RootHandle)
-	.insert			(Gizmo)
-	.insert_bundle	(PickableBundle::default())
-	.insert			(Draggable::default())
-	.id				()
+	.insert				(RootHandle)
+	.insert				(Gizmo)
+	.insert_bundle		(PickableBundle::default())
+	.insert				(Draggable::default())
+	.id					()
 }  

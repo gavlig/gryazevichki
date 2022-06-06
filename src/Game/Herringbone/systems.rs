@@ -2,7 +2,7 @@ use super           	:: { Herringbone :: * };
 use crate				:: { Game };
 
 pub fn brick_road_system(
-	mut q_spline		: Query<(Entity, &GlobalTransform, &mut Spline, &mut Control, &mut Config, &mut TileState), Changed<Control>>,
+	mut q_spline		: Query<(Entity, &GlobalTransform, &mut Spline, &mut Control, &mut Herringbone2Config, &mut TileState), Changed<Control>>,
 		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
 
 	mut despawn			: ResMut<DespawnResource>,
@@ -46,17 +46,19 @@ pub fn brick_road_system(
 
 		// TODO: use line equation here too to put handle precisely under cursor
 		new_pos.y		= 0.5;
-		let tan			= new_pos - Vec3::Z;
+		let tan0		= new_pos - Vec3::Z * config.init_tangent_offset;
+		let tan1		= new_pos + Vec3::Z * config.init_tangent_offset;
 
-		let new_key_id	= spline.len();
-		let key			= SplineKey::new(new_pos.z, new_pos, SplineInterpolation::StrokeBezier(tan, tan));
+		let t			= new_pos.z;
+		let key			= SplineKey::new(t, new_pos, SplineInterpolation::StrokeBezier(tan0, tan1));
 		spline.add		(key);
 		//
 		let mut sargs = SpawnArguments {
-			meshes : &mut meshes,
-			materials : &mut materials,
-			commands : &mut commands,
+			meshes		: &mut meshes,
+			materials	: &mut materials,
+			commands	: &mut commands,
 		};
+		let new_key_id	= spline.get_key_id(t);
 		let key_e 		= Game::spawn::spline_control_point(new_key_id, &key, root_e, true, &mut sargs);
 		commands.entity(root_e).add_child(key_e);
 		//
@@ -112,25 +114,35 @@ pub fn on_spline_tangent_moved(
 
 	for (control_point_e, tanget_tform, tan) in q_tangent.iter() {
 		let (spline_e, control_point_tform) = q_control_point.get(control_point_e.0).unwrap();
-		let (mut spline, mut control) = q_spline.get_mut(spline_e.0).unwrap();
+		let (mut spline, mut control) 		= q_spline.get_mut(spline_e.0).unwrap();
+
 		// in spline space (or object space)
 		let tan_tform	= (*control_point_tform) * (*tanget_tform);
 		let tan_pos		= tan_tform.translation;
-		match tan {
-			SplineTangent::ID(id) => {
-				spline.set_interpolation(*id, SplineInterpolation::StrokeBezier(tan_pos, tan_pos));
-				control.reset = true;
-				control.next = true;
-				control.instant = true;
+
+		let prev_interpolation = spline.get_interpolation(tan.global_id);
+		let opposite_tan_pos = match prev_interpolation {
+			SplineInterpolation::StrokeBezier(V0, V1) => {
+				if tan.local_id == 0 { *V1 } else { *V0 }
 			},
-		}
+			_ => panic!("unsupported interpolation type!"),
+		};
+
+		let tan0 = if tan.local_id == 0 { tan_pos } else { opposite_tan_pos };
+		let tan1 = if tan.local_id == 1 { tan_pos } else { opposite_tan_pos };
+
+		spline.set_interpolation(tan.global_id, SplineInterpolation::StrokeBezier(tan0, tan1));
+
+		control.reset 	= true;
+		control.next 	= true;
+		control.instant = true;
 	}
 }
 
 pub fn on_spline_control_point_moved(
 		time			: Res<Time>,
 		q_controlp 		: Query<(&Parent, &Transform, &SplineControlPoint), Changed<Transform>>,
-	mut q_spline		: Query<(&mut Spline, &mut Control, &mut Config)>,
+	mut q_spline		: Query<(&mut Spline, &mut Control, &mut Herringbone2Config)>,
 ) {
 	if time.seconds_since_startup() < 0.1 {
 		return;

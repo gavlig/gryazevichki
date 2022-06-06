@@ -157,6 +157,10 @@ impl Spline {
 	pub fn set_interpolation(&mut self, id : usize, interpolation : SplineInterpolation) {
 		*self.0.get_mut(id).unwrap().interpolation = interpolation;
 	}
+
+	pub fn get_interpolation(&self, id : usize) -> &SplineInterpolation {
+		&self.0.get(id).unwrap().interpolation
+	}
 	
 	pub fn set_control_point(&mut self, id : usize, controlp_pos : Vec3) {
 		let t = controlp_pos.z;
@@ -164,25 +168,31 @@ impl Spline {
 	}
 
 	// wrapper
-	pub fn from_vec(keys: Vec<SplineKey>) -> Self {
+	pub fn from_vec(keys : Vec<SplineKey>) -> Self {
 		Self {
 			0 : SplineRaw::from_vec(keys),
 		}
 	}
 
 	// wrapper
-	pub fn sample(&self, t: f32) -> Option<Vec3> {
+	pub fn sample(&self, t : f32) -> Option<Vec3> {
 		self.0.sample(t)
 	}
 
 	// wrapper
-	pub fn add(&mut self, key: SplineKey) {
+	pub fn add(&mut self, key : SplineKey) {
 		self.0.add(key);
 	}
 
 	// wrapper
 	pub fn len(&self) -> usize {
-	  self.0.len()
+		self.0.len()
+	}
+
+	// wrapper
+	pub fn get_key_id(&self, t_in : f32) -> usize {
+		let keys = self.0.keys();
+		keys.iter().position(|&key| key.t == t_in).unwrap()
 	}
 }
 
@@ -190,8 +200,9 @@ impl Spline {
 pub struct RootHandle;
 
 #[derive(Component)]
-pub enum SplineTangent {
-	ID(usize)
+pub struct SplineTangent {
+	pub global_id 	: usize,
+	pub local_id 	: usize,
 }
 
 #[derive(Component)]
