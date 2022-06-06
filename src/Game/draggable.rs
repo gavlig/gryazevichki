@@ -9,6 +9,7 @@ use super           		:: { * };
 #[derive(Component, Default)]
 pub struct Draggable {
 	pub init_transform		: GlobalTransform,
+	pub pick2object_offset	: Vec3,
 	pub started_picking		: bool,
 	pub init_pick_distance 	: f32,
 	pub pick_distance		: f32,
@@ -51,7 +52,7 @@ pub fn dragging_start_system(
 		return;
 	}
 	
-	let (topmost_entity, _) = top_pick.unwrap();
+	let (topmost_entity, intersection) = top_pick.unwrap();
 	
 	if let Ok((clicked_entity, interaction, global_transform, mut drag)) = interactions.get_mut(topmost_entity) {
 		if *interaction != Interaction::Clicked {
@@ -59,6 +60,7 @@ pub fn dragging_start_system(
 		}
 
 		drag.init_transform = global_transform.clone();
+		drag.pick2object_offset = drag.init_transform.translation - intersection.position();
 
 		commands.entity(clicked_entity).insert(DraggableActive);
 
@@ -167,7 +169,12 @@ pub fn dragging_system(
 	}
 
 	// putting draggable object on the line between camera and mouse cursor intersection while preserving y coordinate
-	let picked_pos  = mouse_ray.origin() + mouse_ray.direction() * new_distance;
+	let mut picked_pos  = mouse_ray.origin() + mouse_ray.direction() * new_distance;
+
+	// add pick2object offset that keeps offset between mouse ray intersection position and draggable transform.
+	// it is used to prevent initial "jerk" of an object when we start dragging it.
+	// TODO: there is still a small jerk, will have to return to this after uneven terrain
+	picked_pos += drag.pick2object_offset;
 
 	let (x1, y1, z1) = mouse_ray.origin().into();
 	let (x2, y2, z2) = picked_pos.into();
@@ -181,6 +188,7 @@ pub fn dragging_system(
 
 	let mut final_translation : Vec3 = [x, y, z].into();
 
+	// put in local space if draggable has parent
 	if let Some(draggable_parent_e) = draggable_parent {
 		let parent_transform	= q_transform.get(draggable_parent_e.0).unwrap();
 		let mat					= parent_transform.compute_matrix();
@@ -188,6 +196,7 @@ pub fn dragging_system(
 	}
 
 	transform.translation = final_translation;
+
 	// TODO: implement blender-like controls g + axis etc
 	for event in mouse_wheel_events.iter() {
 		let dy = match event.unit {
@@ -236,7 +245,7 @@ pub fn dragging_system(
 
 pub fn dragging_stop_system(
 		btn				: Res<Input<MouseButton>>,
-		q_draggable_active : Query<Entity, With<DraggableActive>>,
+	mut	q_draggable_active : Query<(Entity, &mut Draggable), With<DraggableActive>>,
 		q_draggable_picking : Query<Entity, With<DraggableRaycast>>,
 
 	mut despawn			: ResMut<DespawnResource>,
@@ -251,8 +260,10 @@ pub fn dragging_stop_system(
 		return;
 	}
 
-	let draggable		= q_draggable_active.single();
-	commands.entity(draggable).remove::<DraggableActive>();
+	let (draggable_e, mut drag)	= q_draggable_active.single_mut();
+	commands.entity(draggable_e).remove::<DraggableActive>();
+
+	drag.started_picking = false;
 
 	// despawn a child that is used for picking
 	let picking			= q_draggable_picking.single();
