@@ -103,7 +103,7 @@ pub struct Herringbone2Config {
 	
 	pub width			: f32,
 	pub limit_z			: f32,
-	pub offset_z		: f32,
+	pub limit_mz		: f32,
 	pub limit_iter		: u32,
 	pub init_tangent_offset : f32,
 
@@ -123,7 +123,7 @@ impl Default for Herringbone2Config {
 			
 			width		: 4.0,
 			limit_z		: 8.0,
-			offset_z 	: 0.0,
+			limit_mz 	: 0.0,
 			limit_iter	: 100,
 			init_tangent_offset : 1.0,
 
@@ -149,7 +149,7 @@ impl Herringbone2Config {
 			
 			width		: self.width,
 			limit_z		: self.limit_z,
-			offset_z 	: self.offset_z,
+			limit_mz 	: self.limit_mz,
 			limit_iter	: self.limit_iter,
 			init_tangent_offset : self.init_tangent_offset,
 

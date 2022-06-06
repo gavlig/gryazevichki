@@ -37,15 +37,15 @@ pub fn brick_road(
 	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
 	//
 	//
-	let road_len		= config.limit_z - config.offset_z;
+	let road_len		= config.limit_z - config.limit_mz;
 	let tan_offset		= road_len / 4.0;
 	config.init_tangent_offset = tan_offset;
 
-	let t0				= config.offset_z;
+	let t0				= config.limit_mz;
 	let t1				= config.limit_z;
 	
 	// limit_z and offset_z are used both for final tile coordinates and for final value of t to have road length tied to spline length and vice versa
-	let key0_pos		= Vec3::new(offset.x, offset.y, config.offset_z);
+	let key0_pos		= Vec3::new(offset.x, offset.y, config.limit_mz);
 	
 	// StrokeBezier allows having two tangent points and we're going to use that
 	let tangent00		= Vec3::new(offset.x, offset.y, -tan_offset);
@@ -90,7 +90,7 @@ pub fn brick_road_iter(
 	};
 
 	let seam			= config.seam;
-	let length			= config.limit_z - config.offset_z;
+	let road_length		= config.limit_z - config.limit_mz;
 
 	let hlenz			= config.hsize.z;
 	let lenz			= hlenz * 2.0;
@@ -160,7 +160,7 @@ pub fn brick_road_iter(
 	pose.translation.x	-= config.width / 2.0;
 
 	// external offset for convenience
-	pose.translation.z	+= config.offset_z;
+	pose.translation.z	+= config.limit_mz;
 
 	// tile offset/rotation
 	pose.translation.x	+= offset_x + seam_offset_x;
@@ -182,12 +182,20 @@ pub fn brick_road_iter(
 	//
 	//
 
-	// spline is in the same local space as each brick is
+	// t as in 'time' we sample on spline. equals to z axis in object space
+	// spline is in the same space as each brick is
 	let t				= pose.translation.z;
+
+	// if there is no previous point we try to just move t forward or backward if possible and sample there
+	if state.prev_spline_p.is_none() {
+		let t			= if (t + lenx) >= config.limit_z { t - lenx * 2.0 } else { t + lenx };
+		state.prev_spline_p = spline.sample(t);
+	}
+
 	let spline_p		= match spline.sample(t) {
 		// ok, sample was a success, get the point from it
 		Some(p)			=> p,
-		// sample wasnt a succes, try previuos point on spline
+		// sample wasnt a succes, try previous point on spline
 		None			=> {
 		match state.prev_spline_p {
 			Some(p)		=> p,
@@ -201,17 +209,7 @@ pub fn brick_road_iter(
 			let spline_dir	= (spline_p - prev_spline_p).normalize();
 			Quat::from_rotation_arc(Vec3::Z, spline_dir)
 		},
-		// if there is no previous point we try to just move t forward or backward if possible and sample there
-		None => {
-			let t		= if t >= lenx { t - lenx } else { t + lenx };
-			match spline.sample(t) {
-				Some(prev_spline_p) => {
-					let spline_dir = (spline_p - prev_spline_p).normalize();
-					Quat::from_rotation_arc(Vec3::Z, spline_dir)
-				},
-				None	=> Quat::IDENTITY,
-			}
-		}
+		None => Quat::IDENTITY,
 	};
 
 	state.prev_spline_p = Some(spline_p);
@@ -274,7 +272,7 @@ pub fn brick_road_iter(
 				+ calc_seam_offset_z(state.z as f32, iter1, state.orientation, seam);
 
 	if ((newoffx >= config.width) && (config.width != 0.0))
-	|| ((newoffz >= length) && (length != 0.0))
+	|| ((newoffz >= road_length) && (road_length != 0.0))
 	|| (state.iter >= config.limit_iter && config.limit_iter != 0)
 	{
 		let prev_orientation = state.orientation.clone();
@@ -284,8 +282,6 @@ pub fn brick_road_iter(
 
 		state.prev_spline_p = None;
 
-		// println!		("Flipped orientation x_limit: {} z_limit: {} limit: {}", io.x_limit, io.z_limit, io.limit);
-
 		if prev_orientation == Orientation2D::Vertical {
 			let newoffx	= calc_offset_x		((state.x + 1) as f32, state.iter as f32, state.orientation) 
 						+ calc_seam_offset_x((state.x + 1) as f32, state.z as f32, state.iter as f32, state.orientation, seam);
@@ -294,16 +290,13 @@ pub fn brick_road_iter(
 						+ calc_seam_offset_z((state.z + 1) as f32, state.iter as f32, state.orientation, seam);
 
 			if newoffx < config.width && !state.finished_hor {
-				state.x		+= 1;
-				// println!("x =+ 1 new offx {:.3}", newoffx);
-			} else if newoffz < length {
-				state.x		= 0;
-				state.z		+= 1;
+				state.x	+= 1;
+			} else if newoffz < road_length {
+				state.x	= 0;
+				state.z	+= 1;
 				state.finished_hor = true;
-				// println!("x = 0, z += 1 new offz {:.3}", newoffz);
 			} else {
 				state.finished = true;
-				// println!("herringbone_brick_road_iter finished!");
 			}
 		}
 	}

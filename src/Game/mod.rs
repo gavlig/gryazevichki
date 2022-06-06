@@ -194,6 +194,11 @@ impl Spline {
 		let keys = self.0.keys();
 		keys.iter().position(|&key| key.t == t_in).unwrap()
 	}
+
+	// wrapper
+	pub fn _keys(&self) -> &[SplineKey] {
+		self.0.keys()
+	}
 }
 
 #[derive(Component)]

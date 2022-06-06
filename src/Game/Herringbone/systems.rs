@@ -177,7 +177,7 @@ pub fn on_spline_control_point_moved(
 				let last_id = spline.len() - 1;
 
 				if id == 0 {
-					config.offset_z = controlp_pos.z;
+					config.limit_mz = controlp_pos.z;
 				} else if id == last_id {
 					config.limit_z = controlp_pos.z;
 				}
