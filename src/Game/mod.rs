@@ -163,8 +163,29 @@ impl Spline {
 	}
 	
 	pub fn set_control_point(&mut self, id : usize, controlp_pos : Vec3) {
-		let t = controlp_pos.z;
+		let t = controlp_pos.length();
 		self.0.replace(id, |k : &SplineKey| { SplineKey::new(t, controlp_pos, k.interpolation) });
+	}
+
+	pub fn total_length(&self) -> f32 {
+		let keys = self.keys();
+		let total_keys = keys.len();
+		if total_keys < 2 {
+			return 0.0; // return error instead?
+		}
+
+		let mut i = 1;
+		let mut total_length = 0.0;
+		loop {
+			total_length += (keys[i].value - keys[i - 1].value).length();
+			if i + 1 == total_keys {
+				break;
+			} else {
+				i += 1;
+			}
+		};
+
+		total_length
 	}
 
 	// wrapper

@@ -62,34 +62,41 @@ pub fn brick_road_system(
 		control.last_update = cur_time;
 
 		if !control.instant {
-			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
+			// spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
 		} else {
 			let mut tiles_cnt = 0;
-			while !tile_state.finished {
-				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
-				tiles_cnt += 1;
-			}
-			println!("total tiles: {}", tiles_cnt);
+			// while !tile_state.finished {// && ((tiles_cnt < 36 && control.debug) || !control.debug) {
+				// spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
+				// tiles_cnt += 1;
+			// }
+			// println!("total tiles: {}", tiles_cnt);
 			control.instant = false;
 		}
 
+		let mut line_id = 0;
 		for &child in children_e.iter() {
 			let handle = match q_polyline.get(child) {
 				Ok(handle) => handle,
 				Err(_) => continue,
 			};
 
-			let num 	= 16 * spline.keys().len();
+			let keys 	= spline.keys();
+			let total_keys = keys.len();
+			let total_verts	= 16 * total_keys;
 
 			let line	= polylines.get_mut(handle).unwrap();
-			line.vertices.resize(num, Vec3::ZERO);
+			line.vertices.resize(total_verts + 1, Vec3::ZERO);
+			let total_length = spline.total_length();
 
-			let limit_mz = config.limit_mz;
-			let delta = (config.limit_z - config.limit_mz) / num as f32;
-			for i in 0 .. num {
-				let t = limit_mz + i as f32 * delta;
-				line.vertices[i] = spline.sample(t).unwrap();
+			let delta = total_length / total_verts as f32;
+			for i in 0 ..= total_verts {
+				let t = i as f32 * delta;
+				line.vertices[i] = spline.clamped_sample(t).unwrap();
+				line.vertices[i].y += 0.5;
+				line.vertices[i].x += (-config.width / 2.0) + line_id as f32 * (config.width / 2.0);
 			}
+
+			line_id += 1;
 		}
 
 		control.next	= false;

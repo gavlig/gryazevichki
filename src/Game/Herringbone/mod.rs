@@ -128,7 +128,7 @@ impl Default for Herringbone2Config {
 			
 			width		: 4.0,
 			limit_z		: 8.0,
-			limit_mz 	: 1.0,
+			limit_mz 	: 0.0,
 			limit_iter	: 100,
 			init_tangent_offset : 1.0,
 

@@ -81,7 +81,8 @@ pub fn setup_world_system(
 	}
 
 	if true {
-		let transform = Transform::from_translation(Vec3::new(0.0, 0.5, 0.5));
+		let y = 1.5;
+		let transform = Transform::from_translation(Vec3::new(0.0, y, 0.0));
 		let config = Herringbone::Herringbone2Config::default();
 		let mut sargs = SpawnArguments {
 			meshes : &mut meshes,
@@ -90,7 +91,8 @@ pub fn setup_world_system(
 		};
 		Herringbone::spawn::brick_road(transform, &config, false, &mut polylines, &mut polyline_materials, &mut sargs);
 
-		Herringbone::spawn::brick_road(transform, &config, true, &mut polylines, &mut polyline_materials, &mut sargs);
+		// let transform = Transform::from_translation(Vec3::new(0.0, y, 0.0));
+		// Herringbone::spawn::brick_road(transform, &config, true, &mut polylines, &mut polyline_materials, &mut sargs);
 	}
 
 	// polyline
@@ -272,7 +274,8 @@ pub fn input_misc_system(
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut exit		: EventWriter<AppExit>,
 	mut q_camera	: Query<&mut FlyCamera>,
-	mut q_control	: Query<(&mut Control, &Selection)>,
+	mut q_control	: Query<(&mut Control, &Selection, &Children)>,
+		q_selection	: Query<&Selection, Without<Control>>,
 ) {
 	for mut camera in q_camera.iter_mut() {
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
@@ -294,11 +297,26 @@ pub fn input_misc_system(
 		phys_ctx.enabled = !phys_ctx.enabled;
 	}
 	
-	for (mut control, selection) in q_control.iter_mut() {
-		if !selection.selected() {
-			continue;
+	for (mut control, selection, children) in q_control.iter_mut() {
+		let mut selection_found = selection.selected();
+		if !selection_found {
+			for child in children.iter() {
+				let selection = match q_selection.get(*child) {
+					Ok(s) => s,
+					Err(_) => continue,
+				};
+
+				if selection.selected() {
+					selection_found = true;
+					break;
+				}
+			}
+
+			if !selection_found {
+				continue;
+			}
 		}
-		
+
 		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::T) {
 			control.next 	= true;
 		}
@@ -322,7 +340,7 @@ pub fn input_misc_system(
 			control.last_update = time.seconds_since_startup();
 		}
 
-		if key.pressed(KeyCode::LControl) && btn.just_pressed(MouseButton::Left) {
+		if btn.just_pressed(MouseButton::Right) {
 			control.new_spline_point = true;
 			control.reset	= true;
 			control.instant	= true;
