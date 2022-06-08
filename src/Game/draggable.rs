@@ -23,7 +23,7 @@ pub struct DraggableRaycast;
 pub fn dragging_start_system(
 		btn					: Res<Input<MouseButton>>,
 		q_draggable_pick	: Query<&PickingObject, With<DraggableRaycast>>,
-		q_mouse_pick		: Query<&PickingObject, With<Camera>>,
+		q_mouse_pick		: Query<&PickingCamera, With<Camera>>,
 	mut interactions 		: Query<
 	(
 		Entity,
@@ -43,7 +43,7 @@ pub fn dragging_start_system(
 		return;
 	}
 
-	let mouse_pick = q_mouse_pick.single();
+	let mouse_pick 	= q_mouse_pick.single();
 	let top_pick 	= mouse_pick.intersect_top();
 
 	// There is at least one entity under the cursor
@@ -83,7 +83,7 @@ pub fn dragging_system(
 	mut mouse_wheel_events	: EventReader<MouseWheel>,
 		q_transform			: Query<&GlobalTransform, Without<DraggableActive>>,
 		q_draggable_pick	: Query<&PickingObject, With<DraggableRaycast>>,
-		q_mouse_pick		: Query<&PickingCamera, With<Camera>>,
+		q_mouse_pick		: Query<&PickingObject, With<Camera>>,
 	mut draggable			: Query<
 	(
 		Entity,

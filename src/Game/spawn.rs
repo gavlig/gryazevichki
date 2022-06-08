@@ -290,7 +290,7 @@ pub fn spline_tangent(
 				mesh	: sargs.meshes.add		(Mesh::from(render_shape::UVSphere{ radius: 0.15, ..default() })),
 				material : sargs.materials.add(
 				StandardMaterial {
-					base_color	: Color::INDIGO.into(),
+					base_color	: Color::rgb(0.66, 0.66, 0.56).into(),
 					unlit		: true,
 					..default()
 				}),
