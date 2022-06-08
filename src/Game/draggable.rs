@@ -54,7 +54,7 @@ pub fn dragging_start_system(
 	let (topmost_entity, intersection) = top_pick.unwrap();
 	
 	if let Ok((clicked_entity, interaction, global_transform, mut drag)) = interactions.get_mut(topmost_entity) {
-		if *interaction != Interaction::Clicked {
+		if *interaction != Interaction::Hovered {
 			return;
 		}
 

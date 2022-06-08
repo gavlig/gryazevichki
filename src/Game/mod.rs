@@ -1,5 +1,5 @@
 use bevy			::	{ prelude :: *, window :: PresentMode };
-use bevy_mod_picking::	{ PickingRaycastSet };
+use bevy_mod_picking::	{ * };
 use bevy_atmosphere	::	{ * };
 use iyes_loopless	::	prelude :: { * };
 
@@ -19,7 +19,7 @@ use systems			:: *;
 mod draggable;
 use draggable		:: *;
 
-pub type PickingObject = bevy_mod_raycast::RayCastSource<PickingRaycastSet>;
+pub type PickingObject = bevy_mod_picking::RayCastSource<PickingRaycastSet>;
 
 pub struct GameState {
 	  pub camera				: Option<Entity>
@@ -247,6 +247,22 @@ pub struct ControlPointPolyline;
 #[derive(Component)]
 pub struct Gizmo;
 
+#[derive(Default)]
+pub struct GryazevichkiPickingHighlight;
+impl Highlightable for GryazevichkiPickingHighlight {
+    type HighlightAsset = StandardMaterial;
+
+    fn highlight_defaults(
+        mut materials: Mut<Assets<Self::HighlightAsset>>,
+    ) -> DefaultHighlighting<Self> {
+        DefaultHighlighting {
+            hovered: materials.add(StandardMaterial{ base_color: Color::rgb(0.35, 0.35, 0.35).into(), unlit: true, ..default() }),
+            pressed: materials.add(StandardMaterial{ base_color: Color::rgb(0.90, 0.90, 0.90).into(), unlit: true, ..default() }),
+            selected: materials.add(StandardMaterial{ base_color: Color::rgb(0.35, 0.35, 0.75).into(), unlit: true, ..default() }),
+        }
+    }
+}
+
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
@@ -273,6 +289,10 @@ impl Plugin for GamePlugin {
 			.add_plugin		(HerringbonePlugin)
             .add_plugin		(UiPlugin)
             .add_plugin		(VehiclePlugin)
+
+			.add_plugin		(PickingPlugin)
+        	.add_plugin		(InteractablePickingPlugin)
+			.add_plugin		(CustomHighlightPlugin(GryazevichkiPickingHighlight))
 
 			.add_startup_system(setup_cursor_visibility_system)
 			.add_startup_system(setup_lighting_system)

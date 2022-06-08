@@ -5,7 +5,6 @@ use bevy_rapier3d	::	prelude :: { * };
 use bevy_fly_camera	::	{ FlyCameraPlugin };
 use bevy_egui		::	{ * };
 use bevy_atmosphere	::	{ * };
-use bevy_mod_picking::	{ * };
 use bevy_polyline	::	{ * };
 use bevy_prototype_debug_lines	:: { * };
 use bevy_debug_text_overlay		:: { screen_print, OverlayPlugin };
@@ -23,7 +22,6 @@ fn main() {
 		.add_plugin				(RapierDebugRenderPlugin::default())
 		.add_plugin				(FlyCameraPlugin)
 		.add_plugin				(EguiPlugin)
-		.add_plugins			(DefaultPickingPlugins)
 
 		.add_plugin				(PolylinePlugin)
 		.add_plugin				(DebugLinesPlugin::default())
