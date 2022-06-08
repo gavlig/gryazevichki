@@ -275,8 +275,8 @@ pub fn input_misc_system(
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut exit		: EventWriter<AppExit>,
 	mut q_camera	: Query<&mut FlyCamera>,
-	mut q_control	: Query<(&mut Herringbone::Control, &Selection, &Children)>,
-		q_selection	: Query<&Selection, Without<Herringbone::Control>>,
+	mut q_control	: Query<(Entity, &mut Herringbone::Control, &Children)>,
+		q_selection	: Query<&Selection>,
 ) {
 	for mut camera in q_camera.iter_mut() {
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
@@ -298,7 +298,8 @@ pub fn input_misc_system(
 		phys_ctx.enabled = !phys_ctx.enabled;
 	}
 	
-	for (mut control, selection, children) in q_control.iter_mut() {
+	for (control_e, mut control, children) in q_control.iter_mut() {
+		let selection = q_selection.get(control_e).unwrap();
 		let mut selection_found = selection.selected();
 		if !selection_found {
 			for child in children.iter() {
@@ -367,13 +368,20 @@ pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResM
 	}
 }
 
+// Convert engine Transform of an entity to spline tangent Vec3. Spline tangents are in the same space as control points.
+// In engine spline tangent handles(as in entities with transforms) are children of control point entities so we have to juggle between spline space and tangent space
 pub fn on_spline_tangent_moved(
 		time			: Res<Time>,
+		key				: Res<Input<KeyCode>>,
 	mut	polylines		: ResMut<Assets<Polyline>>,
 		q_polyline		: Query<&Handle<Polyline>>,
-		q_control_point	: Query<(&Parent, &Children, &Transform), With<SplineControlPoint>>,
-		q_tangent 		: Query<(&Parent, &Transform, &SplineTangent), Changed<Transform>>,
-	mut q_spline		: Query<&mut Spline>,
+	 	q_control_point	: Query<(&Parent, &Children, &Transform), With<SplineControlPoint>>,
+		mut set: ParamSet<(
+			Query<(&Parent, Entity, &Transform, &SplineTangent), (Changed<Transform>, Without<SplineControlPoint>)>,
+			Query<(&mut Transform), (With<SplineTangent>, (Without<DraggableActive>, Without<SplineControlPoint>))>
+		)>,
+	mut	q_tangent_opp	: Query<Entity, Without<DraggableActive>>,
+	mut q_spline		: Query<&mut Spline>
 ) {
 	if time.seconds_since_startup() < 0.1 {
 		return;
@@ -383,41 +391,94 @@ pub fn on_spline_tangent_moved(
 		return;
 	}
 
-	for (control_point_e, tanget_tform, tan) in q_tangent.iter() {
-		let (spline_e, children_e, control_point_tform) = q_control_point.get(control_point_e.0).unwrap();
+	let sync_tangents	= key.pressed(KeyCode::LControl);
+
+	let mut cpc : Vec<Entity> = Vec::new();
+	let mut tane = Entity::from_raw(0);
+	let mut tan11 = Vec3::ZERO;
+	let mut cptrans = Vec3::ZERO;
+
+	for (control_point_e, tan_e, tan_tform, tan) in set.p0().iter() {//q_tangent.iter() {
+		let (spline_e, control_point_children_e, control_point_tform) = q_control_point.get(control_point_e.0).unwrap();
 		let mut spline	= q_spline.get_mut(spline_e.0).unwrap();
 
-		// in spline space (or object space)
-		let tan_tform	= (*control_point_tform) * (*tanget_tform);
-		let tan_pos		= tan_tform.translation;
+		// in spline space (or parent space for tangent handles). _p == parent space
+		let tan_tform_p	= (*control_point_tform) * (*tan_tform);
+		let tan_pos_p	= tan_tform_p.translation;
 
-		let prev_interpolation = spline.get_interpolation(tan.global_id);
-		let opposite_tan_pos = match prev_interpolation {
-			SplineInterpolation::StrokeBezier(V0, V1) => {
-				if tan.local_id == 0 { *V1 } else { *V0 }
-			},
-			_ => panic!("unsupported interpolation type!"),
+		let (tan0, tan1) =
+		if !sync_tangents {
+			let prev_interpolation = spline.get_interpolation(tan.global_id);
+			let opposite_tan_pos_p = match prev_interpolation {
+				SplineInterpolation::StrokeBezier(V0, V1) => {
+					if tan.local_id == 0 { *V1 } else { *V0 }
+				},
+				_ => panic!("unsupported interpolation type!"),
+			};
+
+			let tan0 = if tan.local_id == 0 { tan_pos_p } else { opposite_tan_pos_p };
+			let tan1 = if tan.local_id == 1 { tan_pos_p } else { opposite_tan_pos_p };
+
+			(tan0, tan1)
+		} else {
+			let opposite_tan_tform = tan_tform.clone();
+			let mat_inv = opposite_tan_tform.compute_matrix().inverse();
+			let opposite_tan_tform_p = (*control_point_tform) * Transform::from_matrix(mat_inv);
+			let opposite_tan_pos_p = opposite_tan_tform_p.translation;
+
+			(tan_pos_p, opposite_tan_pos_p)
 		};
-
-		let tan0 = if tan.local_id == 0 { tan_pos } else { opposite_tan_pos };
-		let tan1 = if tan.local_id == 1 { tan_pos } else { opposite_tan_pos };
 
 		spline.set_interpolation(tan.global_id, SplineInterpolation::StrokeBezier(tan0, tan1));
 
-		for child_e in children_e.iter() {
-			let handle = match q_polyline.get(*child_e) {
-				Ok(handle) => handle,
-				Err(_) => continue,
-			};
+		tane = tan_e;
+		tan11 = tan1;
+		cptrans = control_point_tform.translation;
 
-			let line	= polylines.get_mut(handle).unwrap();
-			line.vertices.resize(3, Vec3::ZERO);
-			let tan0 	= tan0 - control_point_tform.translation;
-			line.vertices[0] = tan0;
-			let tan1 	= tan1 - control_point_tform.translation;
-			line.vertices[2] = tan1;
+		for child_e_ref in control_point_children_e.iter() {
+			let child_e = *child_e_ref;
+			cpc.push(child_e);
+			// if let Ok(mut tform) = set.p1().get_mut(child_e) {
+			// 	if child_e != tan_e && sync_tangents {
+					
+			// 		//tform.translation = tan1 - control_point_tform.translation;
+			// 		// commands.entity(child_e).insert(ToRecalculateOpposite);
+			// 		// screen_print!("inserting opp {:?} tan_e {:?}", child_e,  tan_e);
+			// 		// println!("inserting opp {:?} tan_e {:?} ", child_e, tan_e);
+			// 	}
+			// } else {
+			// 	screen_print!("shitty basket!");
+			// 	println!("shitty basket!");
+			// }
+			// if q_tangent_opp.get(child_e).is_ok() {
+			// 	if child_e != tan_e {
+			// 		commands.entity(child_e).insert(ToRecalculateOpposite);
+			// 		screen_print!("inserting opp {:?} tan_e {:?}", child_e,  tan_e);
+			// 		println!("inserting opp {:?} tan_e {:?} ", child_e, tan_e);
+			// 	}
+			// } else {
+			// 	screen_print!("shitty basket!");
+			// 	println!("shitty basket!");
+			// }
 
-			line.vertices[1] = Vec3::ZERO;
+			if let Ok(handle) = q_polyline.get(child_e) {
+				let line	= polylines.get_mut(handle).unwrap();
+				line.vertices.resize(3, Vec3::ZERO);
+				let tan0 	= tan0 - control_point_tform.translation;
+				line.vertices[0] = tan0;
+				let tan1 	= tan1 - control_point_tform.translation;
+				line.vertices[2] = tan1;
+
+				line.vertices[1] = Vec3::ZERO;
+			}
+		}
+	}
+
+	for c in cpc {
+		if let Ok(mut tform) = set.p1().get_mut(c) {
+			if c != tane && sync_tangents {
+				tform.translation = tan11 - cptrans;
+			}
 		}
 	}
 }
@@ -445,6 +506,8 @@ pub fn on_spline_control_point_moved(
 				let id = *id_ref;
 				spline.set_control_point(id, controlp_pos);
 
+				// we have to recalculate tangent positions because in engine they are parents of control point
+				// but spline wants them in the same space as control points
 				let mut tan0 = Vec3::ZERO;
 				let mut tan1 = Vec3::ZERO;
 				for tangent_e in children_e.iter() {
