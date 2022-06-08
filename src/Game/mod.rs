@@ -1,4 +1,4 @@
-use bevy			::	{ prelude :: * };
+use bevy			::	{ prelude :: *, window :: PresentMode };
 use bevy_mod_picking::	{ PickingRaycastSet };
 use bevy_atmosphere	::	{ * };
 use iyes_loopless	::	prelude :: { * };
@@ -242,6 +242,9 @@ pub enum SplineControlPoint {
 }
 
 #[derive(Component)]
+pub struct ControlPointPolyline;
+
+#[derive(Component)]
 pub struct Gizmo;
 
 pub struct GamePlugin;
@@ -263,6 +266,8 @@ impl Plugin for GamePlugin {
 
 			.insert_resource(GameState		::default())
 			.insert_resource(DespawnResource::default())
+
+			.insert_resource(WindowDescriptor { present_mode : PresentMode::Mailbox, ..default() })
 			
 		
 			.add_plugin		(HerringbonePlugin)

@@ -2,6 +2,7 @@ use bevy				::	prelude :: { * };
 use bevy_rapier3d		::	prelude :: { * };
 use bevy_fly_camera		::	FlyCamera;
 use bevy_mod_picking	::	{ * };
+use bevy_polyline		::	{ prelude :: * };
 
 use bevy::render::mesh::shape as render_shape;
 
@@ -285,8 +286,14 @@ pub fn spline_tangent(
 		let mut tan_id 	= Entity::from_raw(0);
 		sargs.commands.entity(parent_e).with_children(|parent| {
 			tan_id = parent.spawn_bundle(PbrBundle {
-				mesh	: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
-				material : sargs.materials.add	(Color::INDIGO.into()),
+				// mesh	: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.3, 0.3, 0.3))),
+				mesh	: sargs.meshes.add		(Mesh::from(render_shape::UVSphere{ radius: 0.15, ..default() })),
+				material : sargs.materials.add(
+				StandardMaterial {
+					base_color	: Color::INDIGO.into(),
+					unlit		: true,
+					..default()
+				}),
 				transform : transform,
 				..Default::default()
 			})
@@ -315,6 +322,8 @@ pub fn spline_control_point(
 	key					: &SplineKey,
 	parent_e			: Entity,
 	with_tangent		: bool,
+	polylines			: &mut ResMut<Assets<Polyline>>,
+	polyline_materials 	: &mut ResMut<Assets<PolylineMaterial>>,
 	sargs				: &mut SpawnArguments,
 ) -> Entity {
 	let mut cp_id 		= Entity::from_raw(0);
@@ -322,8 +331,14 @@ pub fn spline_control_point(
 
 	sargs.commands.entity(parent_e).with_children(|parent| {
 		cp_id = parent.spawn_bundle(PbrBundle {
-			mesh		: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
-			material	: sargs.materials.add	(Color::BEIGE.into()),
+			// mesh		: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+			mesh		: sargs.meshes.add		(Mesh::from(render_shape::UVSphere{ radius: 0.2, ..default() })),
+			material	: sargs.materials.add(
+			StandardMaterial {
+				base_color	: Color::rgb(0.76, 0.76, 0.66).into(),
+				unlit		: true,
+				..default()
+			}),
 			transform	: transform,
 			..Default::default()
 		})
@@ -343,6 +358,24 @@ pub fn spline_control_point(
 		);
 	}
 
+	let line_id = sargs.commands.spawn_bundle(PolylineBundle {
+		polyline : polylines.add(Polyline {
+			vertices	: vec![-Vec3::Z, Vec3::Z],
+			..default()
+		}),
+		material : polyline_materials.add(PolylineMaterial {
+			width		: 100.0,
+			color		: Color::rgb(0.2, 0.8, 0.2),
+			perspective	: true,
+			..default()
+		}),
+		..default()
+	})
+	.insert				(ControlPointPolyline)
+	.id					();
+
+	sargs.commands.entity(cp_id).add_child(line_id);
+
 	cp_id
 }
 
@@ -352,8 +385,14 @@ pub fn root_handle(
 ) -> Entity {
 	sargs.commands.spawn_bundle(
 	PbrBundle {
-		mesh			: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
-		material		: sargs.materials.add	(Color::LIME_GREEN.into()),
+		// mesh			: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
+		mesh			: sargs.meshes.add		(Mesh::from(render_shape::UVSphere{ radius: 0.225, ..default() })),
+		material		: sargs.materials.add(
+		StandardMaterial {
+			base_color	: Color::LIME_GREEN.into(),
+			unlit		: true,
+			..default()
+		}),
 		transform		: transform,
 		..Default::default()
 	})

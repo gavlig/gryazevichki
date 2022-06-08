@@ -85,8 +85,8 @@ pub fn brick_road(
 	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent10, tangent11));
 	let spline			= Spline::from_vec(vec![key0, key1]);
 
-	let key0_e 			= Game::spawn::spline_control_point(0, &key0, root_e, true, &mut sargs);
-	let key1_e 			= Game::spawn::spline_control_point(1, &key1, root_e, true, &mut sargs);
+	let key0_e 			= Game::spawn::spline_control_point(0, &key0, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key1_e 			= Game::spawn::spline_control_point(1, &key1, root_e, true, polylines, polyline_materials, &mut sargs);
 
 	for i in 0..3 {
 		let line_id = sargs.commands.spawn_bundle(PolylineBundle {
@@ -95,8 +95,8 @@ pub fn brick_road(
 				..default()
 			}),
 			material : polyline_materials.add(PolylineMaterial {
-				width		: 100.0,
-				color		: Color::TURQUOISE,
+				width		: 120.0,
+				color		: Color::rgb(0.2, 0.2, 0.2),
 				perspective	: true,
 				..default()
 			}),

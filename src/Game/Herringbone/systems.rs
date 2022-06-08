@@ -5,6 +5,7 @@ use crate				:: { Game };
 
 pub fn brick_road_system(
 	mut polylines		: ResMut<Assets<Polyline>>,
+	mut	polyline_materials : ResMut<Assets<PolylineMaterial>>,
 		q_polyline		: Query<&Handle<Polyline>, With<Herringbone2Line>>,
 	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut Control, &mut Herringbone2Config, &mut TileState), Changed<Control>>,
 		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
@@ -44,7 +45,7 @@ pub fn brick_road_system(
 		}
 
 		while control.new_spline_point {
-			new_spline_point(root_e, &q_mouse_pick, transform, config.as_mut(), spline.as_mut(), &mut sargs);
+			new_spline_point(root_e, &q_mouse_pick, transform, config.as_mut(), spline.as_mut(), &mut polylines, &mut polyline_materials, &mut sargs);
 
 			control.new_spline_point = false;
 		}
@@ -82,7 +83,7 @@ pub fn brick_road_system(
 
 			let keys 	= spline.keys();
 			let total_keys = keys.len();
-			let total_verts	= 16 * total_keys;
+			let total_verts	= 32 * total_keys;
 
 			let line	= polylines.get_mut(handle).unwrap();
 			line.vertices.resize(total_verts + 1, Vec3::ZERO);
@@ -112,6 +113,8 @@ fn new_spline_point(
 		transform	: &GlobalTransform,
 	mut config		: &mut Herringbone2Config,
 	mut spline		: &mut Spline,
+	polylines		: &mut ResMut<Assets<Polyline>>,
+	polyline_materials : &mut ResMut<Assets<PolylineMaterial>>,
 	mut	sargs		: &mut SpawnArguments,
 ) {
 	let mouse_pick 	= q_mouse_pick.single();
@@ -136,7 +139,7 @@ fn new_spline_point(
 	spline.add		(key);
 	//
 	let new_key_id	= spline.get_key_id(t);
-	let key_e 		= Game::spawn::spline_control_point(new_key_id, &key, root_e, true, &mut sargs);
+	let key_e 		= Game::spawn::spline_control_point(new_key_id, &key, root_e, true, polylines, polyline_materials,  &mut sargs);
 	sargs.commands.entity(root_e).add_child(key_e);
 	//
 	config.limit_z	= new_pos.z;
@@ -144,7 +147,9 @@ fn new_spline_point(
 
 pub fn on_spline_tangent_moved(
 		time			: Res<Time>,
-		q_control_point	: Query<(&Parent, &Transform), With<SplineControlPoint>>,
+	mut	polylines		: ResMut<Assets<Polyline>>,
+		q_polyline		: Query<&Handle<Polyline>>,
+		q_control_point	: Query<(&Parent, &Children, &Transform), With<SplineControlPoint>>,
 		q_tangent 		: Query<(&Parent, &Transform, &SplineTangent), Changed<Transform>>,
 	mut q_spline		: Query<(&mut Spline, &mut Control)>,
 ) {
@@ -157,7 +162,7 @@ pub fn on_spline_tangent_moved(
 	}
 
 	for (control_point_e, tanget_tform, tan) in q_tangent.iter() {
-		let (spline_e, control_point_tform) = q_control_point.get(control_point_e.0).unwrap();
+		let (spline_e, children_e, control_point_tform) = q_control_point.get(control_point_e.0).unwrap();
 		let (mut spline, mut control) 		= q_spline.get_mut(spline_e.0).unwrap();
 
 		// in spline space (or object space)
@@ -180,6 +185,22 @@ pub fn on_spline_tangent_moved(
 		control.reset 	= true;
 		control.next 	= true;
 		control.instant = true;
+
+		for child_e in children_e.iter() {
+			let handle = match q_polyline.get(*child_e) {
+				Ok(handle) => handle,
+				Err(_) => continue,
+			};
+	
+			let line	= polylines.get_mut(handle).unwrap();
+			line.vertices.resize(3, Vec3::ZERO);
+			let tan0 	= tan0 - control_point_tform.translation;
+			line.vertices[0] = tan0;
+			let tan1 	= tan1 - control_point_tform.translation;
+			line.vertices[2] = tan1;
+
+			line.vertices[1] = Vec3::ZERO;
+		}
 	}
 }
 
