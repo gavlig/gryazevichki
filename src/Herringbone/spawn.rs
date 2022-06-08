@@ -6,7 +6,7 @@ use bevy_polyline		::	{ prelude :: * };
 use bevy::render::mesh::shape as render_shape;
 use std::f32::consts	::	{ * };
 
-use super				::	{ Herringbone :: * };
+use super				::	{ * };
 
 use crate :: Game 		as Game;
 

@@ -1,13 +1,13 @@
-use bevy			::	prelude :: *;
+use bevy			:: prelude :: *;
+use iyes_loopless	:: prelude :: { * };
 
 mod egui_ext;
-pub use egui_ext	::	FileDialog;
+pub use egui_ext    :: FileDialog;
 
-use super			::	{ * };
-use super			::	Vehicle;
+use crate           :: Game :: *;
 
 mod systems;
-pub use systems		::	{ * };
+use systems		    :: { * };
 
 mod draw;
 mod writeback;
@@ -19,7 +19,7 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_system	(vehicle_params_ui_system.run_in_state(GameMode::Editor))
-//          .add_system	(coords_on_hover_ui_system.run_in_state(GameMode::Editor))
+            .add_system	(coords_on_hover_ui_system.run_in_state(GameMode::Editor))
             ;
     }
 }

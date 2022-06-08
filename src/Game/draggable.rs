@@ -93,7 +93,7 @@ pub fn dragging_system(
 	), With<DraggableActive>
 	>,
 		q_gizmo				: Query<Entity, With<Gizmo>>,
-		q_tile				: Query<Entity, With<Herringbone::Tile>>,
+		q_tile				: Query<Entity, With<Tile>>,
 ) {
 	if draggable.is_empty() {
 		return;

@@ -1,13 +1,14 @@
-use bevy			::	prelude :: *;
-use bevy_egui		::	egui :: { Slider, Ui };
+use bevy		:: prelude :: *;
+use bevy_egui	:: egui :: { Slider, Ui };
 
-use super			::	{ * };
+use crate		:: { Game :: * };
+use crate		:: { Vehicle :: * };
 
 pub fn density_param(
-		ui					: &mut Ui,
-		range				: [f32; 2],
-		density				: &mut f32,
-		mass				: f32,
+		ui		: &mut Ui,
+		range	: [f32; 2],
+		density	: &mut f32,
+		mass	: f32,
 ) -> bool {
 	ui.add(
 		Slider::new			(density, std::ops::RangeInclusive::new(range[0], range[1])).text(format!("Density (Mass {:.3})", mass))
@@ -15,8 +16,8 @@ pub fn density_param(
 }
 
 pub fn phys_params(
-	  ui					: &mut Ui
-	, cfg					: &mut PhysicsConfig
+	  ui		: &mut Ui
+	, cfg		: &mut PhysicsConfig
 ) -> bool {
 
 	let mut changed	= false;

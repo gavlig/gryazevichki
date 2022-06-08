@@ -12,25 +12,29 @@ use bevy_debug_text_overlay		:: { screen_print, OverlayPlugin };
 mod Game;
 use Game			:: 	{ GamePlugin };
 
+mod Vehicle;
+mod Ui;
+mod Herringbone;
+
 fn main() {
 	App::new()
-		.add_plugins			(DefaultPlugins)
+		.add_plugins(DefaultPlugins)
 
-		.add_plugin				(GamePlugin)
+		.add_plugin(GamePlugin)
 
-		.add_plugin				(RapierPhysicsPlugin::<NoUserData>::default())
-		.add_plugin				(RapierDebugRenderPlugin::default())
-		.add_plugin				(FlyCameraPlugin)
-		.add_plugin				(EguiPlugin)
+		.add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+		.add_plugin(RapierDebugRenderPlugin::default())
+		.add_plugin(FlyCameraPlugin)
+		.add_plugin(EguiPlugin)
 
-		.add_plugin				(PolylinePlugin)
-		.add_plugin				(DebugLinesPlugin::default())
-		.add_plugin				(OverlayPlugin { font_size: 12.0, fallback_color: Color::rgb(0.1, 0.1, 0.1), ..default() })
+		.add_plugin(PolylinePlugin)
+		.add_plugin(DebugLinesPlugin::default())
+		.add_plugin(OverlayPlugin { font_size: 12.0, fallback_color: Color::rgb(0.1, 0.1, 0.1), ..default() })
 
-// 		.add_system				(daylight_cycle)
-		.add_system				(show_fps)
+// 		.add_system(daylight_cycle)
+		.add_system(show_fps)
 		
-		.run					();
+		.run();
 }
 
 // Marker for updating the position of the light, not needed unless we have multiple lights

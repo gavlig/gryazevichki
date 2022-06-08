@@ -1,8 +1,7 @@
-use bevy			    ::	prelude :: *;
-use bevy_fly_camera     ::  FlyCamera;
+use bevy			    :: prelude :: *;
+use bevy_fly_camera     :: FlyCamera;
 
-use super               ::  *;
-use self                ::  spawn;
+use super               :: *;
 
 pub fn respawn_vehicle_system(
 	mut	game		: ResMut<GameState>,

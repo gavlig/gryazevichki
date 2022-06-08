@@ -1,19 +1,16 @@
-use bevy			::	{ prelude :: *, window :: PresentMode };
-use bevy_mod_picking::	{ * };
-use bevy_atmosphere	::	{ * };
-use iyes_loopless	::	prelude :: { * };
+use bevy				:: { prelude :: *, window :: PresentMode };
+use bevy_mod_picking	:: { * };
+use bevy_atmosphere		:: { * };
+use iyes_loopless		:: prelude :: { * };
 
-use std				:: 	{ path::PathBuf };
-use serde			::	{ Deserialize, Serialize };
+use std					:: { path::PathBuf };
+use serde				:: { Deserialize, Serialize };
 
-mod Vehicle;
-use Vehicle			:: *;
-mod Ui;
-use Ui				:: *;
-mod Herringbone;
-use Herringbone		:: *;
+use super::Vehicle		:: { * };
+use super::Ui			:: { * };
+use super::Herringbone	:: { HerringbonePlugin };
 
-mod spawn;
+pub mod spawn;
 mod systems;
 use systems			:: *;
 mod draggable;
@@ -99,10 +96,16 @@ impl Orientation2D {
 	}
 }
 
+pub struct SpawnArguments<'a0, 'a1, 'b0, 'b1, 'c, 'd, 'e> {
+	pub meshes					: &'a0 mut ResMut<'a1, Assets<Mesh>>,
+	pub materials				: &'b0 mut ResMut<'b1, Assets<StandardMaterial>>,
+	pub commands				: &'c mut Commands<'d, 'e>
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct RespawnableEntity {
-	entity	: Entity,
-	respawn	: bool
+	pub entity	: Entity,
+	pub respawn	: bool
 }
 
 impl Default for RespawnableEntity {
@@ -112,6 +115,11 @@ impl Default for RespawnableEntity {
 			, respawn			: false
 		}
 	}
+}
+
+#[derive(Default)]
+pub struct DespawnResource {
+	pub entities: Vec<Entity>,
 }
 
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
@@ -137,12 +145,6 @@ impl Default for PhysicsConfig {
 			, ang_damping		: 0.0
 		}
 	}
-}
-
-pub struct SpawnArguments<'a0, 'a1, 'b0, 'b1, 'c, 'd, 'e> {
-	pub meshes					: &'a0 mut ResMut<'a1, Assets<Mesh>>,
-	pub materials				: &'b0 mut ResMut<'b1, Assets<StandardMaterial>>,
-	pub commands				: &'c mut Commands<'d, 'e>
 }
 
 pub type SplineRaw 				= splines::Spline<f32, Vec3>;
@@ -247,6 +249,9 @@ pub struct ControlPointPolyline;
 #[derive(Component)]
 pub struct Gizmo;
 
+#[derive(Component)]
+pub struct Tile;
+
 #[derive(Default)]
 pub struct GryazevichkiPickingHighlight;
 impl Highlightable for GryazevichkiPickingHighlight {
@@ -266,7 +271,7 @@ impl Highlightable for GryazevichkiPickingHighlight {
 pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
-    fn build(&self, app: &mut App) {
+	fn build(&self, app: &mut App) {
 		let clear_color = ClearColor(
 			Color::rgb(
 				0xF9 as f32 / 255.0,
@@ -286,21 +291,21 @@ impl Plugin for GamePlugin {
 			.insert_resource(WindowDescriptor { present_mode : PresentMode::Mailbox, ..default() })
 			
 		
-			.add_plugin		(HerringbonePlugin)
-            .add_plugin		(UiPlugin)
-            .add_plugin		(VehiclePlugin)
+ 			.add_plugin		(HerringbonePlugin)
+             .add_plugin		(UiPlugin)
+             .add_plugin		(VehiclePlugin)
 
-			.add_plugin		(PickingPlugin)
-        	.add_plugin		(InteractablePickingPlugin)
-			.add_plugin		(CustomHighlightPlugin(GryazevichkiPickingHighlight))
+ 			.add_plugin		(PickingPlugin)
+         	.add_plugin		(InteractablePickingPlugin)
+ 			.add_plugin		(CustomHighlightPlugin(GryazevichkiPickingHighlight))
 
-			.add_startup_system(setup_cursor_visibility_system)
-			.add_startup_system(setup_lighting_system)
-			.add_startup_system(setup_world_system)
-			.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
+ 			.add_startup_system(setup_cursor_visibility_system)
+ 			.add_startup_system(setup_lighting_system)
+ 			.add_startup_system(setup_world_system)
+ 			.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)
 
-			// input
-			.add_system		(cursor_visibility_system)
+ 			// input
+ 			.add_system		(cursor_visibility_system)
 			.add_system		(input_misc_system)
 			.add_system		(vehicle_controls_system)
 
@@ -309,7 +314,11 @@ impl Plugin for GamePlugin {
 			.add_system_to_stage(CoreStage::PostUpdate, dragging_start_system)
 			.add_system_to_stage(CoreStage::PostUpdate, dragging_system)
 			.add_system_to_stage(CoreStage::PostUpdate, dragging_stop_system)
-			;
-    }
+
+			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved)
+			.add_system_to_stage(CoreStage::PostUpdate, on_spline_control_point_moved)
+			.add_system_to_stage(CoreStage::PostUpdate, on_root_handle_moved)
+ 			;
+	}
 }
 

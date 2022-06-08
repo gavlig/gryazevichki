@@ -1,14 +1,12 @@
 use bevy			:: { prelude :: * };
 use bevy_rapier3d	:: { prelude :: * };
 
-use super           :: { * };
+use super           :: { Game :: * };
+
+mod systems;
+use systems			:: { * };
 
 pub mod spawn;
-pub mod systems;
-pub use systems		:: { * };
-
-#[derive(Component)]
-pub struct Tile;
 
 #[derive(Component)]
 pub struct Herringbone2;
@@ -174,7 +172,6 @@ impl Plugin for HerringbonePlugin {
         app	.add_system	(brick_road_system)
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved)
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_control_point_moved)
-			.add_system_to_stage(CoreStage::PostUpdate, on_root_handle_moved)
             ;
     }
 }

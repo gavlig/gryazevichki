@@ -9,7 +9,8 @@ use iyes_loopless	:: { prelude :: * };
 use std				:: { path::PathBuf };
 
 use super           :: { * };
-use super			:: { spawn };
+use crate			:: Vehicle;
+use crate			:: Herringbone;
 
 pub fn setup_camera_system(
 		game			: ResMut<GameState>,
@@ -274,8 +275,8 @@ pub fn input_misc_system(
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut exit		: EventWriter<AppExit>,
 	mut q_camera	: Query<&mut FlyCamera>,
-	mut q_control	: Query<(&mut Control, &Selection, &Children)>,
-		q_selection	: Query<&Selection, Without<Control>>,
+	mut q_control	: Query<(&mut Herringbone::Control, &Selection, &Children)>,
+		q_selection	: Query<&Selection, Without<Herringbone::Control>>,
 ) {
 	for mut camera in q_camera.iter_mut() {
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
@@ -356,11 +357,6 @@ pub fn input_misc_system(
 	}
 }
 
-#[derive(Default)]
-pub struct DespawnResource {
-	pub entities: Vec<Entity>,
-}
-
 pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
 	if time.seconds_since_startup() > 0.1 {
 		for entity in &despawn.entities {
@@ -368,5 +364,112 @@ pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResM
 			commands.entity(*entity).despawn_recursive();
 		}
 		despawn.entities.clear();
+	}
+}
+
+pub fn on_spline_tangent_moved(
+		time			: Res<Time>,
+	mut	polylines		: ResMut<Assets<Polyline>>,
+		q_polyline		: Query<&Handle<Polyline>>,
+		q_control_point	: Query<(&Parent, &Children, &Transform), With<SplineControlPoint>>,
+		q_tangent 		: Query<(&Parent, &Transform, &SplineTangent), Changed<Transform>>,
+	mut q_spline		: Query<&mut Spline>,
+) {
+	if time.seconds_since_startup() < 0.1 {
+		return;
+	}
+
+	if q_spline.is_empty() {
+		return;
+	}
+
+	for (control_point_e, tanget_tform, tan) in q_tangent.iter() {
+		let (spline_e, children_e, control_point_tform) = q_control_point.get(control_point_e.0).unwrap();
+		let mut spline	= q_spline.get_mut(spline_e.0).unwrap();
+
+		// in spline space (or object space)
+		let tan_tform	= (*control_point_tform) * (*tanget_tform);
+		let tan_pos		= tan_tform.translation;
+
+		let prev_interpolation = spline.get_interpolation(tan.global_id);
+		let opposite_tan_pos = match prev_interpolation {
+			SplineInterpolation::StrokeBezier(V0, V1) => {
+				if tan.local_id == 0 { *V1 } else { *V0 }
+			},
+			_ => panic!("unsupported interpolation type!"),
+		};
+
+		let tan0 = if tan.local_id == 0 { tan_pos } else { opposite_tan_pos };
+		let tan1 = if tan.local_id == 1 { tan_pos } else { opposite_tan_pos };
+
+		spline.set_interpolation(tan.global_id, SplineInterpolation::StrokeBezier(tan0, tan1));
+
+		for child_e in children_e.iter() {
+			let handle = match q_polyline.get(*child_e) {
+				Ok(handle) => handle,
+				Err(_) => continue,
+			};
+
+			let line	= polylines.get_mut(handle).unwrap();
+			line.vertices.resize(3, Vec3::ZERO);
+			let tan0 	= tan0 - control_point_tform.translation;
+			line.vertices[0] = tan0;
+			let tan1 	= tan1 - control_point_tform.translation;
+			line.vertices[2] = tan1;
+
+			line.vertices[1] = Vec3::ZERO;
+		}
+	}
+}
+
+pub fn on_spline_control_point_moved(
+		time			: Res<Time>,
+		q_controlp 		: Query<(&Parent, &Children, &Transform, &SplineControlPoint), Changed<Transform>>,
+		q_tangent 		: Query<(&Transform, &SplineTangent)>,
+	mut q_spline		: Query<&mut Spline>,
+) {
+	if time.seconds_since_startup() < 0.1 {
+		return;
+	}
+
+	if q_spline.is_empty() {
+		return;
+	}
+
+	for (spline_e, children_e, control_point_tform, controlp) in q_controlp.iter() {
+		let mut spline = q_spline.get_mut(spline_e.0).unwrap();
+
+		let controlp_pos = control_point_tform.translation;
+		match controlp {
+			SplineControlPoint::ID(id_ref) => {
+				let id = *id_ref;
+				spline.set_control_point(id, controlp_pos);
+
+				let mut tan0 = Vec3::ZERO;
+				let mut tan1 = Vec3::ZERO;
+				for tangent_e in children_e.iter() {
+					let (tan_tform, tan) = match q_tangent.get(*tangent_e) {
+						Ok((tf, tn)) => (tf, tn),
+						Err(_) => { continue },
+					};
+					let final_tform = (*control_point_tform) * (*tan_tform);
+					if tan.local_id == 0 {
+						tan0 = final_tform.translation;
+					} else if tan.local_id == 1 {
+						tan1 = final_tform.translation;
+					}
+				}
+				
+				spline.set_interpolation(id, SplineInterpolation::StrokeBezier(tan0, tan1));
+			},
+		}
+	}
+}
+
+pub fn on_root_handle_moved(
+	time : Res<Time>,
+) {
+	if time.seconds_since_startup() < 0.1 {
+		return;
 	}
 }
