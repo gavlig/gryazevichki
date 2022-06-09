@@ -113,7 +113,7 @@ pub fn brick_road_system(
 				
 				//
 				if i % 7 != 0 { continue }; 
-				let normal = spline_r;// * Quat::from_rotation_y(90.0_f32.to_radians());
+				let normal = spline_r;
 				let line_start = transform.translation + spline_p + vert_offset;
 				let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 3.0)) + vert_offset;
 				debug_lines.line(
