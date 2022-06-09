@@ -69,14 +69,16 @@
 49.3. spline
 49.3.1. (done!)basic support
 49.3.2. (done!)tangents/handles
-49.3.3. (wip)multiple control points
-49.3.4. (wip)multiple handles
+49.3.3. (done!)multiple control points
+49.3.4. (done!)multiple handles
 49.3.5. (done!)rotate tiles along spline normal
 49.3.6. verticality
 49.3.7. (done!)move tangents with control points
 49.3.8. (done!)extend road with control points
 49.3.9. (done!)make tangent a child of control point to avoid extra calculations
 49.3.10. (done!)draw spline for better visualization
+49.3.11. make handle sizes semi independent from zoom on camera
+49.3.12. (done!)sync tangents optionally
 49.4. (done!)movable root
 49.4.1. (fixed!)bug: when root is rotated dragging control points is broken
 49.5. borders
@@ -91,7 +93,7 @@
 49.13. (almost)make sure draggable doesnt twitch when we start dragging
 49.14. auto rotate control points when spawning new ones for spline
 49.15. fill the gaps between tiles when road is rotated too much
-49.16. properly calculate spline length when using it to set limits instead of using z coordinate
+49.16. (done!)properly calculate spline length when using it to set limits instead of using z coordinate
 49.17. fix physics placement, currently it's ignoring y?
 49.18. toggle hide gizmos
 50. make utils for debug drawing

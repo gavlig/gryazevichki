@@ -380,7 +380,6 @@ pub fn on_spline_tangent_moved(
 			Query<(&Parent, Entity, &Transform, &SplineTangent), (Changed<Transform>, Without<SplineControlPoint>)>,
 			Query<(&mut Transform), (With<SplineTangent>, (Without<DraggableActive>, Without<SplineControlPoint>))>
 		)>,
-	mut	q_tangent_opp	: Query<Entity, Without<DraggableActive>>,
 	mut q_spline		: Query<&mut Spline>
 ) {
 	if time.seconds_since_startup() < 0.1 {
@@ -426,40 +425,25 @@ pub fn on_spline_tangent_moved(
 			let opposite_tan_tform_p = (*control_point_tform) * Transform::from_matrix(mat_inv);
 			let opposite_tan_pos_p = opposite_tan_tform_p.translation;
 
-			(tan_pos_p, opposite_tan_pos_p)
+			let tan0 = if tan.local_id == 0 { tan_pos_p } else { opposite_tan_pos_p };
+			let tan1 = if tan.local_id == 1 { tan_pos_p } else { opposite_tan_pos_p };
+
+			(tan0, tan1)
 		};
+
+		// let tan0 = if tan.local_id == 0 { tan1_unsorted } else { tan0_unsorted };
+		// let tan1 = if tan.local_id == 1 { tan0_unsorted } else { tan1_unsorted };
+
 
 		spline.set_interpolation(tan.global_id, SplineInterpolation::StrokeBezier(tan0, tan1));
 
 		tane = tan_e;
-		tan11 = tan1;
+		tan11 = if tan.local_id == 0 { tan1 } else { tan0 };
 		cptrans = control_point_tform.translation;
 
 		for child_e_ref in control_point_children_e.iter() {
 			let child_e = *child_e_ref;
 			cpc.push(child_e);
-			// if let Ok(mut tform) = set.p1().get_mut(child_e) {
-			// 	if child_e != tan_e && sync_tangents {
-					
-			// 		//tform.translation = tan1 - control_point_tform.translation;
-			// 		// commands.entity(child_e).insert(ToRecalculateOpposite);
-			// 		// screen_print!("inserting opp {:?} tan_e {:?}", child_e,  tan_e);
-			// 		// println!("inserting opp {:?} tan_e {:?} ", child_e, tan_e);
-			// 	}
-			// } else {
-			// 	screen_print!("shitty basket!");
-			// 	println!("shitty basket!");
-			// }
-			// if q_tangent_opp.get(child_e).is_ok() {
-			// 	if child_e != tan_e {
-			// 		commands.entity(child_e).insert(ToRecalculateOpposite);
-			// 		screen_print!("inserting opp {:?} tan_e {:?}", child_e,  tan_e);
-			// 		println!("inserting opp {:?} tan_e {:?} ", child_e, tan_e);
-			// 	}
-			// } else {
-			// 	screen_print!("shitty basket!");
-			// 	println!("shitty basket!");
-			// }
 
 			if let Ok(handle) = q_polyline.get(child_e) {
 				let line	= polylines.get_mut(handle).unwrap();
@@ -474,10 +458,12 @@ pub fn on_spline_tangent_moved(
 		}
 	}
 
-	for c in cpc {
-		if let Ok(mut tform) = set.p1().get_mut(c) {
-			if c != tane && sync_tangents {
-				tform.translation = tan11 - cptrans;
+	if sync_tangents {
+		for c in cpc {
+			if let Ok(mut tform) = set.p1().get_mut(c) {
+				if c != tane {
+					tform.translation = tan11 - cptrans;
+				}
 			}
 		}
 	}

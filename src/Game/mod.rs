@@ -315,7 +315,8 @@ impl Plugin for GamePlugin {
 			.add_system_to_stage(CoreStage::PostUpdate, dragging_system)
 			.add_system_to_stage(CoreStage::PostUpdate, dragging_stop_system)
 
-			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved)
+			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved.label("spline_tangent_moved"))
+			// .add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved2.label("spline_tangent_moved2").after("spline_tangent_moved"))
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_control_point_moved)
 			.add_system_to_stage(CoreStage::PostUpdate, on_root_handle_moved)
  			;
