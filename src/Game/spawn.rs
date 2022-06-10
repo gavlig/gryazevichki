@@ -319,7 +319,7 @@ pub fn spline_tangent(
 
 pub fn spline_control_point(
 	id					: usize,
-	key					: &SplineKey,
+	spline				: &Spline,
 	parent_e			: Entity,
 	with_tangent		: bool,
 	polylines			: &mut ResMut<Assets<Polyline>>,
@@ -327,11 +327,18 @@ pub fn spline_control_point(
 	sargs				: &mut SpawnArguments,
 ) -> Entity {
 	let mut cp_id 		= Entity::from_raw(0);
-	let transform		= Transform::from_translation(key.value);
+
+	let key				= spline.keys()[id];
+	let mut spline_rot	= Quat::IDENTITY;
+	if id > 0 {
+		let prev_key	= spline.keys()[id - 1];
+		spline_rot 		= Quat::from_rotation_arc(Vec3::Z, (key.value - prev_key.value).normalize());
+	}
+
+	let transform		= Transform { translation: key.value, rotation: spline_rot, ..default() };
 
 	sargs.commands.entity(parent_e).with_children(|parent| {
 		cp_id = parent.spawn_bundle(PbrBundle {
-			// mesh		: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
 			mesh		: sargs.meshes.add		(Mesh::from(render_shape::UVSphere{ radius: 0.2, ..default() })),
 			material	: sargs.materials.add(
 			StandardMaterial {
@@ -352,7 +359,7 @@ pub fn spline_control_point(
 	if with_tangent {
 		/*spawn::*/spline_tangent(
 			id,
-			key,
+			&key,
 			cp_id,
 			sargs
 		);

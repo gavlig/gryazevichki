@@ -81,6 +81,7 @@
 49.3.12. (done!)sync tangents optionally
 49.3.13. (done!)road width is calculated wrong when drawing polyline
 49.3.14. (fixed!)rotated control points are bugged
+49.3.15. move splines to separate file/folder
 49.4. (done!)movable root
 49.4.1. (fixed!)bug: when root is rotated dragging control points is broken
 49.5. borders

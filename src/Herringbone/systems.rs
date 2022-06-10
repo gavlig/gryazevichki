@@ -47,7 +47,7 @@ pub fn brick_road_system(
 		}
 
 		while control.new_spline_point {
-			new_spline_point(root_e, &q_mouse_pick, transform, config.as_mut(), spline.as_mut(), &mut polylines, &mut polyline_materials, &mut sargs);
+			new_spline_point(root_e, &q_mouse_pick, transform, spline.as_mut(), config.as_mut(), &mut polylines, &mut polyline_materials, &mut sargs);
 
 			control.new_spline_point = false;
 		}
@@ -134,14 +134,15 @@ pub fn brick_road_system(
 }
 
 fn new_spline_point(
-		root_e		: Entity,
-		q_mouse_pick : &Query<&PickingObject, With<Camera>>,
-		transform	: &GlobalTransform,
-	mut config		: &mut Herringbone2Config,
-	mut spline		: &mut Spline,
-	polylines		: &mut ResMut<Assets<Polyline>>,
-	polyline_materials : &mut ResMut<Assets<PolylineMaterial>>,
-	mut	sargs		: &mut SpawnArguments,
+		root_e				: Entity,
+		q_mouse_pick 		: &Query<&PickingObject, With<Camera>>,
+		transform			: &GlobalTransform,
+		spline				: &mut Spline,
+	mut config				: &mut Herringbone2Config,
+
+		polylines			: &mut ResMut<Assets<Polyline>>,
+		polyline_materials 	: &mut ResMut<Assets<PolylineMaterial>>,
+	mut	sargs				: &mut SpawnArguments,
 ) {
 	let mouse_pick 	= q_mouse_pick.single();
 	let top_pick 	= mouse_pick.intersect_top();
@@ -152,7 +153,7 @@ fn new_spline_point(
 	}
 	
 	let (_topmost_entity, intersection) = top_pick.unwrap();
-	let mut new_pos	= intersection.position();
+	let mut new_pos	= intersection.position().clone();
 	new_pos			-= transform.translation; // world space -> object space
 
 	// TODO: use line equation here too to put handle precisely under cursor
@@ -160,12 +161,12 @@ fn new_spline_point(
 	let tan0		= new_pos - Vec3::Z * config.init_tangent_offset;
 	let tan1		= new_pos + Vec3::Z * config.init_tangent_offset;
 
-	let t			= new_pos.z;
+	let t			= spline.total_length() + (new_pos.length() - spline.keys().last().unwrap().value.length());
 	let key			= SplineKey::new(t, new_pos, SplineInterpolation::StrokeBezier(tan0, tan1));
 	spline.add		(key);
 	//
 	let new_key_id	= spline.get_key_id(t);
-	let key_e 		= Game::spawn::spline_control_point(new_key_id, &key, root_e, true, polylines, polyline_materials,  &mut sargs);
+	let key_e 		= Game::spawn::spline_control_point(new_key_id, spline, root_e, true, polylines, polyline_materials,  &mut sargs);
 	sargs.commands.entity(root_e).add_child(key_e);
 	//
 	config.limit_z	= new_pos.z;

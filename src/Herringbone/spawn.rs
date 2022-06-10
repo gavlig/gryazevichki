@@ -79,14 +79,12 @@ pub fn brick_road(
 	let t0				= config.limit_mz;
 	let t1				= config.limit_mz + (key1_pos - key0_pos).length();
 
-	println!			("t0:{:.3} t1:{:.3} key0 x:{:.3} z:{:.3} key1 x:{:.3} z:{:.3}", t0, t1, key0_pos.x, key0_pos.z, key1_pos.x, key1_pos.z);
-
 	let key0			= SplineKey::new(t0, key0_pos, SplineInterpolation::StrokeBezier(tangent00, tangent01));
 	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent10, tangent11));
 	let spline			= Spline::from_vec(vec![key0, key1]);
 
-	let key0_e 			= Game::spawn::spline_control_point(0, &key0, root_e, true, polylines, polyline_materials, &mut sargs);
-	let key1_e 			= Game::spawn::spline_control_point(1, &key1, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key0_e 			= Game::spawn::spline_control_point(0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key1_e 			= Game::spawn::spline_control_point(1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
 
 	for i in 0..3 {
 		let line_id = sargs.commands.spawn_bundle(PolylineBundle {
