@@ -81,7 +81,7 @@
 49.3.12. (done!)sync tangents optionally
 49.3.13. (done!)road width is calculated wrong when drawing polyline
 49.3.14. (fixed!)rotated control points are bugged
-49.3.15. move splines to separate file/folder
+49.3.15. (fixed!)move splines to separate file/folder (now a plugin)
 49.4. (done!)movable root
 49.4.1. (fixed!)bug: when root is rotated dragging control points is broken
 49.5. borders
@@ -94,11 +94,13 @@
 49.11. (done!)move to own file
 49.12. (done!)instancing
 49.13. (almost)make sure draggable doesnt twitch when we start dragging
-49.14. auto rotate control points when spawning new ones for spline
+49.14. (done!)auto rotate control points when spawning new ones for spline
 49.15. fill the gaps between tiles when road is rotated too much
 49.16. (done!)properly calculate spline length when using it to set limits instead of using z coordinate
 49.17. fix physics placement, currently it's ignoring y?
 49.18. toggle hide gizmos
+49.19. (done!)move draggable to a separate plugin as well
 50. make utils for debug drawing
+51. make plugin with common stuff from game to avoid including game
 
 next milestone: fully configurable vehicle with an environment to test it

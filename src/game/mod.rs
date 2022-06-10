@@ -8,16 +8,16 @@ use serde				:: { Deserialize, Serialize };
 
 use super::vehicle		:: { * };
 use super::ui			:: { * };
-use super::herringbone	:: { HerringbonePlugin };
+use super::draggable	:: { * };
 use super::bevy_spline	:: { BevySplinePlugin };
+use super::herringbone	:: { HerringbonePlugin };
 
 pub mod spawn;
 mod systems;
-use systems			:: *;
-mod draggable;
-use draggable		:: *;
+use systems				:: *;
 
-pub use draggable 	:: { Draggable, DraggableActive };
+
+pub use super::draggable :: { Draggable, DraggableActive };
 
 pub type PickingObject = bevy_mod_picking::RayCastSource<PickingRaycastSet>;
 
@@ -151,9 +151,6 @@ impl Default for PhysicsConfig {
 }
 
 #[derive(Component)]
-pub struct RootHandle;
-
-#[derive(Component)]
 pub struct Gizmo;
 
 #[derive(Component)]
@@ -202,6 +199,7 @@ impl Plugin for GamePlugin {
             .add_plugin		(UiPlugin)
             .add_plugin		(VehiclePlugin)
 			.add_plugin		(BevySplinePlugin)
+			.add_plugin		(DraggablePlugin)
 
  			.add_plugin		(PickingPlugin)
          	.add_plugin		(InteractablePickingPlugin)
@@ -218,10 +216,6 @@ impl Plugin for GamePlugin {
 			.add_system		(vehicle_controls_system)
 
 			.add_system_to_stage(CoreStage::PostUpdate, despawn_system)
-
-			.add_system_to_stage(CoreStage::PostUpdate, dragging_start_system)
-			.add_system_to_stage(CoreStage::PostUpdate, dragging_system)
-			.add_system_to_stage(CoreStage::PostUpdate, dragging_stop_system)
  			;
 	}
 }

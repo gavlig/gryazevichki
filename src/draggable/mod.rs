@@ -2,8 +2,14 @@ use bevy					:: { prelude :: * };
 use bevy					:: { input :: mouse :: * };
 use bevy_mod_picking		:: { * };
 use bevy_polyline			:: { prelude :: * };
+use bevy_debug_text_overlay	:: { screen_print };
 
-use super           		:: { * };
+use crate           		:: { game :: * };
+
+pub mod spawn;
+
+#[derive(Component)]
+pub struct RootHandle;
 
 #[derive(Component, Default)]
 pub struct Draggable {
@@ -67,6 +73,8 @@ pub fn dragging_start_system(
 		let mut transform	= Transform::identity();
 		transform.look_at	(-Vec3::Y, -Vec3::Z);
 
+		screen_print!("started dragging {:?}", clicked_entity);
+
 		commands.entity(clicked_entity).with_children(|parent| {
 			parent.spawn_bundle(TransformBundle{ local : transform, ..default() })
 				.insert		(PickingObject::new_transform_empty())
@@ -77,22 +85,13 @@ pub fn dragging_start_system(
 
 pub fn dragging_system(
 	mut polylines			: ResMut<Assets<Polyline>>,
-		q_green				: Query<&Handle<Polyline>, With<GreenLine>>,
-		q_blue				: Query<&Handle<Polyline>, With<BlueLine>>,
 
 	mut mouse_wheel_events	: EventReader<MouseWheel>,
 		q_transform			: Query<&GlobalTransform, Without<DraggableActive>>,
 		q_draggable_pick	: Query<&PickingObject, With<DraggableRaycast>>,
 		q_mouse_pick		: Query<&PickingObject, With<Camera>>,
-	mut draggable			: Query<
-	(
-		Entity,
-		Option<&Parent>,
-		&mut Transform,
-		&mut Draggable
-	), With<DraggableActive>
-	>,
-		q_gizmo				: Query<Entity, With<Gizmo>>,
+	mut draggable			: Query<(Entity, Option<&Parent>, &mut Transform, &mut Draggable), With<DraggableActive>>,
+		q_gizmo				: Query<Entity, With<Gizmo>>, // TODO: move this outside into a lambda or something
 		q_tile				: Query<Entity, With<Tile>>,
 ) {
 	if draggable.is_empty() {
@@ -204,41 +203,6 @@ pub fn dragging_system(
 		};
 		transform.rotation *= Quat::from_rotation_y(dy.to_radians());
     }
-
-	// TODO: make utils from this
-	if false {
-		let origin = draggable_ray.origin();
-		let target = draggable_ray.origin() + draggable_ray.direction() * 2.0;
-		let line	= polylines.get_mut(q_green.single()).unwrap();
-		line.vertices.resize(10, Vec3::ZERO);
-		line.vertices[0] = origin;
-		line.vertices[1] = target;
-		line.vertices[2] = target + Vec3::X * 0.2;
-		line.vertices[3] = target;
-		line.vertices[4] = target - Vec3::X * 0.2;
-		line.vertices[5] = target;
-		line.vertices[6] = target + Vec3::Z * 0.2;
-		line.vertices[7] = target;
-		line.vertices[8] = target - Vec3::Z * 0.2;
-		line.vertices[9] = target;
-	}
-
-	if false {
-		let origin = mouse_ray.origin();
-		let target = mouse_ray.origin() + mouse_ray.direction() * new_distance;
-		let line	= polylines.get_mut(q_blue.single()).unwrap();
-		line.vertices.resize(10, Vec3::ZERO);
-		line.vertices[0] = origin;
-		line.vertices[1] = target;
-		line.vertices[2] = target + Vec3::X * 0.2;
-		line.vertices[3] = target;
-		line.vertices[4] = target - Vec3::X * 0.2;
-		line.vertices[5] = target;
-		line.vertices[6] = target + Vec3::Z * 0.2;
-		line.vertices[7] = target;
-		line.vertices[8] = target - Vec3::Z * 0.2;
-		line.vertices[9] = target;
-	}
 }
 
 pub fn dragging_stop_system(
@@ -266,4 +230,17 @@ pub fn dragging_stop_system(
 	// despawn a child that is used for picking
 	let picking			= q_draggable_picking.single();
 	despawn.entities.push(picking);
+}
+
+pub struct DraggablePlugin;
+
+// This plugin is responsible to control the game audio
+impl Plugin for DraggablePlugin {
+    fn build(&self, app: &mut App) {
+        app
+			.add_system_to_stage(CoreStage::PostUpdate, dragging_start_system)
+			.add_system_to_stage(CoreStage::PostUpdate, dragging_system)
+			.add_system_to_stage(CoreStage::PostUpdate, dragging_stop_system)
+            ;
+    }
 }

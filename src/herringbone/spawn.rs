@@ -11,7 +11,7 @@ use crate				:: { game };
 use crate				:: { bevy_spline };
 
 pub fn brick_road(
-	transform			: Transform,
+	transform			: &Transform,
 	config_in			: &Herringbone2Config,
 	debug				: bool,
 
@@ -22,8 +22,16 @@ pub fn brick_road(
 ) -> Entity {
 	let mut config		= config_in.clone();
 
-	let root_e			= game::spawn::root_handle(transform, &mut sargs);
-	config.parent 		= root_e;
+	let root_e 			= bevy_spline::spawn::new(
+		transform,
+		config.limit_z,
+		120.0,
+		Color::rgb(0.2, 0.2, 0.2),
+		polylines,
+		polyline_materials,
+		sargs
+	);
+	config.root_entity	= root_e;
 
 	let tile_size		= config.hsize * 2.0;
 
@@ -42,77 +50,10 @@ pub fn brick_road(
 		..default()
 	});
 
-	let offset_y		= 0.5;
-	
-	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
-	//
-	//
-	let road_len		= config.limit_z - config.limit_mz;
-	let tan_offset		= road_len / 4.0;
-	config.init_tangent_offset = tan_offset;
-
-	// limit_z and offset_z are used both for final tile coordinates and for final value of t to have road length tied to spline length and vice versa
-	let mut key0_pos	= Vec3::new(0.0, offset_y, config.limit_mz);
-	
-	// StrokeBezier allows having two tangent points and we're going to use that
-	let mut tangent00	= Vec3::new(0.0, offset_y, config.limit_mz - tan_offset);
-	let mut tangent01	= Vec3::new(0.0, offset_y, config.limit_mz + tan_offset);
-
-	let mut tangent10	= Vec3::new(0.0, offset_y, config.limit_z - tan_offset);
-	let mut tangent11	= Vec3::new(0.0, offset_y, config.limit_z + tan_offset);
-
-	let mut key1_pos	= Vec3::new(0.0, offset_y, config.limit_z);
-
-	if debug {
-		key0_pos		= Vec3::new(config.limit_mz, offset_y, config.limit_mz);
-		
-		// StrokeBezier allows having two tangent points and we're going to use that
-		tangent00		= Vec3::new(config.limit_mz - tan_offset, offset_y, config.limit_mz - tan_offset);
-		tangent01		= Vec3::new(config.limit_mz + tan_offset, offset_y, config.limit_mz + tan_offset);
-
-		tangent10		= Vec3::new(config.limit_z - tan_offset, offset_y, config.limit_z - tan_offset);
-		tangent11		= Vec3::new(config.limit_z + tan_offset, offset_y, config.limit_z + tan_offset);
-
-		key1_pos		= Vec3::new(config.limit_z, offset_y, config.limit_z);
-	}
-
-	let t0				= config.limit_mz;
-	let t1				= config.limit_mz + (key1_pos - key0_pos).length();
-
-	let key0			= Key::new(t0, key0_pos, Interpolation::StrokeBezier(tangent00, tangent01));
-	let key1			= Key::new(t1, key1_pos, Interpolation::StrokeBezier(tangent10, tangent11));
-	let spline			= Spline::from_vec(vec![key0, key1]);
-
-	let key0_e 			= bevy_spline::spawn::control_point(0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
-	let key1_e 			= bevy_spline::spawn::control_point(1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
-
-	for i in 0..3 {
-		let line_id = sargs.commands.spawn_bundle(PolylineBundle {
-			polyline : polylines.add(Polyline {
-				vertices	: vec![key0_pos, key1_pos],
-				..default()
-			}),
-			material : polyline_materials.add(PolylineMaterial {
-				width		: 120.0,
-				color		: Color::rgb(0.2, 0.2, 0.2),
-				perspective	: true,
-				..default()
-			}),
-			..default()
-		})
-		.insert				(Herringbone2Line)
-		.id					();
-
-		sargs.commands.entity(root_e).add_child(line_id);
-	}
-
 	sargs.commands.entity(root_e)
 		.insert			(config)
-		.insert			(spline)
 		.insert			(Control::default())
 		.insert			(TileState::default())
-		.add_child		(key0_e)
-		.add_child		(key1_e)
 		;
 
 	root_e
@@ -371,7 +312,7 @@ pub fn brick_road_iter(
 
 		let bundle = PbrBundle{ mesh: me, material: ma, ..default() };
 
-		sargs.commands.entity(config.parent).with_children(|parent| {
+		sargs.commands.entity(config.root_entity).with_children(|parent| {
 			insert_tile_components!(parent.spawn_bundle(bundle));
 		});
 	}
@@ -669,7 +610,7 @@ pub fn brick_road_iter2(
 
 		let bundle = PbrBundle{ mesh: me, material: ma, ..default() };
 
-		sargs.commands.entity(config.parent).with_children(|parent| {
+		sargs.commands.entity(config.root_entity).with_children(|parent| {
 			insert_tile_components!(parent.spawn_bundle(bundle));
 		});
 	}

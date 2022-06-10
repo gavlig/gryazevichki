@@ -1,13 +1,10 @@
 use bevy			:: { prelude :: * };
 use bevy_polyline	:: { prelude :: * };
-use iyes_loopless	:: { prelude :: * };
-
-use std				:: { path::PathBuf };
 
 use super           :: { * };
 
 // Convert engine Transform of an entity to spline tangent Vec3. Spline tangents are in the same space as control points.
-// In engine spline tangent handles(as in entities with transforms) are children of control point entities so we have to juggle between spline space and tangent space
+// Spline tangent handles(as in bevy entities with transforms) are children of control point entities so we have to juggle between spline space and tangent space
 pub fn on_tangent_moved(
 		time			: Res<Time>,
 		key				: Res<Input<KeyCode>>,

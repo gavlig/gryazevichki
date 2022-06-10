@@ -18,9 +18,6 @@ pub struct Herringbone3;
 */
 
 #[derive(Component)]
-pub struct Herringbone2Line;
-
-#[derive(Component)]
 pub struct Control {
 	pub next			: bool,
 	pub animate			: bool,
@@ -111,7 +108,7 @@ pub struct Herringbone2Config {
 	pub limit_iter		: u32,
 	pub init_tangent_offset : f32,
 
-	pub parent			: Entity,
+	pub root_entity		: Entity,
 
 	// cant copy
 	pub mesh			: Handle<Mesh>,
@@ -131,7 +128,7 @@ impl Default for Herringbone2Config {
 			limit_iter	: 100,
 			init_tangent_offset : 1.0,
 
-			parent		: Entity::from_raw(0),
+			root_entity	: Entity::from_raw(0),
 
 			mesh		: Handle::<Mesh>::default(),
 			material	: Handle::<StandardMaterial>::default(),
@@ -157,7 +154,7 @@ impl Herringbone2Config {
 			limit_iter	: self.limit_iter,
 			init_tangent_offset : self.init_tangent_offset,
 
-			parent		: self.parent,
+			root_entity	: self.root_entity,
 
 			mesh		: self.mesh.clone_weak(),
 			material	: self.material.clone_weak(),

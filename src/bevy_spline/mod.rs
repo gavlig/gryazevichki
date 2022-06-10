@@ -1,6 +1,4 @@
 use bevy				:: { prelude :: * };
-use bevy_mod_picking	:: { * };
-use iyes_loopless		:: { prelude :: * };
 
 use super::game 		:: { * };
 
@@ -8,12 +6,10 @@ pub mod spawn;
 mod systems;
 use systems				:: *;
 
-pub use bevy_debug_text_overlay	:: { screen_print };
-
-
 pub type Raw 			= splines::Spline<f32, Vec3>;
 pub type Interpolation 	= splines::Interpolation<f32, Vec3>;
 pub type Key 			= splines::Key<f32, Vec3>;
+
 
 // wrapper for SplineRaw to have it as a Bevy Component
 #[derive(Component)]
@@ -105,19 +101,15 @@ pub enum ControlPoint {
 }
 
 #[derive(Component)]
+pub struct SplinePolyline;
+
+#[derive(Component)]
 pub struct ControlPointPolyline;
 
 pub struct BevySplinePlugin;
 
 impl Plugin for BevySplinePlugin {
 	fn build(&self, app: &mut App) {
-		let clear_color = ClearColor(
-			Color::rgb(
-				0xF9 as f32 / 255.0,
-				0xF9 as f32 / 255.0,
-				0xFF as f32 / 255.0,
-			));
-
         app	
 			.add_system_to_stage(CoreStage::PostUpdate, on_tangent_moved)
 			.add_system_to_stage(CoreStage::PostUpdate, on_control_point_moved)

@@ -1,12 +1,12 @@
 use bevy				:: prelude :: { * };
-use bevy_rapier3d		:: prelude :: { * };
 use bevy_mod_picking	:: { * };
 use bevy_polyline		:: { prelude :: * };
 
 use bevy::render::mesh::shape as render_shape;
 
 use super				:: { * };
-use crate::game			:: { * };
+use crate				:: { game };
+use crate				:: { draggable, draggable :: * };
 
 pub fn tangent(
 	id					: usize,
@@ -122,4 +122,76 @@ pub fn control_point(
 	sargs.commands.entity(cp_id).add_child(line_id);
 
 	cp_id
+}
+
+pub fn new(
+	transform			: &Transform,
+	length				: f32,
+	line_width			: f32,
+	line_color			: Color,
+
+	polylines			: &mut ResMut<Assets<Polyline>>,
+	polyline_materials 	: &mut ResMut<Assets<PolylineMaterial>>,
+
+	mut sargs			: &mut SpawnArguments,
+) -> Entity {
+	let root_e			= draggable::spawn::root_handle(transform, &mut sargs);
+
+	let offset_y		= 0.5;
+	
+	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
+	//
+	//
+	let tan_offset		= length / 4.0;
+
+	// limit_z and offset_z are used both for final tile coordinates and for final value of t to have road length tied to spline length and vice versa
+	let key0_pos		= Vec3::new(0.0, offset_y, 0.0);
+	
+	// StrokeBezier allows having two tangent points and we're going to use that
+	let tangent00		= Vec3::new(0.0, offset_y, 0.0 - tan_offset);
+	let tangent01		= Vec3::new(0.0, offset_y, 0.0 + tan_offset);
+
+	let tangent10		= Vec3::new(0.0, offset_y, length - tan_offset);
+	let tangent11		= Vec3::new(0.0, offset_y, length + tan_offset);
+
+	let key1_pos		= Vec3::new(0.0, offset_y, length);
+
+	let t0				= 0.0;
+	let t1				= (key1_pos - key0_pos).length();
+
+	let key0			= Key::new(t0, key0_pos, Interpolation::StrokeBezier(tangent00, tangent01));
+	let key1			= Key::new(t1, key1_pos, Interpolation::StrokeBezier(tangent10, tangent11));
+	let spline			= Spline::from_vec(vec![key0, key1]);
+
+	let key0_e 			= self::control_point(0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key1_e 			= self::control_point(1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+
+	// left border, center and right border lines
+	for i in 0..3 {
+		let line_id = sargs.commands.spawn_bundle(PolylineBundle {
+			polyline : polylines.add(Polyline {
+				vertices	: vec![key0_pos, key1_pos],
+				..default()
+			}),
+			material : polyline_materials.add(PolylineMaterial {
+				width		: line_width,
+				color		: line_color,
+				perspective	: true,
+				..default()
+			}),
+			..default()
+		})
+		.insert				(SplinePolyline)
+		.id					();
+
+		sargs.commands.entity(root_e).add_child(line_id);
+	}
+
+	sargs.commands.entity(root_e)
+		.insert			(spline)
+		.add_child		(key0_e)
+		.add_child		(key1_e)
+		;
+
+	root_e
 }

@@ -9,7 +9,7 @@ pub fn brick_road_system(
 	mut debug_lines		: ResMut<DebugLines>,
 	mut polylines		: ResMut<Assets<Polyline>>,
 	mut	polyline_materials : ResMut<Assets<PolylineMaterial>>,
-		q_polyline		: Query<&Handle<Polyline>, With<Herringbone2Line>>,
+		q_polyline		: Query<&Handle<Polyline>>,
 	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut Control, &mut Herringbone2Config, &mut TileState), Changed<Control>>,
 		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
 
@@ -215,9 +215,6 @@ pub fn on_spline_control_point_moved(
 
 		match controlp {
 			ControlPoint::ID(id_ref) => {
-				let id 		= *id_ref;
-				let last_id = spline.len() - 1;
-
 				control.reset	= true;
 				control.next 	= true;
 				control.instant = true;

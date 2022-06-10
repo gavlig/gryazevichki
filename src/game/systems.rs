@@ -5,7 +5,6 @@ use bevy_fly_camera	:: { FlyCamera };
 use bevy_mod_picking:: { * };
 use bevy_polyline	:: { prelude :: * };
 use iyes_loopless	:: { prelude :: * };
-use bevy_debug_text_overlay	:: { screen_print };
 
 use std				:: { path::PathBuf };
 
@@ -91,7 +90,7 @@ pub fn setup_world_system(
 			materials : &mut materials,
 			commands : &mut commands,
 		};
-		herringbone::spawn::brick_road(transform, &config, false, &mut polylines, &mut polyline_materials, &mut sargs);
+		herringbone::spawn::brick_road(&transform, &config, false, &mut polylines, &mut polyline_materials, &mut sargs);
 
 		// let transform = Transform::from_translation(Vec3::new(0.0, y, 0.0));
 		// Herringbone::spawn::brick_road(transform, &config, true, &mut polylines, &mut polyline_materials, &mut sargs);
@@ -366,14 +365,5 @@ pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResM
 			commands.entity(*entity).despawn_recursive();
 		}
 		despawn.entities.clear();
-	}
-}
-
-
-pub fn on_root_handle_moved(
-	time : Res<Time>,
-) {
-	if time.seconds_since_startup() < 0.1 {
-		return;
 	}
 }

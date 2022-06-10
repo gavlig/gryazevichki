@@ -1,4 +1,4 @@
-#![allow(non_snake_case)]
+#![allow(non_snake_case, dead_code)]
 
 use bevy			::	prelude :: { * };
 use bevy_rapier3d	::	prelude :: { * };
@@ -14,8 +14,9 @@ use game			:: 	{ GamePlugin };
 
 mod vehicle;
 mod ui;
-mod herringbone;
+mod draggable;
 mod bevy_spline;
+mod herringbone;
 
 fn main() {
 	App::new()
