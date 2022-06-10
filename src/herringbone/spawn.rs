@@ -1,14 +1,14 @@
-use bevy				::	prelude :: { * };
-use bevy_rapier3d		::	prelude :: { * };
-use bevy_mod_picking	::	{ * };
-use bevy_polyline		::	{ prelude :: * };
+use bevy				:: prelude :: { * };
+use bevy_rapier3d		:: prelude :: { * };
+use bevy_mod_picking	:: { * };
+use bevy_polyline		:: { prelude :: * };
 
 use bevy::render::mesh::shape as render_shape;
-use std::f32::consts	::	{ * };
+use std::f32::consts	:: { * };
 
-use super				::	{ * };
-
-use crate :: game 		as Game;
+use super				:: { * };
+use crate				:: { game };
+use crate				:: { bevy_spline };
 
 pub fn brick_road(
 	transform			: Transform,
@@ -79,12 +79,12 @@ pub fn brick_road(
 	let t0				= config.limit_mz;
 	let t1				= config.limit_mz + (key1_pos - key0_pos).length();
 
-	let key0			= SplineKey::new(t0, key0_pos, SplineInterpolation::StrokeBezier(tangent00, tangent01));
-	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent10, tangent11));
+	let key0			= Key::new(t0, key0_pos, Interpolation::StrokeBezier(tangent00, tangent01));
+	let key1			= Key::new(t1, key1_pos, Interpolation::StrokeBezier(tangent10, tangent11));
 	let spline			= Spline::from_vec(vec![key0, key1]);
 
-	let key0_e 			= game::spawn::spline_control_point(0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
-	let key1_e 			= game::spawn::spline_control_point(1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key0_e 			= bevy_spline::spawn::control_point(0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key1_e 			= bevy_spline::spawn::control_point(1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
 
 	for i in 0..3 {
 		let line_id = sargs.commands.spawn_bundle(PolylineBundle {
@@ -216,21 +216,10 @@ pub fn brick_road_iter(
 	for key1 in spline.keys() {
 		let t0 			= key0.t;
 		let t1 			= key1.t;
-		// println!("t0: {:.3} t: {:.3} t1: {:.3}", t0, t, t1);
 
 		if t0 < t && t < t1 {
-			// pt0 		= match key0.interpolation {
-			// 	SplineInterpolation::StrokeBezier(_V0, V1) => V1, _ => { panic!("unsupported interpolation!") },
-			// };
-
-			// pt1 		= match key1.interpolation {
-			// 	SplineInterpolation::StrokeBezier(V0, _V1) => V0, _ => { panic!("unsupported interpolation!") },
-			// };
-
 			pt0 = key0.value;
 			pt1 = key1.value;
-
-			// println!("took pt0: {:.3} {:.3} pt1: {:.3} {:.3}", pt0.x, pt0.z, pt1.x, pt1.z);
 
 			break;
 		}
@@ -532,13 +521,6 @@ pub fn brick_road_iter2(
 		// println!("t0: {:.3} t: {:.3} t1: {:.3}", t0, t, t1);
 
 		if t0 < t && t < t1 {
-			// pt0 		= match key0.interpolation {
-			// 	SplineInterpolation::StrokeBezier(_V0, V1) => V1, _ => { panic!("unsupported interpolation!") },
-			// };
-
-			// pt1 		= match key1.interpolation {
-			// 	SplineInterpolation::StrokeBezier(V0, _V1) => V0, _ => { panic!("unsupported interpolation!") },
-			// };
 
 			pt0 = key0.value;
 			pt1 = key1.value;

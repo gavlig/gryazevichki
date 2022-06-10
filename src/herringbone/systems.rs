@@ -3,6 +3,7 @@ use bevy_prototype_debug_lines :: {DebugLines, DebugLinesPlugin};
 
 use super           	:: { * };
 use crate				:: { game };
+use crate				:: { bevy_spline };
 
 pub fn brick_road_system(
 	mut debug_lines		: ResMut<DebugLines>,
@@ -162,11 +163,11 @@ fn new_spline_point(
 	let tan1		= new_pos + Vec3::Z * config.init_tangent_offset;
 
 	let t			= spline.total_length() + (new_pos.length() - spline.keys().last().unwrap().value.length());
-	let key			= SplineKey::new(t, new_pos, SplineInterpolation::StrokeBezier(tan0, tan1));
+	let key			= Key::new(t, new_pos, Interpolation::StrokeBezier(tan0, tan1));
 	spline.add		(key);
 	//
 	let new_key_id	= spline.get_key_id(t);
-	let key_e 		= game::spawn::spline_control_point(new_key_id, spline, root_e, true, polylines, polyline_materials,  &mut sargs);
+	let key_e 		= bevy_spline::spawn::control_point(new_key_id, spline, root_e, true, polylines, polyline_materials,  &mut sargs);
 	sargs.commands.entity(root_e).add_child(key_e);
 	//
 	config.limit_z	= new_pos.z;
@@ -174,8 +175,8 @@ fn new_spline_point(
 
 pub fn on_spline_tangent_moved(
 		time			: Res<Time>,
-		q_tangent_parent: Query<&Parent, (With<SplineTangent>, Changed<Transform>)>,
-		q_controlp_parent : Query<&Parent, With<SplineControlPoint>>, // <- parent of this ^
+		q_tangent_parent: Query<&Parent, (With<Tangent>, Changed<Transform>)>,
+		q_controlp_parent : Query<&Parent, With<ControlPoint>>, // <- parent of this ^
 	mut q_control		: Query<&mut Control>, // <- parent of this ^
 ) {
 	if time.seconds_since_startup() < 0.1 {
@@ -198,7 +199,7 @@ pub fn on_spline_tangent_moved(
 
 pub fn on_spline_control_point_moved(
 		time			: Res<Time>,
-		q_controlp 		: Query<(&Parent, &SplineControlPoint), Changed<Transform>>,
+		q_controlp 		: Query<(&Parent, &ControlPoint), Changed<Transform>>,
 	mut q_spline		: Query<(&Spline, &mut Control)>,
 ) {
 	if time.seconds_since_startup() < 0.1 {
@@ -213,7 +214,7 @@ pub fn on_spline_control_point_moved(
 		let (spline, mut control) = q_spline.get_mut(spline_e.0).unwrap();
 
 		match controlp {
-			SplineControlPoint::ID(id_ref) => {
+			ControlPoint::ID(id_ref) => {
 				let id 		= *id_ref;
 				let last_id = spline.len() - 1;
 

@@ -2,6 +2,7 @@ use bevy			:: { prelude :: * };
 use bevy_rapier3d	:: { prelude :: * };
 
 use super           :: { game :: * };
+use super           :: { bevy_spline :: * };
 
 mod systems;
 use systems			:: { * };

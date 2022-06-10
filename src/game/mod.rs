@@ -9,12 +9,15 @@ use serde				:: { Deserialize, Serialize };
 use super::vehicle		:: { * };
 use super::ui			:: { * };
 use super::herringbone	:: { HerringbonePlugin };
+use super::bevy_spline	:: { BevySplinePlugin };
 
 pub mod spawn;
 mod systems;
 use systems			:: *;
 mod draggable;
 use draggable		:: *;
+
+pub use draggable 	:: { Draggable, DraggableActive };
 
 pub type PickingObject = bevy_mod_picking::RayCastSource<PickingRaycastSet>;
 
@@ -97,9 +100,9 @@ impl Orientation2D {
 }
 
 pub struct SpawnArguments<'a0, 'a1, 'b0, 'b1, 'c, 'd, 'e> {
-	pub meshes					: &'a0 mut ResMut<'a1, Assets<Mesh>>,
-	pub materials				: &'b0 mut ResMut<'b1, Assets<StandardMaterial>>,
-	pub commands				: &'c mut Commands<'d, 'e>
+	pub meshes				: &'a0 mut ResMut<'a1, Assets<Mesh>>,
+	pub materials			: &'b0 mut ResMut<'b1, Assets<StandardMaterial>>,
+	pub commands			: &'c mut Commands<'d, 'e>
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -111,8 +114,8 @@ pub struct RespawnableEntity {
 impl Default for RespawnableEntity {
 	fn default() -> Self {
 		Self {
-			  entity			: Entity::from_bits(0)
-			, respawn			: false
+			  entity		: Entity::from_bits(0)
+			, respawn		: false
 		}
 	}
 }
@@ -124,127 +127,31 @@ pub struct DespawnResource {
 
 #[derive(Component, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct PhysicsConfig {
-	  pub fixed					: bool
-	, pub density				: f32
-	, pub mass					: f32
-	, pub friction				: f32
-	, pub restitution			: f32
-	, pub lin_damping			: f32
-	, pub ang_damping			: f32
+	  pub fixed				: bool
+	, pub density			: f32
+	, pub mass				: f32
+	, pub friction			: f32
+	, pub restitution		: f32
+	, pub lin_damping		: f32
+	, pub ang_damping		: f32
 }
 
 impl Default for PhysicsConfig {
 	fn default() -> Self {
 		Self {
-			  fixed				: false
-			, density			: 1.0
-			, mass				: 0.0 // calculated at runtime
-			, friction			: 0.5
-			, restitution		: 0.0
-			, lin_damping		: 0.0
-			, ang_damping		: 0.0
+			  fixed			: false
+			, density		: 1.0
+			, mass			: 0.0 // calculated at runtime
+			, friction		: 0.5
+			, restitution	: 0.0
+			, lin_damping	: 0.0
+			, ang_damping	: 0.0
 		}
-	}
-}
-
-pub type SplineRaw 				= splines::Spline<f32, Vec3>;
-pub type SplineInterpolation 	= splines::Interpolation<f32, Vec3>;
-pub type SplineKey 				= splines::Key<f32, Vec3>;
-
-// wrapper for SplineRaw to have it as a Bevy Component
-#[derive(Component)]
-pub struct Spline(pub SplineRaw);
-
-impl Spline {
-	pub fn set_interpolation(&mut self, id : usize, interpolation : SplineInterpolation) {
-		*self.0.get_mut(id).unwrap().interpolation = interpolation;
-	}
-
-	pub fn get_interpolation(&self, id : usize) -> &SplineInterpolation {
-		&self.0.get(id).unwrap().interpolation
-	}
-	
-	pub fn set_control_point(&mut self, id : usize, controlp_pos : Vec3) {
-		let t = controlp_pos.length();
-		self.0.replace(id, |k : &SplineKey| { SplineKey::new(t, controlp_pos, k.interpolation) });
-	}
-
-	pub fn total_length(&self) -> f32 {
-		let keys = self.keys();
-		let total_keys = keys.len();
-		if total_keys < 2 {
-			return 0.0; // return error instead?
-		}
-
-		let mut i = 1;
-		let mut total_length = 0.0;
-		loop {
-			total_length += (keys[i].value - keys[i - 1].value).length();
-			if i + 1 == total_keys {
-				break;
-			} else {
-				i += 1;
-			}
-		};
-
-		total_length
-	}
-
-	// wrapper
-	pub fn from_vec(keys : Vec<SplineKey>) -> Self {
-		Self {
-			0 : SplineRaw::from_vec(keys),
-		}
-	}
-
-	// wrapper
-	pub fn sample(&self, t : f32) -> Option<Vec3> {
-		self.0.sample(t)
-	}
-
-	// wrapper
-	pub fn clamped_sample(&self, t : f32) -> Option<Vec3> {
-		self.0.clamped_sample(t)
-	}
-
-	// wrapper
-	pub fn add(&mut self, key : SplineKey) {
-		self.0.add(key);
-	}
-
-	// wrapper
-	pub fn len(&self) -> usize {
-		self.0.len()
-	}
-
-	// wrapper
-	pub fn get_key_id(&self, t_in : f32) -> usize {
-		let keys = self.0.keys();
-		keys.iter().position(|&key| key.t == t_in).unwrap()
-	}
-
-	// wrapper
-	pub fn keys(&self) -> &[SplineKey] {
-		self.0.keys()
 	}
 }
 
 #[derive(Component)]
 pub struct RootHandle;
-
-#[derive(Component)]
-pub struct SplineTangent {
-	pub global_id 	: usize,
-	pub local_id 	: usize,
-}
-
-#[derive(Component)]
-pub enum SplineControlPoint {
-	ID(usize)
-}
-
-#[derive(Component)]
-pub struct ControlPointPolyline;
 
 #[derive(Component)]
 pub struct Gizmo;
@@ -292,8 +199,9 @@ impl Plugin for GamePlugin {
 			
 		
  			.add_plugin		(HerringbonePlugin)
-             .add_plugin		(UiPlugin)
-             .add_plugin		(VehiclePlugin)
+            .add_plugin		(UiPlugin)
+            .add_plugin		(VehiclePlugin)
+			.add_plugin		(BevySplinePlugin)
 
  			.add_plugin		(PickingPlugin)
          	.add_plugin		(InteractablePickingPlugin)
@@ -314,11 +222,6 @@ impl Plugin for GamePlugin {
 			.add_system_to_stage(CoreStage::PostUpdate, dragging_start_system)
 			.add_system_to_stage(CoreStage::PostUpdate, dragging_system)
 			.add_system_to_stage(CoreStage::PostUpdate, dragging_stop_system)
-
-			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved.label("spline_tangent_moved"))
-			// .add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved2.label("spline_tangent_moved2").after("spline_tangent_moved"))
-			.add_system_to_stage(CoreStage::PostUpdate, on_spline_control_point_moved)
-			.add_system_to_stage(CoreStage::PostUpdate, on_root_handle_moved)
  			;
 	}
 }

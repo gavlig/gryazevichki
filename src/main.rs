@@ -15,6 +15,7 @@ use game			:: 	{ GamePlugin };
 mod vehicle;
 mod ui;
 mod herringbone;
+mod bevy_spline;
 
 fn main() {
 	App::new()
