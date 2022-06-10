@@ -8,7 +8,7 @@ use std::f32::consts	::	{ * };
 
 use super				::	{ * };
 
-use crate :: Game 		as Game;
+use crate :: game 		as Game;
 
 pub fn brick_road(
 	transform			: Transform,
@@ -22,7 +22,7 @@ pub fn brick_road(
 ) -> Entity {
 	let mut config		= config_in.clone();
 
-	let root_e			= Game::spawn::root_handle(transform, &mut sargs);
+	let root_e			= game::spawn::root_handle(transform, &mut sargs);
 	config.parent 		= root_e;
 
 	let tile_size		= config.hsize * 2.0;
@@ -83,8 +83,8 @@ pub fn brick_road(
 	let key1			= SplineKey::new(t1, key1_pos, SplineInterpolation::StrokeBezier(tangent10, tangent11));
 	let spline			= Spline::from_vec(vec![key0, key1]);
 
-	let key0_e 			= Game::spawn::spline_control_point(0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
-	let key1_e 			= Game::spawn::spline_control_point(1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key0_e 			= game::spawn::spline_control_point(0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key1_e 			= game::spawn::spline_control_point(1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
 
 	for i in 0..3 {
 		let line_id = sargs.commands.spawn_bundle(PolylineBundle {

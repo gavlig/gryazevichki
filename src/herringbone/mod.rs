@@ -1,7 +1,7 @@
 use bevy			:: { prelude :: * };
 use bevy_rapier3d	:: { prelude :: * };
 
-use super           :: { Game :: * };
+use super           :: { game :: * };
 
 mod systems;
 use systems			:: { * };

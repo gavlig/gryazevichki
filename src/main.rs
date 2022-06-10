@@ -9,12 +9,12 @@ use bevy_polyline	::	{ * };
 use bevy_prototype_debug_lines	:: { * };
 use bevy_debug_text_overlay		:: { screen_print, OverlayPlugin };
 
-mod Game;
-use Game			:: 	{ GamePlugin };
+mod game;
+use game			:: 	{ GamePlugin };
 
-mod Vehicle;
-mod Ui;
-mod Herringbone;
+mod vehicle;
+mod ui;
+mod herringbone;
 
 fn main() {
 	App::new()

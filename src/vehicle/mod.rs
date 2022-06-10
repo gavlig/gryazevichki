@@ -14,8 +14,8 @@ use bevy		::	prelude :: *;
 use bevy_rapier3d::	prelude :: *;
 use serde		::	{ Deserialize, Serialize };
 
-use super		::	Game :: { PhysicsConfig, SideX, SideZ };
-pub use super	::	Game :: { GameState, RespawnableEntity, NameComponent };
+use super		::	game :: { PhysicsConfig, SideX, SideZ };
+pub use super	::	game :: { GameState, RespawnableEntity, NameComponent };
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Config {

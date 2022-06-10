@@ -1,8 +1,8 @@
 use bevy		:: prelude :: *;
 use bevy_egui	:: egui :: { Slider, Ui };
 
-use crate		:: { Game :: * };
-use crate		:: { Vehicle :: * };
+use crate		:: { game :: * };
+use crate		:: { vehicle :: * };
 
 pub fn density_param(
 		ui		: &mut Ui,

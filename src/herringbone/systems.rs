@@ -2,7 +2,7 @@ use bevy_polyline		:: { prelude :: * };
 use bevy_prototype_debug_lines :: {DebugLines, DebugLinesPlugin};
 
 use super           	:: { * };
-use crate				:: { Game };
+use crate				:: { game };
 
 pub fn brick_road_system(
 	mut debug_lines		: ResMut<DebugLines>,
@@ -50,30 +50,6 @@ pub fn brick_road_system(
 			new_spline_point(root_e, &q_mouse_pick, transform, spline.as_mut(), config.as_mut(), &mut polylines, &mut polyline_materials, &mut sargs);
 
 			control.new_spline_point = false;
-		}
-
-		let do_spawn 	= control.next || control.animate;
-		if !do_spawn || tile_state.finished {
-			return;
-		}
-
-		let cur_time	= time.seconds_since_startup();
-		if (cur_time - control.last_update) < control.anim_delay_sec && !control.instant {
-			return;
-		}
-
-		control.last_update = cur_time;
-
-		if !control.instant {
-			// spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
-		} else {
-			let mut tiles_cnt = 0;
-			// while !tile_state.finished {// && ((tiles_cnt < 36 && control.debug) || !control.debug) {
-				// spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
-				// tiles_cnt += 1;
-			// }
-			// println!("total tiles: {}", tiles_cnt);
-			control.instant = false;
 		}
 
 		let mut line_id = 0;
@@ -126,6 +102,30 @@ pub fn brick_road_system(
 			line_id += 1;
 		}
 
+		let do_spawn 	= control.next || control.animate;
+		if !do_spawn || tile_state.finished {
+			return;
+		}
+
+		let cur_time	= time.seconds_since_startup();
+		if (cur_time - control.last_update) < control.anim_delay_sec && !control.instant {
+			return;
+		}
+
+		control.last_update = cur_time;
+
+		if !control.instant {
+			// spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
+		} else {
+			let mut tiles_cnt = 0;
+			// while !tile_state.finished {// && ((tiles_cnt < 36 && control.debug) || !control.debug) {
+				// spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
+				// tiles_cnt += 1;
+			// }
+			// println!("total tiles: {}", tiles_cnt);
+			control.instant = false;
+		}
+
 		control.next	= false;
 		if tile_state.finished {
 			control.animate	= false;
@@ -166,7 +166,7 @@ fn new_spline_point(
 	spline.add		(key);
 	//
 	let new_key_id	= spline.get_key_id(t);
-	let key_e 		= Game::spawn::spline_control_point(new_key_id, spline, root_e, true, polylines, polyline_materials,  &mut sargs);
+	let key_e 		= game::spawn::spline_control_point(new_key_id, spline, root_e, true, polylines, polyline_materials,  &mut sargs);
 	sargs.commands.entity(root_e).add_child(key_e);
 	//
 	config.limit_z	= new_pos.z;

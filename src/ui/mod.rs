@@ -4,7 +4,7 @@ use iyes_loopless	:: prelude :: { * };
 mod egui_ext;
 pub use egui_ext    :: FileDialog;
 
-use crate           :: Game :: *;
+use crate           :: game :: *;
 
 mod systems;
 use systems		    :: { * };

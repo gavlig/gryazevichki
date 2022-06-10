@@ -5,12 +5,13 @@ use bevy_fly_camera	:: { FlyCamera };
 use bevy_mod_picking:: { * };
 use bevy_polyline	:: { prelude :: * };
 use iyes_loopless	:: { prelude :: * };
+use bevy_debug_text_overlay	:: { screen_print };
 
 use std				:: { path::PathBuf };
 
 use super           :: { * };
-use crate			:: Vehicle;
-use crate			:: Herringbone;
+use crate			:: vehicle;
+use crate			:: herringbone;
 
 pub fn setup_camera_system(
 		game			: ResMut<GameState>,
@@ -84,13 +85,13 @@ pub fn setup_world_system(
 	if true {
 		let y = 1.5;
 		let transform = Transform::from_translation(Vec3::new(0.0, y, 0.0));
-		let config = Herringbone::Herringbone2Config::default();
+		let config = herringbone::Herringbone2Config::default();
 		let mut sargs = SpawnArguments {
 			meshes : &mut meshes,
 			materials : &mut materials,
 			commands : &mut commands,
 		};
-		Herringbone::spawn::brick_road(transform, &config, false, &mut polylines, &mut polyline_materials, &mut sargs);
+		herringbone::spawn::brick_road(transform, &config, false, &mut polylines, &mut polyline_materials, &mut sargs);
 
 		// let transform = Transform::from_translation(Vec3::new(0.0, y, 0.0));
 		// Herringbone::spawn::brick_road(transform, &config, true, &mut polylines, &mut polyline_materials, &mut sargs);
@@ -150,7 +151,7 @@ pub fn setup_world_system(
 
 		let body_pos 	= Transform::from_xyz(0.0, 5.5, 0.0);
 
-		Vehicle::spawn(
+		vehicle::spawn(
 			  &veh_cfg
 			, body_pos
 			, &mut game
@@ -275,7 +276,7 @@ pub fn input_misc_system(
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut exit		: EventWriter<AppExit>,
 	mut q_camera	: Query<&mut FlyCamera>,
-	mut q_control	: Query<(Entity, &mut Herringbone::Control, &Children)>,
+	mut q_control	: Query<(Entity, &mut herringbone::Control, &Children)>,
 		q_selection	: Query<&Selection>,
 ) {
 	for mut camera in q_camera.iter_mut() {

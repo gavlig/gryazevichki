@@ -6,10 +6,10 @@ use bevy_mod_picking:: { * };
 use super           :: egui_ext	:: FileDialog;
 use super           :: egui_ext	:: toggle_switch;
 
-use crate			:: Game :: *;
-use crate			:: Vehicle;
-use crate			:: Vehicle :: { WHEEL_SIDES, FRONT_LEFT, REAR_LEFT };
-use crate			:: Herringbone;
+use crate			:: game :: *;
+use crate			:: vehicle;
+use crate			:: vehicle :: { WHEEL_SIDES, FRONT_LEFT, REAR_LEFT };
+use crate			:: herringbone;
 use super			:: { writeback };
 use super			:: { draw };
 
@@ -271,7 +271,7 @@ pub fn vehicle_params_ui_system(
 pub fn coords_on_hover_ui_system(
 	mut windows			: ResMut<Windows>,
 	mut ui_context		: ResMut<EguiContext>,
-		q_hover_tile	: Query<(&Hover, &Herringbone::TileState, &Transform)>,
+		q_hover_tile	: Query<(&Hover, &herringbone::TileState, &Transform)>,
 		q_hover			: Query<(&Hover, &Transform, &GlobalTransform), Without<Tile>>,
 ) {
 	if q_hover.is_empty() && q_hover_tile.is_empty() {

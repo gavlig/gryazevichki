@@ -6,9 +6,9 @@ use iyes_loopless		:: prelude :: { * };
 use std					:: { path::PathBuf };
 use serde				:: { Deserialize, Serialize };
 
-use super::Vehicle		:: { * };
-use super::Ui			:: { * };
-use super::Herringbone	:: { HerringbonePlugin };
+use super::vehicle		:: { * };
+use super::ui			:: { * };
+use super::herringbone	:: { HerringbonePlugin };
 
 pub mod spawn;
 mod systems;
