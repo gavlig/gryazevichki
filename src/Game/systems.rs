@@ -392,9 +392,12 @@ pub fn on_spline_tangent_moved(
 
 	let sync_tangents	= key.pressed(KeyCode::LControl);
 
-	let mut cpc : Vec<Entity> = Vec::new();
-	let mut tan11 = Vec3::ZERO;
-	let mut cptrans = Vec3::ZERO;
+	struct OppositeTangent<'a> {
+		entity : Entity,
+		pos : Vec3,
+		control_point_tform : &'a Transform,
+	}
+	let mut opposite_tangents : Vec<OppositeTangent> = Vec::new();
 
 	for (control_point_e, tan_e, tan_tform, tan) in q_tangent_set.p0().iter() {
 		let (spline_e, control_point_children_e, control_point_tform) = q_control_point.get(control_point_e.0).unwrap();
@@ -407,9 +410,8 @@ pub fn on_spline_tangent_moved(
 		let opposite_tan_pos_p =
 		// mirror tangent placement relatively to control point if requested
 		if sync_tangents {
-			let opposite_tan_tform = tan_tform.clone();
-			let mat_inv = opposite_tan_tform.compute_matrix().inverse();
-			let opposite_tan_tform_p = Transform::from_matrix(mat_inv) * (*control_point_tform) ;
+			let tan_tform_inv = Transform::from_matrix(tan_tform.clone().compute_matrix().inverse());
+			let opposite_tan_tform_p = (*control_point_tform) * tan_tform_inv;
 			let opposite_tan_pos_p = opposite_tan_tform_p.translation;
 
 			opposite_tan_pos_p
@@ -431,32 +433,35 @@ pub fn on_spline_tangent_moved(
 
 		spline.set_interpolation(tan.global_id, SplineInterpolation::StrokeBezier(tan0, tan1));
 
-		tan11 = opposite_tan_pos_p;
-		cptrans = control_point_tform.translation;
-
 		for child_e_ref in control_point_children_e.iter() {
 			let child_e = *child_e_ref;
 
 			if sync_tangents && child_e != tan_e {
-				cpc.push(child_e);
+				opposite_tangents.push(
+				OppositeTangent {
+					entity : child_e,
+					pos : opposite_tan_pos_p,
+					control_point_tform : control_point_tform,
+				});
 			}
 
 			if let Ok(handle) = q_polyline.get(child_e) {
+				let control_point_tform_inv = Transform::from_matrix(control_point_tform.clone().compute_matrix().inverse());
+
 				let line	= polylines.get_mut(handle).unwrap();
 				line.vertices.resize(3, Vec3::ZERO);
-				let tan0 	= tan0 - control_point_tform.translation;
-				line.vertices[0] = tan_tform.translation;//tform.mul_vec3(tan0);
-				let tan1 	= tan1 - control_point_tform.translation;
-				line.vertices[2] = opposite_tan_pos_p - control_point_tform.translation;
+				line.vertices[0] = control_point_tform_inv.mul_vec3(tan0);
+				line.vertices[2] = control_point_tform_inv.mul_vec3(tan1);
 
 				line.vertices[1] = Vec3::ZERO;
 			}
 		}
 	}
 
-	for child_e in cpc {
-		if let Ok(mut tform) = q_tangent_set.p1().get_mut(child_e) {
-			tform.translation = tan11 - cptrans;
+	for opp in opposite_tangents {
+		if let Ok(mut tform) = q_tangent_set.p1().get_mut(opp.entity) {
+			let control_point_tform_inv = Transform::from_matrix(opp.control_point_tform.compute_matrix().inverse());
+			tform.translation = control_point_tform_inv.mul_vec3(opp.pos);
 		}
 	}
 }
