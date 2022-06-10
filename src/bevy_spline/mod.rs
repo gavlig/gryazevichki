@@ -10,7 +10,6 @@ pub type Raw 			= splines::Spline<f32, Vec3>;
 pub type Interpolation 	= splines::Interpolation<f32, Vec3>;
 pub type Key 			= splines::Key<f32, Vec3>;
 
-
 // wrapper for SplineRaw to have it as a Bevy Component
 #[derive(Component)]
 pub struct Spline(pub Raw);
@@ -25,7 +24,7 @@ impl Spline {
 	}
 	
 	pub fn set_control_point(&mut self, id : usize, controlp_pos : Vec3) {
-		let t = controlp_pos.length();
+		let t = controlp_pos.length(); // FIXME
 		self.0.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
 	}
 
@@ -48,6 +47,51 @@ impl Spline {
 		};
 
 		total_length
+	}
+
+	pub fn calculate_t_for_pos(&self, pos : Vec3) -> f32 {
+		let keys = self.keys();
+		let total_keys = keys.len();
+		if total_keys == 0 {
+			return pos.length();
+		}
+
+		let mut i = 1;
+		let mut total_length = 0.0;
+
+		let new_t =
+		loop {
+			let pos0 = keys[i - 1].value;
+			let pos1 = keys[i].value;
+			let delta = pos1 - pos0;
+			let dir = delta.normalize();
+
+			let dir_x = dir.x > dir.y && dir.x > dir.z;
+			let dir_y = dir.y > dir.z && dir.y > dir.x;
+			let dir_z = dir.z > dir.x && dir.z > dir.y;
+
+			let mid_x = pos0.x < pos.x && pos.x < pos1.x;
+			let mid_y = pos0.y < pos.y && pos.y < pos1.y;
+			let mid_z = pos0.z < pos.z && pos.z < pos1.z;
+			
+			let new_pos_delta = pos - pos0;
+
+			if dir_x && mid_x 
+			|| dir_y && mid_y
+			|| dir_z && mid_z {
+				break total_length + new_pos_delta.length();
+			}
+
+			total_length += delta.length();
+			if i + 1 == total_keys {
+				let new_pos_delta = pos - pos1;
+				break total_length + new_pos_delta.length();
+			} else {
+				i += 1;
+			}
+		};
+
+		new_t
 	}
 
 	// wrapper

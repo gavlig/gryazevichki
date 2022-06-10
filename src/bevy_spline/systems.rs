@@ -124,7 +124,7 @@ pub fn on_control_point_moved(
 				let id = *id_ref;
 				spline.set_control_point(id, controlp_pos);
 
-				// we have to recalculate tangent positions because in engine they are parents of control point
+				// we have to recalculate tangent positions because in engine they are children of control point
 				// but spline wants them in the same space as control points
 				let mut tan0 = Vec3::ZERO;
 				let mut tan1 = Vec3::ZERO;

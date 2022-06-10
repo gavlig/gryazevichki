@@ -224,11 +224,11 @@ pub fn new_point(
 	let tan0		= new_pos - Vec3::Z * tangent_offset;
 	let tan1		= new_pos + Vec3::Z * tangent_offset;
 
-	let t			= spline.total_length() + (new_pos.length() - spline.keys().last().unwrap().value.length());
+	let t			= spline.calculate_t_for_pos(new_pos);
 	let key			= Key::new(t, new_pos, Interpolation::StrokeBezier(tan0, tan1));
 	spline.add		(key);
 	//
 	let new_key_id	= spline.get_key_id(t);
-	let key_e 		= self::control_point(new_key_id, spline, root_e, true, polylines, polyline_materials,  &mut sargs);
+	let key_e 		= self::control_point(new_key_id, spline, root_e, true, polylines, polyline_materials, &mut sargs);
 	sargs.commands.entity(root_e).add_child(key_e);
 }
