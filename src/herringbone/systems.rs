@@ -46,70 +46,70 @@ pub fn brick_road_system(
 			control.reset = false;
 		}
 
-		while control.new_spline_point {
-			bevy_spline::spawn::new_point(
-				root_e,
-				&q_mouse_pick,
-				config.init_tangent_offset,
-				transform,
-				spline.as_mut(),
-				&mut polylines,
-				&mut polyline_materials,
-				&mut sargs
-			);
+		// while control.new_spline_point {
+		// 	bevy_spline::spawn::new_point(
+		// 		root_e,
+		// 		&q_mouse_pick,
+		// 		config.init_tangent_offset,
+		// 		transform,
+		// 		spline.as_mut(),
+		// 		&mut polylines,
+		// 		&mut polyline_materials,
+		// 		&mut sargs
+		// 	);
 
-			control.new_spline_point = false;
-		}
+		// 	control.new_spline_point = false;
+		// }
 
-		let mut line_id = 0;
-		for &child in children_e.iter() {
-			let handle = match q_polyline.get(child) {
-				Ok(handle) => handle,
-				Err(_) => continue,
-			};
+		// let mut line_id = 0;
+		// for &child in children_e.iter() {
+		// 	let handle = match q_polyline.get(child) {
+		// 		Ok(handle) => handle,
+		// 		Err(_) => continue,
+		// 	};
 
-			let keys 	= spline.keys();
-			let total_keys = keys.len();
-			let total_verts	= 32 * total_keys;
+		// 	let keys 	= spline.keys();
+		// 	let total_keys = keys.len();
+		// 	let total_verts	= 32 * total_keys;
 
-			let line	= polylines.get_mut(handle).unwrap();
-			line.vertices.resize(total_verts + 1, Vec3::ZERO);
-			let total_length = spline.total_length();
+		// 	let line	= polylines.get_mut(handle).unwrap();
+		// 	line.vertices.resize(total_verts + 1, Vec3::ZERO);
+		// 	let total_length = spline.total_length();
 
-			let mut prev_spline_p = Vec3::ZERO;
-			let delta = total_length / total_verts as f32;
-			for i in 0 ..= total_verts {
-				let t = i as f32 * delta;
-				let spline_p = spline.clamped_sample(t).unwrap();
-				let vert_offset = Vec3::Y * 0.5;
+		// 	let mut prev_spline_p = Vec3::ZERO;
+		// 	let delta = total_length / total_verts as f32;
+		// 	for i in 0 ..= total_verts {
+		// 		let t = i as f32 * delta;
+		// 		let spline_p = spline.clamped_sample(t).unwrap();
+		// 		let vert_offset = Vec3::Y * 0.5;
 
-				let offset_x = (-config.width / 2.0) + line_id as f32 * (config.width / 2.0);
-				let mut www = Vec3::ZERO; www.x = offset_x;
+		// 		let offset_x = (-config.width / 2.0) + line_id as f32 * (config.width / 2.0);
+		// 		let mut www = Vec3::ZERO; www.x = offset_x;
 
-				let spline_r = {
-					let spline_dir	= (spline_p - prev_spline_p).normalize();
-					Quat::from_rotation_arc(Vec3::Z, spline_dir)
-				};
-				prev_spline_p = spline_p;
+		// 		let spline_r = {
+		// 			let spline_dir	= (spline_p - prev_spline_p).normalize();
+		// 			Quat::from_rotation_arc(Vec3::Z, spline_dir)
+		// 		};
+		// 		prev_spline_p = spline_p;
 
-				www = spline_r.mul_vec3(www);
-				line.vertices[i] = spline_p + www;
-				line.vertices[i] += vert_offset;		
+		// 		www = spline_r.mul_vec3(www);
+		// 		line.vertices[i] = spline_p + www;
+		// 		line.vertices[i] += vert_offset;		
 				
-				//
-				if i % 7 != 0 { continue }; 
-				let normal = spline_r;
-				let line_start = transform.translation + spline_p + vert_offset;
-				let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 3.0)) + vert_offset;
-				debug_lines.line(
-					line_start,
-					line_end,
-					0.1,
-				);
-			}
+		// 		//
+		// 		if i % 7 != 0 { continue }; 
+		// 		let normal = spline_r;
+		// 		let line_start = transform.translation + spline_p + vert_offset;
+		// 		let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 3.0)) + vert_offset;
+		// 		debug_lines.line(
+		// 			line_start,
+		// 			line_end,
+		// 			0.1,
+		// 		);
+		// 	}
 
-			line_id += 1;
-		}
+		// 	line_id += 1;
+		// }
 
 		let do_spawn 	= control.next || control.animate;
 		if !do_spawn || tile_state.finished {

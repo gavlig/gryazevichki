@@ -15,17 +15,19 @@ pub type Key 			= splines::Key<f32, Vec3>;
 pub struct Spline(pub Raw);
 
 impl Spline {
-	pub fn set_interpolation(&mut self, id : usize, interpolation : Interpolation) {
+	pub fn set_interpolation(&mut self, t : f32, interpolation : Interpolation) {
+		let id = self.get_key_id(t);
 		*self.0.get_mut(id).unwrap().interpolation = interpolation;
 	}
 
-	pub fn get_interpolation(&self, id : usize) -> &Interpolation {
+	pub fn get_interpolation(&self, t : f32) -> &Interpolation {
+		let id = self.get_key_id(t);
 		&self.0.get(id).unwrap().interpolation
 	}
 	
 	pub fn set_control_point(&mut self, t : f32, controlp_pos : Vec3) {
 		let keys = self.keys();
-		let id = keys.iter().position(|&k| k.t.to_bits() == k.t.to_bits()).unwrap();
+		let id = self.get_key_id(t);
 		self.0.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
 	}
 
@@ -57,7 +59,7 @@ impl Spline {
 	pub fn calculate_t_for_pos(&self, pos : Vec3) -> f32 {
 		let keys = self.keys();
 		let total_keys = keys.len();
-		if total_keys == 0 {
+		if total_keys < 2 {
 			return pos.length();
 		}
 
@@ -66,34 +68,43 @@ impl Spline {
 
 		let new_t =
 		loop {
-			let pos0 = keys[i - 1].value;
-			let pos1 = keys[i].value;
+			let key0 = keys[i - 1];
+			let key1 = keys[i];
+			let pos0 = key0.value;
+			let pos1 = key1.value;
+
+			let segment_len_sq = pos0.distance_squared(pos1);
+			let pos_in_segment_sq = pos0.distance_squared(pos);
+			let epsilon = 0.05;
+			println!("pos_in_segment_sq: {} segment_len_sq: {}", pos_in_segment_sq, segment_len_sq);
+			if pos_in_segment_sq <= epsilon {
+				println!("key0.t");
+				break key0.t;
+			}
+
+			if (pos_in_segment_sq - segment_len_sq).abs() <= epsilon {
+				println!("key1.t");
+				break key1.t;
+			}
+
 			let delta = pos1 - pos0;
-			let dir = delta.normalize();
-
-			let dir_x = dir.x > dir.y && dir.x > dir.z;
-			let dir_y = dir.y > dir.z && dir.y > dir.x;
-			let dir_z = dir.z > dir.x && dir.z > dir.y;
-
-			let mid_x = pos0.x < pos.x && pos.x < pos1.x;
-			let mid_y = pos0.y < pos.y && pos.y < pos1.y;
-			let mid_z = pos0.z < pos.z && pos.z < pos1.z;
-			
 			let new_pos_delta = pos - pos0;
 
-			if dir_x && mid_x 
-			|| dir_y && mid_y
-			|| dir_z && mid_z {
+			if pos_in_segment_sq < segment_len_sq {
+				println!("mid {}", total_length + new_pos_delta.length());
 				break total_length + new_pos_delta.length();
+			}
+
+			if i + 1 == total_keys {
+				println!("i + 1 == total_keys so output is {}", total_length);
+				break total_length + new_pos_delta.length();
+			} else {
+				println!("i += 1");
+				i += 1;
 			}
 
 			total_length += delta.length();
-			if i + 1 == total_keys {
-				let new_pos_delta = pos - pos1;
-				break total_length + new_pos_delta.length();
-			} else {
-				i += 1;
-			}
+			println!("total_length: {}", total_length);
 		};
 
 		new_t
@@ -140,8 +151,8 @@ impl Spline {
 
 #[derive(Component)]
 pub struct Tangent {
-	pub global_id 	: usize,
-	pub local_id 	: usize,
+	pub t : f32,
+	pub local_id : usize,
 }
 
 #[derive(Component)]
@@ -155,11 +166,17 @@ pub struct SplinePolyline;
 #[derive(Component)]
 pub struct ControlPointPolyline;
 
+#[derive(Component, Clone, Copy)]
+pub enum RoadWidth {
+	W(f32)
+}
+
 pub struct BevySplinePlugin;
 
 impl Plugin for BevySplinePlugin {
 	fn build(&self, app: &mut App) {
         app	
+			.add_system(draw_road)
 			.add_system_to_stage(CoreStage::PostUpdate, on_tangent_moved)
 			.add_system_to_stage(CoreStage::PostUpdate, on_control_point_moved)
  			;

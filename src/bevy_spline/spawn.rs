@@ -9,7 +9,6 @@ use crate				:: { game };
 use crate				:: { draggable, draggable :: * };
 
 pub fn tangent(
-	id					: usize,
 	key					: &Key,
 	parent_e			: Entity,
 	sargs				: &mut SpawnArguments,
@@ -35,7 +34,7 @@ pub fn tangent(
 				transform : transform,
 				..Default::default()
 			})
-			.insert		(Tangent{ global_id : id, local_id : local_id })
+			.insert		(Tangent{ t : key.t, local_id : local_id })
 			.insert		(Gizmo)
 			.insert_bundle(PickableBundle::default())
 			.insert		(Draggable::default())
@@ -66,11 +65,11 @@ pub fn control_point(
 ) -> Entity {
 	let mut cp_id 		= Entity::from_raw(0);
 	let keys			= spline.keys();
-	let id 				= keys.iter().position(|&k| k.t.to_bits() == k.t.to_bits()).unwrap();
+	let id 				= spline.get_key_id(key.t);
 
 	let mut spline_rot	= Quat::IDENTITY;
 	if id > 0 {
-		let prev_key	= spline.keys()[id - 1];
+		let prev_key	= keys[id - 1];
 		spline_rot 		= Quat::from_rotation_arc(Vec3::Z, (key.value - prev_key.value).normalize());
 	}
 
@@ -97,7 +96,6 @@ pub fn control_point(
 
 	if with_tangent {
 		/*spawn::*/tangent(
-			id,
 			&key,
 			cp_id,
 			sargs
@@ -138,7 +136,7 @@ pub fn new(
 ) -> Entity {
 	let root_e			= draggable::spawn::root_handle(transform, &mut sargs);
 
-	let offset_y		= 0.5;
+	let offset_y		= 0.5; // VERTICALITY
 	
 	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
 	//
@@ -190,6 +188,7 @@ pub fn new(
 
 	sargs.commands.entity(root_e)
 		.insert			(spline)
+		.insert			(RoadWidth::W(4.0))
 		.add_child		(key0_e)
 		.add_child		(key1_e)
 		;

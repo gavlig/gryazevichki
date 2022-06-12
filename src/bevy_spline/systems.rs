@@ -1,6 +1,7 @@
 use bevy			:: { prelude :: * };
 use bevy_polyline	:: { prelude :: * };
 use bevy_prototype_debug_lines :: { DebugLines };
+use bevy_debug_text_overlay :: { screen_print };
 
 use super           :: { * };
 
@@ -42,6 +43,8 @@ pub fn on_tangent_moved(
 		// in spline space (or parent space for tangent handles). _p == parent space
 		let tan_tform_p	= (*control_point_tform) * (*tan_tform);
 		let tan_pos_p	= tan_tform_p.translation;
+		screen_print!("tan_pos {:.3} {:.3} {:.3}", tan_tform.translation.x, tan_tform.translation.y, tan_tform.translation.z);
+		screen_print!("tan_pos_p {:.3} {:.3} {:.3}", tan_pos_p.x, tan_pos_p.y, tan_pos_p.z);
 
 		let opposite_tan_pos_p =
 		// mirror tangent placement relatively to control point if requested
@@ -53,7 +56,7 @@ pub fn on_tangent_moved(
 			opposite_tan_pos_p
 		// otherwise just set one point of interpolation where the object is
 		} else {
-			let prev_interpolation = spline.get_interpolation(tan.global_id);
+			let prev_interpolation = spline.get_interpolation(tan.t);
 			let opposite_tan_pos_p = match prev_interpolation {
 				Interpolation::StrokeBezier(V0, V1) => {
 					if tan.local_id == 0 { *V1 } else { *V0 }
@@ -67,7 +70,7 @@ pub fn on_tangent_moved(
 		let tan0 = if tan.local_id == 0 { tan_pos_p } else { opposite_tan_pos_p };
 		let tan1 = if tan.local_id == 1 { tan_pos_p } else { opposite_tan_pos_p };
 
-		spline.set_interpolation(tan.global_id, Interpolation::StrokeBezier(tan0, tan1));
+		spline.set_interpolation(tan.t, Interpolation::StrokeBezier(tan0, tan1));
 
 		for child_e_ref in control_point_children_e.iter() {
 			let child_e = *child_e_ref;
@@ -122,9 +125,11 @@ pub fn on_control_point_moved(
 		let controlp_pos = control_point_tform.translation;
 		match *controlp {
 			ControlPoint::T(t_old) => {
+				println!("on_control_point_moved {:.3} {:.3} {:.3}", controlp_pos.x, controlp_pos.y, controlp_pos.z);
 				let t	= spline.calculate_t_for_pos(controlp_pos);
 				let id 	= spline.get_key_id(t_old);
 				spline.set_control_point_by_id(id, t, controlp_pos);
+				println!("id: {} t: {} controlp_pos: {}", id, t, controlp_pos);
 
 				// we have to recalculate tangent positions because in engine they are children of control point
 				// but spline wants them in the same space as control points
@@ -143,7 +148,7 @@ pub fn on_control_point_moved(
 					}
 				}
 				
-				spline.set_interpolation(id, Interpolation::StrokeBezier(tan0, tan1));
+				spline.set_interpolation(t_old, Interpolation::StrokeBezier(tan0, tan1));
 
 				*controlp = ControlPoint::T(t);
 			},
@@ -151,32 +156,17 @@ pub fn on_control_point_moved(
 	}
 }
 
-pub fn draw(
+pub fn draw_road(
 	mut debug_lines		: ResMut<DebugLines>,
 	mut polylines		: ResMut<Assets<Polyline>>,
-	mut	polyline_materials : ResMut<Assets<PolylineMaterial>>,
 		q_polyline		: Query<&Handle<Polyline>>,
-	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline)>,
-		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
-
-		time			: Res<Time>,
-		ass				: Res<AssetServer>,
-
-	mut	meshes			: ResMut<Assets<Mesh>>,
-	mut	materials		: ResMut<Assets<StandardMaterial>>,
-	mut commands		: Commands
+	mut q_spline		: Query<(&Children, &GlobalTransform, &mut Spline, Option<&RoadWidth>), Changed<Spline>>,
 ) {
 	if q_spline.is_empty() {
 		return;
 	}
 
-	let mut sargs = SpawnArguments {
-		meshes		: &mut meshes,
-		materials	: &mut materials,
-		commands	: &mut commands,
-	};
-
-	for (root_e, children_e, transform, mut spline) in q_spline.iter_mut() {
+	for (children_e, transform, spline, road_width_in) in q_spline.iter_mut() {
 		let mut line_id = 0;
 		for &child in children_e.iter() {
 			let handle = match q_polyline.get(child) {
@@ -192,14 +182,20 @@ pub fn draw(
 			line.vertices.resize(total_verts + 1, Vec3::ZERO);
 			let total_length = spline.total_length();
 
-			let mut prev_spline_p = Vec3::ZERO;
+			let road_width = match road_width_in { Some(rw) => *rw, None => RoadWidth::W(1.0) };
+			let road_width = match road_width { RoadWidth::W(w) => w };
+
+			let mut prev_spline_p = spline.clamped_sample(0.0).unwrap();//Vec3::ZERO;
 			let delta = total_length / total_verts as f32;
+
+			screen_print!("keys: {} total_length: {} road_width: {} delta: {}", keys.len(), total_length, road_width, delta);
+
 			for i in 0 ..= total_verts {
 				let t = i as f32 * delta;
 				let spline_p = spline.clamped_sample(t).unwrap();
 				let vert_offset = Vec3::Y * 0.5;
 
-				let offset_x = (-config.width / 2.0) + line_id as f32 * (config.width / 2.0);
+				let offset_x = (-road_width / 2.0) + line_id as f32 * (road_width / 2.0);
 				let mut www = Vec3::new(offset_x, 0.0, 0.0);
 
 				let spline_r = {
