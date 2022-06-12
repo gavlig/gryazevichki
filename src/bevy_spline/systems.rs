@@ -1,5 +1,6 @@
 use bevy			:: { prelude :: * };
 use bevy_polyline	:: { prelude :: * };
+use bevy_prototype_debug_lines :: { DebugLines };
 
 use super           :: { * };
 
@@ -103,7 +104,7 @@ pub fn on_tangent_moved(
 
 pub fn on_control_point_moved(
 		time			: Res<Time>,
-		q_controlp 		: Query<(&Parent, &Children, &Transform, &ControlPoint), Changed<Transform>>,
+	mut	q_controlp 		: Query<(&Parent, &Children, &Transform, &mut ControlPoint), Changed<Transform>>,
 		q_tangent 		: Query<(&Transform, &Tangent)>,
 	mut q_spline		: Query<&mut Spline>,
 ) {
@@ -115,14 +116,15 @@ pub fn on_control_point_moved(
 		return;
 	}
 
-	for (spline_e, children_e, control_point_tform, controlp) in q_controlp.iter() {
+	for (spline_e, children_e, control_point_tform, mut controlp) in q_controlp.iter_mut() {
 		let mut spline = q_spline.get_mut(spline_e.0).unwrap();
 
 		let controlp_pos = control_point_tform.translation;
-		match controlp {
-			ControlPoint::ID(id_ref) => {
-				let id = *id_ref;
-				spline.set_control_point(id, controlp_pos);
+		match *controlp {
+			ControlPoint::T(t_old) => {
+				let t	= spline.calculate_t_for_pos(controlp_pos);
+				let id 	= spline.get_key_id(t_old);
+				spline.set_control_point_by_id(id, t, controlp_pos);
 
 				// we have to recalculate tangent positions because in engine they are children of control point
 				// but spline wants them in the same space as control points
@@ -142,7 +144,87 @@ pub fn on_control_point_moved(
 				}
 				
 				spline.set_interpolation(id, Interpolation::StrokeBezier(tan0, tan1));
+
+				*controlp = ControlPoint::T(t);
 			},
+		}
+	}
+}
+
+pub fn draw(
+	mut debug_lines		: ResMut<DebugLines>,
+	mut polylines		: ResMut<Assets<Polyline>>,
+	mut	polyline_materials : ResMut<Assets<PolylineMaterial>>,
+		q_polyline		: Query<&Handle<Polyline>>,
+	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline)>,
+		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
+
+		time			: Res<Time>,
+		ass				: Res<AssetServer>,
+
+	mut	meshes			: ResMut<Assets<Mesh>>,
+	mut	materials		: ResMut<Assets<StandardMaterial>>,
+	mut commands		: Commands
+) {
+	if q_spline.is_empty() {
+		return;
+	}
+
+	let mut sargs = SpawnArguments {
+		meshes		: &mut meshes,
+		materials	: &mut materials,
+		commands	: &mut commands,
+	};
+
+	for (root_e, children_e, transform, mut spline) in q_spline.iter_mut() {
+		let mut line_id = 0;
+		for &child in children_e.iter() {
+			let handle = match q_polyline.get(child) {
+				Ok(handle) => handle,
+				Err(_) => continue,
+			};
+
+			let keys 	= spline.keys();
+			let total_keys = keys.len();
+			let total_verts	= 32 * total_keys;
+
+			let line	= polylines.get_mut(handle).unwrap();
+			line.vertices.resize(total_verts + 1, Vec3::ZERO);
+			let total_length = spline.total_length();
+
+			let mut prev_spline_p = Vec3::ZERO;
+			let delta = total_length / total_verts as f32;
+			for i in 0 ..= total_verts {
+				let t = i as f32 * delta;
+				let spline_p = spline.clamped_sample(t).unwrap();
+				let vert_offset = Vec3::Y * 0.5;
+
+				let offset_x = (-config.width / 2.0) + line_id as f32 * (config.width / 2.0);
+				let mut www = Vec3::new(offset_x, 0.0, 0.0);
+
+				let spline_r = {
+					let spline_dir	= (spline_p - prev_spline_p).normalize();
+					Quat::from_rotation_arc(Vec3::Z, spline_dir)
+				};
+				prev_spline_p = spline_p;
+
+				www = spline_r.mul_vec3(www);
+				line.vertices[i] = spline_p + www;
+				line.vertices[i] += vert_offset;		
+				
+				//
+				if i % 7 != 0 { continue }; 
+				let normal = spline_r;
+				let line_start = transform.translation + spline_p + vert_offset;
+				let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 3.0)) + vert_offset;
+				debug_lines.line(
+					line_start,
+					line_end,
+					0.1,
+				);
+			}
+
+			line_id += 1;
 		}
 	}
 }

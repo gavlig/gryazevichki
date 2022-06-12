@@ -1,8 +1,7 @@
 use bevy_polyline		:: { prelude :: * };
-use bevy_prototype_debug_lines :: {DebugLines, DebugLinesPlugin};
+use bevy_prototype_debug_lines :: { DebugLines };
 
 use super           	:: { * };
-use crate				:: { game };
 use crate				:: { bevy_spline };
 
 pub fn brick_road_system(
@@ -184,7 +183,7 @@ pub fn on_spline_control_point_moved(
 		let (spline, mut control) = q_spline.get_mut(spline_e.0).unwrap();
 
 		match controlp {
-			ControlPoint::ID(id_ref) => {
+			ControlPoint::T(_) => {
 				control.reset	= true;
 				control.next 	= true;
 				control.instant = true;

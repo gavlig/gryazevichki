@@ -56,7 +56,7 @@ pub fn tangent(
 }
 
 pub fn control_point(
-	id					: usize,
+	key					: &Key,
 	spline				: &Spline,
 	parent_e			: Entity,
 	with_tangent		: bool,
@@ -65,8 +65,9 @@ pub fn control_point(
 	sargs				: &mut SpawnArguments,
 ) -> Entity {
 	let mut cp_id 		= Entity::from_raw(0);
+	let keys			= spline.keys();
+	let id 				= keys.iter().position(|&k| k.t.to_bits() == k.t.to_bits()).unwrap();
 
-	let key				= spline.keys()[id];
 	let mut spline_rot	= Quat::IDENTITY;
 	if id > 0 {
 		let prev_key	= spline.keys()[id - 1];
@@ -87,7 +88,7 @@ pub fn control_point(
 			transform	: transform,
 			..Default::default()
 		})
-		.insert			(ControlPoint::ID(id))
+		.insert			(ControlPoint::T(key.t))
 		.insert			(Gizmo)
 		.insert_bundle	(PickableBundle::default())
 		.insert			(Draggable::default())
@@ -163,8 +164,8 @@ pub fn new(
 	let key1			= Key::new(t1, key1_pos, Interpolation::StrokeBezier(tangent10, tangent11));
 	let spline			= Spline::from_vec(vec![key0, key1]);
 
-	let key0_e 			= self::control_point(0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
-	let key1_e 			= self::control_point(1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key0_e 			= self::control_point(&key0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	let key1_e 			= self::control_point(&key1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
 
 	// left border, center and right border lines
 	for i in 0..3 {
@@ -228,7 +229,7 @@ pub fn new_point(
 	let key			= Key::new(t, new_pos, Interpolation::StrokeBezier(tan0, tan1));
 	spline.add		(key);
 	//
-	let new_key_id	= spline.get_key_id(t);
-	let key_e 		= self::control_point(new_key_id, spline, root_e, true, polylines, polyline_materials, &mut sargs);
+	// let new_key_id	= spline.get_key_id(t);
+	let key_e 		= self::control_point(&key, spline, root_e, true, polylines, polyline_materials, &mut sargs);
 	sargs.commands.entity(root_e).add_child(key_e);
 }

@@ -23,8 +23,13 @@ impl Spline {
 		&self.0.get(id).unwrap().interpolation
 	}
 	
-	pub fn set_control_point(&mut self, id : usize, controlp_pos : Vec3) {
-		let t = controlp_pos.length(); // FIXME
+	pub fn set_control_point(&mut self, t : f32, controlp_pos : Vec3) {
+		let keys = self.keys();
+		let id = keys.iter().position(|&k| k.t.to_bits() == k.t.to_bits()).unwrap();
+		self.0.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
+	}
+
+	pub fn set_control_point_by_id(&mut self, id : usize, t : f32, controlp_pos : Vec3) {
 		self.0.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
 	}
 
@@ -141,7 +146,7 @@ pub struct Tangent {
 
 #[derive(Component)]
 pub enum ControlPoint {
-	ID(usize)
+	T(f32)
 }
 
 #[derive(Component)]
