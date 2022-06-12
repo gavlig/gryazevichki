@@ -125,9 +125,9 @@ pub fn on_control_point_moved(
 		let controlp_pos = control_point_tform.translation;
 		match *controlp {
 			ControlPoint::T(t_old) => {
-				println!("on_control_point_moved {:.3} {:.3} {:.3}", controlp_pos.x, controlp_pos.y, controlp_pos.z);
+				println!("on_control_point_moved {:.3} {:.3} {:.3} t: {:.3}", controlp_pos.x, controlp_pos.y, controlp_pos.z, t_old);
 				let t	= spline.calculate_t_for_pos(controlp_pos);
-				let id 	= spline.get_key_id(t_old);
+				let id 	= spline.get_key_id(t_old).unwrap();
 				spline.set_control_point_by_id(id, t, controlp_pos);
 				println!("id: {} t: {} controlp_pos: {}", id, t, controlp_pos);
 
@@ -147,8 +147,8 @@ pub fn on_control_point_moved(
 						tan1 = final_tform.translation;
 					}
 				}
-				
-				spline.set_interpolation(t_old, Interpolation::StrokeBezier(tan0, tan1));
+				println!("setting interpolation t: {:.3}", t_old);
+				spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
 
 				*controlp = ControlPoint::T(t);
 			},

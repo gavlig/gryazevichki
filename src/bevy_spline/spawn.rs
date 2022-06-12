@@ -65,7 +65,7 @@ pub fn control_point(
 ) -> Entity {
 	let mut cp_id 		= Entity::from_raw(0);
 	let keys			= spline.keys();
-	let id 				= spline.get_key_id(key.t);
+	let id 				= spline.get_key_id(key.t).unwrap();
 
 	let mut spline_rot	= Quat::IDENTITY;
 	if id > 0 {

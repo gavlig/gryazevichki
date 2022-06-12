@@ -16,18 +16,18 @@ pub struct Spline(pub Raw);
 
 impl Spline {
 	pub fn set_interpolation(&mut self, t : f32, interpolation : Interpolation) {
-		let id = self.get_key_id(t);
+		let id = self.get_key_id(t).unwrap();
 		*self.0.get_mut(id).unwrap().interpolation = interpolation;
 	}
 
 	pub fn get_interpolation(&self, t : f32) -> &Interpolation {
-		let id = self.get_key_id(t);
+		let id = self.get_key_id(t).unwrap();
 		&self.0.get(id).unwrap().interpolation
 	}
 	
 	pub fn set_control_point(&mut self, t : f32, controlp_pos : Vec3) {
 		let keys = self.keys();
-		let id = self.get_key_id(t);
+		let id = self.get_key_id(t).unwrap();
 		self.0.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
 	}
 
@@ -76,6 +76,7 @@ impl Spline {
 			let segment_len_sq = pos0.distance_squared(pos1);
 			let pos_in_segment_sq = pos0.distance_squared(pos);
 			let epsilon = 0.05;
+			println!("[{}] key0 t: {:.3} v: [{:.3} {:.3} {:.3}] key1 t: {:.3} v: [{:.3} {:.3} {:.3}]", i, key0.t, key0.value.x, key0.value.y, key0.value.z, key1.t, key1.value.x, key1.value.y, key1.value.z);
 			println!("pos_in_segment_sq: {} segment_len_sq: {}", pos_in_segment_sq, segment_len_sq);
 			if pos_in_segment_sq <= epsilon {
 				println!("key0.t");
@@ -96,7 +97,7 @@ impl Spline {
 			}
 
 			if i + 1 == total_keys {
-				println!("i + 1 == total_keys so output is {}", total_length);
+				println!("i + 1 == total_keys so output is {}", total_length + new_pos_delta.length());
 				break total_length + new_pos_delta.length();
 			} else {
 				println!("i += 1");
@@ -138,9 +139,9 @@ impl Spline {
 	}
 
 	// wrapper
-	pub fn get_key_id(&self, t_in : f32) -> usize {
+	pub fn get_key_id(&self, t_in : f32) -> Option<usize> {
 		let keys = self.0.keys();
-		keys.iter().position(|&key| key.t == t_in).unwrap()
+		keys.iter().position(|&key| { println!("key.t: {:.3} t: {:.3}", key.t, t_in); (key.t - t_in).abs() <= f32::EPSILON })
 	}
 
 	// wrapper
