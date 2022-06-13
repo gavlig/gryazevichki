@@ -188,6 +188,7 @@ pub fn new(
 
 	sargs.commands.entity(root_e)
 		.insert			(spline)
+		.insert			(SplineControl::default())
 		.insert			(RoadWidth::W(4.0))
 		.add_child		(key0_e)
 		.add_child		(key1_e)
@@ -198,16 +199,14 @@ pub fn new(
 
 pub fn new_point(
 	root_e				: Entity,
-	q_mouse_pick 		: &Query<&PickingObject, With<Camera>>,
-	tangent_offset		: f32,
-	transform			: &GlobalTransform,
+	mouse_pick 			: &PickingObject,
+	spline_tform		: &GlobalTransform,
 	spline				: &mut Spline,
 
 	polylines			: &mut ResMut<Assets<Polyline>>,
 	polyline_materials 	: &mut ResMut<Assets<PolylineMaterial>>,
 	mut	sargs			: &mut SpawnArguments,
 ) {
-	let mouse_pick 	= q_mouse_pick.single();
 	let top_pick 	= mouse_pick.intersect_top();
 
 	// There is at least one entity under the cursor
@@ -217,18 +216,17 @@ pub fn new_point(
 	
 	let (_topmost_entity, intersection) = top_pick.unwrap();
 	let mut new_pos	= intersection.position().clone();
-	new_pos			-= transform.translation; // world space -> object space
+	new_pos			-= spline_tform.translation; // world space -> object space
 
 	// TODO: use line equation here too to put handle precisely under cursor
 	new_pos.y		= 0.5;
-	let tan0		= new_pos - Vec3::Z * tangent_offset;
-	let tan1		= new_pos + Vec3::Z * tangent_offset;
+	let tan0		= new_pos - Vec3::Z;
+	let tan1		= new_pos + Vec3::Z;
 
 	let t			= spline.calculate_t_for_pos(new_pos);
 	let key			= Key::new(t, new_pos, Interpolation::StrokeBezier(tan0, tan1));
 	spline.add		(key);
 	//
-	// let new_key_id	= spline.get_key_id(t);
 	let key_e 		= self::control_point(&key, spline, root_e, true, polylines, polyline_materials, &mut sargs);
 	sargs.commands.entity(root_e).add_child(key_e);
 }

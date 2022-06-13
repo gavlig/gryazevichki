@@ -18,25 +18,23 @@ pub struct Herringbone3;
 */
 
 #[derive(Component)]
-pub struct Control {
+pub struct HerringboneControl {
 	pub next			: bool,
 	pub animate			: bool,
 	pub reset			: bool,
 	pub instant			: bool,
-	pub new_spline_point: bool,
 	pub debug			: bool,
 	pub last_update		: f64,
 	pub anim_delay_sec	: f64,
 }
 
-impl Default for Control {
+impl Default for HerringboneControl {
 	fn default() -> Self {
 		Self {
 			next		: false,
 			animate		: false,
 			reset		: false,
 			instant		: false,
-			new_spline_point : false,
 			debug		: false,
 			last_update	: 0.0,
 			anim_delay_sec: 0.001,

@@ -171,12 +171,18 @@ pub enum RoadWidth {
 	W(f32)
 }
 
+#[derive(Component, Default)]
+pub struct SplineControl {
+	pub new_point : bool,
+}
+
 pub struct BevySplinePlugin;
 
 impl Plugin for BevySplinePlugin {
 	fn build(&self, app: &mut App) {
-        app	
-			.add_system(draw_road)
+        app
+			.add_system(road_draw)
+			.add_system(road_system)
 			.add_system_to_stage(CoreStage::PostUpdate, on_tangent_moved)
 			.add_system_to_stage(CoreStage::PostUpdate, on_control_point_moved)
  			;

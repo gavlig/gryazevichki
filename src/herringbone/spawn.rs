@@ -52,7 +52,7 @@ pub fn brick_road(
 
 	sargs.commands.entity(root_e)
 		.insert			(config)
-		.insert			(Control::default())
+		.insert			(HerringboneControl::default())
 		.insert			(TileState::default())
 		;
 

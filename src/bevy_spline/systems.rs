@@ -157,7 +157,7 @@ pub fn on_control_point_moved(
 	}
 }
 
-pub fn draw_road(
+pub fn road_draw(
 	mut debug_lines		: ResMut<DebugLines>,
 	mut polylines		: ResMut<Assets<Polyline>>,
 		q_polyline		: Query<&Handle<Polyline>>,
@@ -222,6 +222,45 @@ pub fn draw_road(
 			}
 
 			line_id += 1;
+		}
+	}
+}
+
+pub fn road_system(
+	mut polylines		: ResMut<Assets<Polyline>>,
+	mut	polyline_materials : ResMut<Assets<PolylineMaterial>>,
+	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut SplineControl), Changed<SplineControl>>,
+		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
+
+	mut	meshes			: ResMut<Assets<Mesh>>,
+	mut	materials		: ResMut<Assets<StandardMaterial>>,
+	mut commands		: Commands
+) {
+	if q_spline.is_empty() {
+		return;
+	}
+
+	let mut sargs = SpawnArguments {
+		meshes		: &mut meshes,
+		materials	: &mut materials,
+		commands	: &mut commands,
+	};
+
+	let mouse_pick 	= q_mouse_pick.single();
+
+	for (root_e, children_e, transform, mut spline, mut control) in q_spline.iter_mut() {
+		while control.new_point {
+			spawn::new_point(
+				root_e,
+				mouse_pick,
+				transform,
+				spline.as_mut(),
+				&mut polylines,
+				&mut polyline_materials,
+				&mut sargs
+			);
+
+			control.new_point = false;
 		}
 	}
 }

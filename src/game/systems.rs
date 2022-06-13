@@ -11,6 +11,7 @@ use std				:: { path::PathBuf };
 use super           :: { * };
 use crate			:: vehicle;
 use crate			:: herringbone;
+use crate			:: bevy_spline;
 
 pub fn setup_camera_system(
 		game			: ResMut<GameState>,
@@ -275,7 +276,7 @@ pub fn input_misc_system(
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut exit		: EventWriter<AppExit>,
 	mut q_camera	: Query<&mut FlyCamera>,
-	mut q_control	: Query<(Entity, &mut herringbone::Control, &Children)>,
+	mut q_control	: Query<(Entity, &Children, &mut bevy_spline::SplineControl, &mut herringbone::HerringboneControl, )>,
 		q_selection	: Query<&Selection>,
 ) {
 	for mut camera in q_camera.iter_mut() {
@@ -298,7 +299,7 @@ pub fn input_misc_system(
 		phys_ctx.enabled = !phys_ctx.enabled;
 	}
 	
-	for (control_e, mut control, children) in q_control.iter_mut() {
+	for (control_e, children, mut spline_ctl, mut tile_ctl) in q_control.iter_mut() {
 		let selection = q_selection.get(control_e).unwrap();
 		let mut selection_found = selection.selected();
 		if !selection_found {
@@ -320,40 +321,37 @@ pub fn input_misc_system(
 		}
 
 		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::T) {
-			control.next 	= true;
+			tile_ctl.next 	= true;
 		}
 
 		if key.just_released(KeyCode::T) {
-			control.next 	= false;
+			tile_ctl.next 	= false;
 		}
 
 		if key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::T) {
-			control.reset	= true;
+			tile_ctl.reset	= true;
 		}
 
 		if key.pressed(KeyCode::RControl) && !key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
-			control.animate	= true;
-			control.last_update = time.seconds_since_startup();
+			tile_ctl.animate	= true;
+			tile_ctl.last_update = time.seconds_since_startup();
 		}
 
 		if key.pressed(KeyCode::RControl) && key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
-			control.instant	= true;
-			control.next 	= true;
-			control.last_update = time.seconds_since_startup();
+			tile_ctl.instant	= true;
+			tile_ctl.next 	= true;
+			tile_ctl.last_update = time.seconds_since_startup();
 		}
 
 		if btn.just_pressed(MouseButton::Right) {
-			control.new_spline_point = true;
-			control.reset	= true;
-			control.instant	= true;
-			control.next 	= true;
+			spline_ctl.new_point = true;
 		}
 
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Q) {
-			control.debug 	= !control.debug;
-			control.reset	= true;
-			control.instant	= true;
-			control.next 	= true;
+			tile_ctl.debug 	= !tile_ctl.debug;
+			tile_ctl.reset	= true;
+			tile_ctl.instant	= true;
+			tile_ctl.next 	= true;
 		}
 	}
 }
