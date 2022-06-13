@@ -152,8 +152,7 @@ impl Spline {
 
 #[derive(Component)]
 pub struct Tangent {
-	pub t : f32,
-	pub local_id : usize,
+	pub id : usize,
 }
 
 #[derive(Component)]

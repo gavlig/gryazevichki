@@ -34,7 +34,7 @@ pub fn tangent(
 				transform : transform,
 				..Default::default()
 			})
-			.insert		(Tangent{ t : key.t, local_id : local_id })
+			.insert		(Tangent{ id : local_id })
 			.insert		(Gizmo)
 			.insert_bundle(PickableBundle::default())
 			.insert		(Draggable::default())

@@ -12,7 +12,7 @@ pub fn on_tangent_moved(
 		key				: Res<Input<KeyCode>>,
 	mut	polylines		: ResMut<Assets<Polyline>>,
 		q_polyline		: Query<&Handle<Polyline>>,
-	 	q_control_point	: Query<(&Parent, &Children, &Transform), With<ControlPoint>>,
+	 	q_control_point	: Query<(&Parent, &Children, &Transform, &ControlPoint)>,
 	mut q_tangent_set	: ParamSet<(
 						  Query<(&Parent, Entity, &Transform, &Tangent), (Changed<Transform>, Without<ControlPoint>)>,
 						  Query<&mut Transform, (With<Tangent>, (Without<DraggableActive>, Without<ControlPoint>))>
@@ -37,8 +37,9 @@ pub fn on_tangent_moved(
 	let mut opposite_tangents : Vec<OppositeTangent> = Vec::new();
 
 	for (control_point_e, tan_e, tan_tform, tan) in q_tangent_set.p0().iter() {
-		let (spline_e, control_point_children_e, control_point_tform) = q_control_point.get(control_point_e.0).unwrap();
+		let (spline_e, control_point_children_e, control_point_tform, control_point_enum) = q_control_point.get(control_point_e.0).unwrap();
 		let mut spline	= q_spline.get_mut(spline_e.0).unwrap();
+		let t 			= match control_point_enum { ControlPoint::T(t) => *t };
 
 		// in spline space (or parent space for tangent handles). _p == parent space
 		let tan_tform_p	= (*control_point_tform) * (*tan_tform);
@@ -56,10 +57,10 @@ pub fn on_tangent_moved(
 			opposite_tan_pos_p
 		// otherwise just set one point of interpolation where the object is
 		} else {
-			let prev_interpolation = spline.get_interpolation(tan.t);
+			let prev_interpolation = spline.get_interpolation(t);
 			let opposite_tan_pos_p = match prev_interpolation {
 				Interpolation::StrokeBezier(V0, V1) => {
-					if tan.local_id == 0 { *V1 } else { *V0 }
+					if tan.id == 0 { *V1 } else { *V0 }
 				},
 				_ => panic!("unsupported interpolation type!"),
 			};
@@ -67,10 +68,10 @@ pub fn on_tangent_moved(
 			opposite_tan_pos_p
 		};
 
-		let tan0 = if tan.local_id == 0 { tan_pos_p } else { opposite_tan_pos_p };
-		let tan1 = if tan.local_id == 1 { tan_pos_p } else { opposite_tan_pos_p };
+		let tan0 = if tan.id == 0 { tan_pos_p } else { opposite_tan_pos_p };
+		let tan1 = if tan.id == 1 { tan_pos_p } else { opposite_tan_pos_p };
 
-		spline.set_interpolation(tan.t, Interpolation::StrokeBezier(tan0, tan1));
+		spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
 
 		for child_e_ref in control_point_children_e.iter() {
 			let child_e = *child_e_ref;
@@ -108,7 +109,7 @@ pub fn on_tangent_moved(
 pub fn on_control_point_moved(
 		time			: Res<Time>,
 	mut	q_controlp 		: Query<(&Parent, &Children, &Transform, &mut ControlPoint), Changed<Transform>>,
-		q_tangent 		: Query<(&Transform, &Tangent)>,
+	mut	q_tangent 		: Query<(&Transform, &mut Tangent)>,
 	mut q_spline		: Query<&mut Spline>,
 ) {
 	if time.seconds_since_startup() < 0.1 {
@@ -136,14 +137,14 @@ pub fn on_control_point_moved(
 				let mut tan0 = Vec3::ZERO;
 				let mut tan1 = Vec3::ZERO;
 				for tangent_e in children_e.iter() {
-					let (tan_tform, tan) = match q_tangent.get(*tangent_e) {
+					let (tan_tform, mut tan) = match q_tangent.get_mut(*tangent_e) {
 						Ok((tf, tn)) => (tf, tn),
 						Err(_) => { continue },
 					};
 					let final_tform = (*control_point_tform) * (*tan_tform);
-					if tan.local_id == 0 {
+					if tan.id == 0 {
 						tan0 = final_tform.translation;
-					} else if tan.local_id == 1 {
+					} else if tan.id == 1 {
 						tan1 = final_tform.translation;
 					}
 				}
