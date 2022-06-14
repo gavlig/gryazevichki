@@ -36,7 +36,7 @@ pub fn brick_road_system(
 				despawn.entities.push(e);
 			}
 		
-			tile_state.reset_changed();
+			tile_state.set_default();
 		
 			control.reset = false;
 		}

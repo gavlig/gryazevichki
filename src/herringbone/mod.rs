@@ -78,14 +78,6 @@ impl TileState {
 	pub fn set_default(&mut self) {
 		*self			= Self::default();
 	}
-
-	pub fn reset_changed(&mut self) {
-		self.iter 		= 0;
-		self.x 			= 0;
-		self.z 			= 0;
-		self.finished 	= false;
-		self.finished_hor = false;
-	}
 }
 
 #[derive(Component)]

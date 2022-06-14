@@ -75,6 +75,8 @@ pub fn brick_road_iter(
 		Orientation2D::Vertical 	=> Quat::IDENTITY,
 		};
 
+	let total_length 	= spline.total_length();
+
 	let seam			= config.seam;
 
 	let hlenz			= config.hsize.z;
@@ -115,26 +117,42 @@ pub fn brick_road_iter(
 	let straight_length = (key1.value - key0.value).length();
 	let ratio = straight_length / segment_length;
 
+	let iter_offset = lenz + seam;
+
 	let calc_offset_z = |iter : f32| -> f32 {
-		hlenz + iter * (lenz + seam)
+		hlenz + iter * iter_offset
 	};
 
-	//let t = hlenz + iter0 * (lenz + seam);// * ratio;
 	let t = calc_offset_z(iter0);
 	let t_next = calc_offset_z(iter1);
 
 	println!("straight: {:.3} segment: {:.3} ratio: {:.3}", straight_length, segment_length, ratio);
 
-	// if there is no previous point we try to just move t forward or backward if possible and sample there
 	if state.prev_spline_p.is_none() {
 		state.prev_spline_p = spline.clamped_sample(key0.t);
 	}
-
 	let prev_spline_p 	= state.prev_spline_p.unwrap();
+
+	let spline_p		= match spline.sample(t) {
+		Some(p)			=> p,
+		None			=> panic!("first spline.sample failed!"),
+	};
+
+	let tile_dist = (spline_p - prev_spline_p).length();
+	let ratio = iter_offset / tile_dist;
+
+	let t_cache = t;
+	let t_delta = t - state.t;
+	let t = f32::min(state.t + (t_delta * ratio), total_length - 0.001);
+	state.t = t;
+
+	println!("0 t: {:.3} t_cache : {:.3} spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} ratio {:.3}", t, t_cache, spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
+
 	let spline_p		= match spline.sample(t) {
 		Some(p)			=> p,
 		None			=> panic!("main spline.sample failed!"),
 	};
+	state.prev_spline_p	= Some(spline_p);
 
 	let next_spline_p	= match spline.clamped_sample(t + 0.01) {
 		Some(p)			=> p,
@@ -142,8 +160,9 @@ pub fn brick_road_iter(
 	};
 
 	let tile_dist = (spline_p - prev_spline_p).length();
+	let ratio = iter_offset / tile_dist;
 
-	println!("t: {:.3} spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3}", t, spline_p.x, spline_p.y, spline_p.z, tile_dist);
+	println!("1 spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} ratio {:.3}", spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
 
 	// pick next position, see how much space left between current and last tile, if more than seem, then either repick spline or trigonometry!
 
@@ -151,8 +170,6 @@ pub fn brick_road_iter(
 			let spline_dir	= (next_spline_p - spline_p).normalize();
 			Quat::from_rotation_arc(Vec3::Z, spline_dir)
 	};
-
-//	pose.rotation		= detail_spline_rotation * pose.rotation;
 
 	let mut pose 		= Transform::identity();
 
@@ -219,8 +236,6 @@ pub fn brick_road_iter(
 	//
 
 	let newoffz	= hlenz + iter1 * (lenz + seam);
-
-	let total_length = spline.total_length();
 
 	if newoffz >= total_length {
 		state.finished = true;
