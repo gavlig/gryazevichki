@@ -42,15 +42,18 @@ impl Default for HerringboneControl {
 	}
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct TileState {
 	pub x 				: u32,
 	pub z 				: u32,
 	pub iter			: u32,
+	pub key				: usize,
+	pub t				: f32,
 	pub orientation		: Orientation2D,
 	pub finished_hor	: bool,
 	pub finished		: bool,
 	pub prev_spline_p	: Option<Vec3>,
+	pub next_spline_p	: Vec3,
 }
 
 impl Default for TileState {
@@ -59,10 +62,13 @@ impl Default for TileState {
 			x 			: 0,
 			z 			: 0,
 			iter		: 0,
-			orientation	: Orientation2D::Horizontal,
+			key			: 0,
+			t			: 0.0,
+			orientation	: Orientation2D::Vertical,
 			finished_hor: false,
 			finished	: false,
 			prev_spline_p : None,
+			next_spline_p : Vec3::ZERO,
 		}
 	}
 }
@@ -79,18 +85,6 @@ impl TileState {
 		self.z 			= 0;
 		self.finished 	= false;
 		self.finished_hor = false;
-	}
-
-	pub fn clone(&self) -> Self {
-		Self {
-			x 			: self.x,
-			z 			: self.z,
-			iter		: self.iter,
-			orientation	: self.orientation,
-			finished_hor: self.finished_hor,
-			finished	: self.finished,
-			prev_spline_p : self.prev_spline_p.clone(),
-		}
 	}
 }
 

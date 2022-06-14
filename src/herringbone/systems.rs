@@ -1,20 +1,21 @@
-use bevy_polyline		:: { prelude :: * };
-use bevy_prototype_debug_lines :: { DebugLines };
-
 use super           	:: { * };
 use crate				:: { bevy_spline };
+use bevy_prototype_debug_lines :: { DebugLines };
 
 pub fn brick_road_system(
 	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut HerringboneControl, &mut Herringbone2Config, &mut TileState), Changed<HerringboneControl>>,
 
 	mut despawn			: ResMut<DespawnResource>,
 		time			: Res<Time>,
+		ass				: Res<AssetServer>,
 
 		q_tiles			: Query<Entity, With<Herringbone2>>,
 
 	mut	meshes			: ResMut<Assets<Mesh>>,
 	mut	materials		: ResMut<Assets<StandardMaterial>>,
-	mut commands		: Commands
+	mut commands		: Commands,
+
+	mut debug_lines		: ResMut<DebugLines>,
 ) {
 	if q_spline.is_empty() {
 		return;
@@ -53,14 +54,14 @@ pub fn brick_road_system(
 		control.last_update = cur_time;
 
 		if !control.instant {
-			// spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
+			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, &mut debug_lines);
 		} else {
 			let mut tiles_cnt = 0;
-			// while !tile_state.finished {// && ((tiles_cnt < 36 && control.debug) || !control.debug) {
-				// spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, control.debug, &ass, &mut sargs);
-				// tiles_cnt += 1;
-			// }
-			// println!("total tiles: {}", tiles_cnt);
+			while !tile_state.finished {// && ((tiles_cnt < 36 && control.debug) || !control.debug) {
+				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, &mut debug_lines);
+				tiles_cnt += 1;
+			}
+			println!("total tiles: {}", tiles_cnt);
 			control.instant = false;
 		}
 

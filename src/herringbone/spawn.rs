@@ -2,12 +2,12 @@ use bevy				:: prelude :: { * };
 use bevy_rapier3d		:: prelude :: { * };
 use bevy_mod_picking	:: { * };
 use bevy_polyline		:: { prelude :: * };
+use bevy_prototype_debug_lines :: { DebugLines };
 
 use bevy::render::mesh::shape as render_shape;
 use std::f32::consts	:: { * };
 
 use super				:: { * };
-use crate				:: { game };
 use crate				:: { bevy_spline };
 
 pub fn brick_road(
@@ -63,14 +63,17 @@ pub fn brick_road_iter(
 	mut state			: &mut TileState,
 	mut	config			: &mut Herringbone2Config,
 		spline			: &Spline,
+		transform		: &GlobalTransform,
 		debug			: bool,
 		_ass			: &Res<AssetServer>,
 		sargs			: &mut SpawnArguments,
+
+	mut debug_lines		: &mut ResMut<DebugLines>,
 ) {
 	let init_rotation	= match state.orientation {
-	Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
-	Orientation2D::Vertical 	=> Quat::IDENTITY,
-	};
+		Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
+		Orientation2D::Vertical 	=> Quat::IDENTITY,
+		};
 
 	let seam			= config.seam;
 
@@ -80,204 +83,96 @@ pub fn brick_road_iter(
 	let hlenx			= config.hsize.x;
 	let lenx			= hlenx * 2.0;
 
-	// main tile center calculation without seams
-	//
-	//
-
 	let iter0			= (state.iter + 0) as f32;
 	let iter1			= (state.iter + 1) as f32;
 
-	let calc_offset_x = |x : f32, iter : f32, orientation : Orientation2D| -> f32 {
-		match orientation {
-		Orientation2D::Horizontal 	=> (x * lenz),
-		Orientation2D::Vertical 	=> 0.0,
-		}
+	// t == z in spherical vacuum
+
+	let keys = spline.keys();
+	let key_id = state.key;
+	let key0 = keys[key_id + 0];
+	let key1 = keys[key_id + 1]; // assume we never have invalid key_id
+
+	let interpolation0 = key0.interpolation;
+	let interpolation1 = key1.interpolation;
+
+	// TODO: move this to method
+	let tangent01 = match interpolation0 {
+		splines::Interpolation::StrokeBezier(_V0, V1) => V1,
+		_ => panic!("unsupported interpolation!"),
 	};
 
-	let calc_offset_z = |z : f32, iter : f32, orientation : Orientation2D| -> f32 {
-		match orientation {
-		Orientation2D::Horizontal 	=> z * lenx,
-		Orientation2D::Vertical 	=> 0.0,
-		}
+	let tangent10 = match interpolation1 {
+		splines::Interpolation::StrokeBezier(V0, _V1) => V0,
+		_ => panic!("unsupported interpolation!"),
 	};
 
-	let offset_x 		= calc_offset_x(state.x as f32, iter0, state.orientation);
-	let offset_z 		= calc_offset_z(state.z as f32, iter0, state.orientation);
+	let seglen0 = (tangent01 - key0.value).length();
+	let seglen1 = (tangent10 - tangent01).length();
+	let seglen2 = (key1.value - tangent10).length();
 
-	// now seams are tricky
-	//
-	//
+	let segment_length = seglen0 + seglen1 + seglen2;
+	let straight_length = (key1.value - key0.value).length();
+	let ratio = straight_length / segment_length;
 
-	let calc_seam_offset_x = |x : f32, z : f32, iter : f32, orientation : Orientation2D, seam: f32| -> f32 {
-		let mut offset_x = (x * seam * 2.0);
-
-		offset_x
+	let calc_offset_z = |iter : f32| -> f32 {
+		hlenz + iter * (lenz + seam)
 	};
 
-	let calc_seam_offset_z = |z : f32, iter : f32, orientation : Orientation2D, seam: f32| -> f32 {
-		let mut offset_z = (z * seam * 2.0);
+	//let t = hlenz + iter0 * (lenz + seam);// * ratio;
+	let t = calc_offset_z(iter0);
+	let t_next = calc_offset_z(iter1);
 
-		offset_z
-	};
-
-	let seam_offset_x 	= calc_seam_offset_x(state.x as f32, state.z as f32, iter0, state.orientation, seam);
-	let seam_offset_z 	= calc_seam_offset_z(state.z as f32, iter0, state.orientation, seam);
-
-	// Start constructing tile pose
-	//
-	//
-
-	let mut pose 		= Transform::identity();
-
-	// half width shift to appear in the middle
-	pose.translation.x	-= config.width / 2.0;
-
-	// external offset for convenience
-	//pose.translation.z	+= config.limit_mz;
-
-	// tile offset/rotation
-	pose.translation.x	+= offset_x + seam_offset_x;
-	pose.translation.z	+= offset_z + seam_offset_z;
-	pose.rotation		*= init_rotation;
-
-	// up until now it's pure straight line of tiles
-
-	// now let me interject for a moment with a spline (Hi Freya!)
-	//
-	//
-
-	// t as in 'time' we sample on spline. equals to how much we moved from start to finish of the road
-	// spline is in the same space as each brick is
-	let t				= pose.translation.z; //Vec3::new(pose.translation.x, 0.0, pose.translation.z).length();
-
-	// find pair of points (control points or tangents) in spline that are in front and behind our current t value
-	let mut pt0			= Vec3::ZERO;
-	let mut pt1			= Vec3::ZERO;
-	let mut key0		= spline.keys()[0].clone();
-	for key1 in spline.keys() {
-		let t0 			= key0.t;
-		let t1 			= key1.t;
-
-		if t0 < t && t < t1 {
-			pt0 = key0.value;
-			pt1 = key1.value;
-
-			break;
-		}
-
-		key0			= key1.clone();
-	}
-
-	// make a transform matrix from them
-	let base_spline_dir = (pt1 - pt0).normalize();
-	let base_spline_rotation = Quat::from_rotation_arc(Vec3::Z, base_spline_dir);
-	let base_spline_pose = Transform { translation : pt0, rotation : base_spline_rotation, ..default() };
-
-	
-
-	// println!("[{:.3}[{} {}] {:?}] t: {:.3}, ox: {:.3} oz: {:.3}",
-	// 	state.iter,
-	// 	state.x,
-	// 	state.z,
-	// 	state.orientation,
-	// 	t,
-	// 	pose.translation.x,
-	// 	pose.translation.z,
-	// );
-	
+	println!("straight: {:.3} segment: {:.3} ratio: {:.3}", straight_length, segment_length, ratio);
 
 	// if there is no previous point we try to just move t forward or backward if possible and sample there
 	if state.prev_spline_p.is_none() {
-		let t			= if (t + lenx) >= config.limit_z { t - lenx * 2.0 } else { t + lenx };
-		state.prev_spline_p = spline.clamped_sample(t);
+		state.prev_spline_p = spline.clamped_sample(key0.t);
 	}
 
+	let prev_spline_p 	= state.prev_spline_p.unwrap();
 	let spline_p		= match spline.sample(t) {
-		// ok, sample was a success, get the point from it
 		Some(p)			=> p,
-		// sample wasnt a succes, try previous point on spline
-		None			=> {
-		match state.prev_spline_p {
-			Some(p)		=> p,
-			None		=> Vec3::ZERO,
-		}
-		},
+		None			=> panic!("main spline.sample failed!"),
 	};
-	// spline_pose.translation = spline_p;
 
-	let detail_spline_rotation	= match state.prev_spline_p {
-		Some(prev_spline_p) => {
-			let spline_dir	= (spline_p - prev_spline_p).normalize();
+	let next_spline_p	= match spline.clamped_sample(t + 0.01) {
+		Some(p)			=> p,
+		None			=> panic!("secondary spline.clamped_sample failed!"),
+	};
+
+	let tile_dist = (spline_p - prev_spline_p).length();
+
+	println!("t: {:.3} spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3}", t, spline_p.x, spline_p.y, spline_p.z, tile_dist);
+
+	// pick next position, see how much space left between current and last tile, if more than seem, then either repick spline or trigonometry!
+
+	let detail_spline_rotation = {
+			let spline_dir	= (next_spline_p - spline_p).normalize();
 			Quat::from_rotation_arc(Vec3::Z, spline_dir)
-		},
-		None => Quat::IDENTITY,
 	};
 
-	pose = base_spline_pose * pose;
+//	pose.rotation		= detail_spline_rotation * pose.rotation;
 
-	let base_spline_pose_inv = base_spline_pose.compute_matrix().inverse();
-	let spline_p_local = base_spline_pose_inv.transform_point3(spline_p);
+	let mut pose 		= Transform::identity();
 
-	pose.translation.x += spline_p_local.x;
-	pose.translation.z += spline_p_local.z - pose.translation.z;
-	//pose.translation.z += if !debug { 0.0 } else { spline_p.z - pose.translation.z };
-	// pose.translation.z  = if debug { spline_p.z } else { pose.translation.z };
-	
-	// pose.rotation		= detail_spline_rotation * pose.rotation;
+	// tile offset/rotation
+	pose.translation.x 	= spline_p.x;
+	pose.translation.z 	= spline_p.z;//t;
+	pose.rotation		*= init_rotation * detail_spline_rotation; // 
 
-	// // println!("rotation diff {:?} base_spline_rotation: {:?}, detail_spline_rotation: {:?}", (detail_spline_rotation - base_spline_rotation), base_spline_rotation, detail_spline_rotation);
-	// let detail_spline_rotation = (base_spline_rotation.conjugate() * detail_spline_rotation);
-
-	// //let base_spline_pose = Transform { translation : spline_p, rotation : detail_spline_rotation, ..default() };
-	// let detail_spline_pose = Transform { rotation : detail_spline_rotation, ..default() };
-
-	// pose = base_spline_pose * detail_spline_pose * pose;
-
-	// spline_pose.rotation = spline_r;
-
-	// state.prev_spline_p = Some(spline_p);
-
-	// applying rotation calculated from spline direction
-	//pose.rotation		*= spline_r;
-
-	// let cache_x = pose.translation.x;
-	// let cache_z = pose.translation.z;
-
-	// let mut coef = 1.0;
-	if debug {
-		// let x = spline_p.x;
-		// let z = pose.translation.z;
-		// let s = (x * x + z * z).sqrt();
-		// coef = t / s;
-
-		// pose.translation.z *= coef;
-		// let Z = pose.translation.z;
-		// // println!("[{:.3}] x: {:.3} z: {:.3} s: {:.3} t: {:.3} Z: {:.3}", state.iter, state.x, state.z, s, t, Z);
-
-		// pose.translation.x += spline.clamped_sample(Z).unwrap().x;
-
-		//pose.translation.x += spline_p.x;
-		//pose.translation.z = spline_p.z;
-	} else {
-		// applying offset by x sampled from spline
-		//pose.translation.x += spline_p.x;
+	{
+		let mut vert_offset = Vec3::ZERO; vert_offset.y = 0.5;
+		let normal = detail_spline_rotation;
+		let line_start = transform.translation + spline_p + vert_offset;
+		let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 2.0)) + vert_offset;
+		debug_lines.line(
+			line_start,
+			line_end,
+			0.1,
+		);
 	}
 
-	// pose = pose * spline_pose;
-
-	// println!("[{:.3}[{} {}] {:?}] t: {:.3}, ox: {:.3} oz: {:.3} cx: {:.3} cz: {:.3}",
-	// 	state.iter,
-	// 	state.x,
-	// 	state.z,
-	// 	state.orientation,
-	// 	t,
-	// 	pose.translation.x,
-	// 	pose.translation.z,
-	// 	cache_x,
-	// 	cache_z,
-	// 	// spline_p.x,
-	// 	// spline_p.z
-	// );
 
 	// spawning
 	//
@@ -323,20 +218,15 @@ pub fn brick_road_iter(
 	//
 	//
 
-	let newoffx	= calc_offset_x		((state.x + 1) as f32, state.iter as f32, state.orientation) 
-				+ calc_seam_offset_x((state.x + 1) as f32, state.z as f32, state.iter as f32, state.orientation, seam);
-
-	let newoffz	= calc_offset_z		((state.z + 1) as f32, state.iter as f32, state.orientation)
-				+ calc_seam_offset_z((state.z + 1) as f32, state.iter as f32, state.orientation, seam);
+	let newoffz	= hlenz + iter1 * (lenz + seam);
 
 	let total_length = spline.total_length();
 
-	if newoffx < config.width {
-		state.x += 1;
-	} else if newoffz < total_length {
-		state.x  = 0;
-		state.z += 1;
-	} else {
+	if newoffz >= total_length {
+		state.finished = true;
+	}
+
+	if state.iter == 100 {
 		state.finished = true;
 	}
 }

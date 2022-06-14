@@ -210,15 +210,15 @@ pub fn road_draw(
 				line.vertices[i] += vert_offset;		
 				
 				//
-				if i % 7 != 0 { continue }; 
-				let normal = spline_r;
-				let line_start = transform.translation + spline_p + vert_offset;
-				let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 3.0)) + vert_offset;
-				debug_lines.line(
-					line_start,
-					line_end,
-					0.1,
-				);
+				// if i % 7 != 0 { continue }; 
+				// let normal = spline_r;
+				// let line_start = transform.translation + spline_p + vert_offset;
+				// let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 3.0)) + vert_offset;
+				// debug_lines.line(
+				// 	line_start,
+				// 	line_end,
+				// 	0.1,
+				// );
 			}
 
 			line_id += 1;
