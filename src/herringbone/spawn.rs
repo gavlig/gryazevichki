@@ -109,7 +109,9 @@ pub fn brick_road_iter(
 		_ => panic!("unsupported interpolation!"),
 	};
 
-	let seglen0 = (tangent01 - key0.value).length();
+	let tangent01_local = tangent01 - key0.value;
+
+	let seglen0 = tangent01_local.length();
 	let seglen1 = (tangent10 - tangent01).length();
 	let seglen2 = (key1.value - tangent10).length();
 
@@ -124,7 +126,6 @@ pub fn brick_road_iter(
 	};
 
 	let t = calc_offset_z(iter0);
-	let t_next = calc_offset_z(iter1);
 
 	println!("straight: {:.3} segment: {:.3} ratio: {:.3}", straight_length, segment_length, ratio);
 
@@ -133,20 +134,22 @@ pub fn brick_road_iter(
 	}
 	let prev_spline_p 	= state.prev_spline_p.unwrap();
 
-	let spline_p		= match spline.sample(t) {
-		Some(p)			=> p,
-		None			=> panic!("first spline.sample failed!"),
-	};
+	// let spline_p		= match spline.sample(t) {
+	// 	Some(p)			=> p,
+	// 	None			=> panic!("first spline.sample failed!"),
+	// };
 
-	let tile_dist = (spline_p - prev_spline_p).length();
-	let ratio = iter_offset / tile_dist;
+	// let tile_dist = (spline_p - prev_spline_p).length();
+	// // let ratio = iter_offset / tile_dist;
 
-	let t_cache = t;
-	let t_delta = t - state.t;
-	let t = f32::min(state.t + (t_delta * ratio), total_length - 0.001);
+	// let ratio = (tangent01.length_squared() - (tangent01.x * tangent01.x)).sqrt();
+
+	// let t_cache = t;
+	// let t_delta = t - state.t;
+	// let t = f32::min(state.t + (t_delta * ratio), total_length - 0.001);
 	state.t = t;
 
-	println!("0 t: {:.3} t_cache : {:.3} spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} ratio {:.3}", t, t_cache, spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
+	// println!("0 t: {:.3} t_cache : {:.3} spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} ratio {:.3}", t, t_cache, spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
 
 	let spline_p		= match spline.sample(t) {
 		Some(p)			=> p,
@@ -162,7 +165,7 @@ pub fn brick_road_iter(
 	let tile_dist = (spline_p - prev_spline_p).length();
 	let ratio = iter_offset / tile_dist;
 
-	println!("1 spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} ratio {:.3}", spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
+	println!("1 spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} fffff {:.3}", spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
 
 	// pick next position, see how much space left between current and last tile, if more than seem, then either repick spline or trigonometry!
 
@@ -241,7 +244,7 @@ pub fn brick_road_iter(
 		state.finished = true;
 	}
 
-	if state.iter == 100 {
+	if state.iter == 3 {
 		state.finished = true;
 	}
 }

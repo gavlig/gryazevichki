@@ -87,7 +87,7 @@ pub fn control_point(
 			transform	: transform,
 			..Default::default()
 		})
-		.insert			(ControlPoint::T(key.t))
+		.insert			(ControlPoint::POS(key.value))
 		.insert			(Gizmo)
 		.insert_bundle	(PickableBundle::default())
 		.insert			(Draggable::default())
@@ -141,7 +141,7 @@ pub fn new(
 	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
 	//
 	//
-	let tan_offset		= length / 4.0;
+	let tan_offset		= length / 3.0;
 
 	// limit_z and offset_z are used both for final tile coordinates and for final value of t to have road length tied to spline length and vice versa
 	let key0_pos		= Vec3::new(0.0, offset_y, 0.0);
@@ -222,6 +222,7 @@ pub fn new_point(
 	new_pos.y		= 0.5;
 	let tan0		= new_pos - Vec3::Z;
 	let tan1		= new_pos + Vec3::Z;
+
 
 	let t			= spline.calculate_t_for_pos(new_pos);
 	let key			= Key::new(t, new_pos, Interpolation::StrokeBezier(tan0, tan1));

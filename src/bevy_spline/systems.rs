@@ -12,12 +12,12 @@ pub fn on_tangent_moved(
 		key				: Res<Input<KeyCode>>,
 	mut	polylines		: ResMut<Assets<Polyline>>,
 		q_polyline		: Query<&Handle<Polyline>>,
-	 	q_control_point	: Query<(&Parent, &Children, &Transform, &ControlPoint)>,
+	mut	q_control_point	: Query<(&Parent, &Children, &Transform, &mut ControlPoint)>,
 	mut q_tangent_set	: ParamSet<(
 						  Query<(&Parent, Entity, &Transform, &Tangent), (Changed<Transform>, Without<ControlPoint>)>,
 						  Query<&mut Transform, (With<Tangent>, (Without<DraggableActive>, Without<ControlPoint>))>
 	)>,
-	mut q_spline		: Query<&mut Spline>
+	mut q_spline		: Query<(&mut Spline, &mut SplineControl)>
 ) {
 	if time.seconds_since_startup() < 0.1 {
 		return;
@@ -29,23 +29,22 @@ pub fn on_tangent_moved(
 
 	let sync_tangents	= key.pressed(KeyCode::LControl);
 
-	struct OppositeTangent<'a> {
+	struct OppositeTangent {
 		entity : Entity,
 		pos : Vec3,
-		control_point_tform : &'a Transform,
+		control_point_tform : Transform,
 	}
 	let mut opposite_tangents : Vec<OppositeTangent> = Vec::new();
 
 	for (control_point_e, tan_e, tan_tform, tan) in q_tangent_set.p0().iter() {
-		let (spline_e, control_point_children_e, control_point_tform, control_point_enum) = q_control_point.get(control_point_e.0).unwrap();
-		let mut spline	= q_spline.get_mut(spline_e.0).unwrap();
-		let t 			= match control_point_enum { ControlPoint::T(t) => *t };
+		let (spline_e, control_point_children_e, control_point_tform, mut control_point) = q_control_point.get_mut(control_point_e.0).unwrap();
+		let (mut spline, mut spline_control) = q_spline.get_mut(spline_e.0).unwrap();
+		let key = spline.get_key_from_pos(control_point_tform.translation).unwrap();
+		let t = key.t;
 
 		// in spline space (or parent space for tangent handles). _p == parent space
 		let tan_tform_p	= (*control_point_tform) * (*tan_tform);
 		let tan_pos_p	= tan_tform_p.translation;
-		screen_print!("tan_pos {:.3} {:.3} {:.3}", tan_tform.translation.x, tan_tform.translation.y, tan_tform.translation.z);
-		screen_print!("tan_pos_p {:.3} {:.3} {:.3}", tan_pos_p.x, tan_pos_p.y, tan_pos_p.z);
 
 		let opposite_tan_pos_p =
 		// mirror tangent placement relatively to control point if requested
@@ -73,15 +72,17 @@ pub fn on_tangent_moved(
 
 		spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
 
+		spline_control.recalc_length = true;
+
 		for child_e_ref in control_point_children_e.iter() {
 			let child_e = *child_e_ref;
 
 			if sync_tangents && child_e != tan_e {
 				opposite_tangents.push(
 				OppositeTangent {
-					entity : child_e,
-					pos : opposite_tan_pos_p,
-					control_point_tform : control_point_tform,
+				 	entity : child_e,
+				 	pos : opposite_tan_pos_p,
+				 	control_point_tform : *control_point_tform,
 				});
 			}
 
@@ -110,7 +111,7 @@ pub fn on_control_point_moved(
 		time			: Res<Time>,
 	mut	q_controlp 		: Query<(&Parent, &Children, &Transform, &mut ControlPoint), Changed<Transform>>,
 	mut	q_tangent 		: Query<(&Transform, &mut Tangent)>,
-	mut q_spline		: Query<&mut Spline>,
+	mut q_spline		: Query<(&mut Spline, &mut SplineControl)>
 ) {
 	if time.seconds_since_startup() < 0.1 {
 		return;
@@ -121,39 +122,37 @@ pub fn on_control_point_moved(
 	}
 
 	for (spline_e, children_e, control_point_tform, mut controlp) in q_controlp.iter_mut() {
-		let mut spline = q_spline.get_mut(spline_e.0).unwrap();
+		let (mut spline, mut spline_control) = q_spline.get_mut(spline_e.0).unwrap();
+
+		let controlp_pos = match *controlp { ControlPoint::POS(p) => p };
+		let id = spline.get_key_id_from_pos(controlp_pos).unwrap();
+		let t = spline.get_key(id).t;
 
 		let controlp_pos = control_point_tform.translation;
-		match *controlp {
-			ControlPoint::T(t_old) => {
-				println!("on_control_point_moved {:.3} {:.3} {:.3} t: {:.3}", controlp_pos.x, controlp_pos.y, controlp_pos.z, t_old);
-				let t	= spline.calculate_t_for_pos(controlp_pos);
-				let id 	= spline.get_key_id(t_old).unwrap();
-				spline.set_control_point_by_id(id, t, controlp_pos);
-				println!("id: {} t: {} controlp_pos: {}", id, t, controlp_pos);
+		
+		spline.set_control_point_pos(id, controlp_pos);
+		println!("id: {} t: {} controlp_pos: {}", id, t, controlp_pos);
 
-				// we have to recalculate tangent positions because in engine they are children of control point
-				// but spline wants them in the same space as control points
-				let mut tan0 = Vec3::ZERO;
-				let mut tan1 = Vec3::ZERO;
-				for tangent_e in children_e.iter() {
-					let (tan_tform, mut tan) = match q_tangent.get_mut(*tangent_e) {
-						Ok((tf, tn)) => (tf, tn),
-						Err(_) => { continue },
-					};
-					let final_tform = (*control_point_tform) * (*tan_tform);
-					if tan.id == 0 {
-						tan0 = final_tform.translation;
-					} else if tan.id == 1 {
-						tan1 = final_tform.translation;
-					}
-				}
-				println!("setting interpolation t: {:.3}", t_old);
-				spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
-
-				*controlp = ControlPoint::T(t);
-			},
+		// we have to recalculate tangent positions because in engine they are children of control point
+		// but spline wants them in the same space as control points
+		let mut tan0 = Vec3::ZERO;
+		let mut tan1 = Vec3::ZERO;
+		for tangent_e in children_e.iter() {
+			let (tan_tform, mut tan) = match q_tangent.get_mut(*tangent_e) {
+				Ok((tf, tn)) => (tf, tn),
+				Err(_) => { continue },
+			};
+			let final_tform = (*control_point_tform) * (*tan_tform);
+			if tan.id == 0 {
+				tan0 = final_tform.translation;
+			} else if tan.id == 1 {
+				tan1 = final_tform.translation;
+			}
 		}
+		println!("setting interpolation id: {} tan0: {} tan1: {}", id, tan0, tan1);
+		spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
+
+		spline_control.recalc_length = true;
 	}
 }
 
@@ -230,6 +229,7 @@ pub fn road_system(
 	mut polylines		: ResMut<Assets<Polyline>>,
 	mut	polyline_materials : ResMut<Assets<PolylineMaterial>>,
 	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut SplineControl), Changed<SplineControl>>,
+	mut	q_controlp 		: Query<&mut ControlPoint>,
 		q_mouse_pick	: Query<&PickingObject, With<Camera>>,
 
 	mut	meshes			: ResMut<Assets<Mesh>>,
@@ -261,6 +261,20 @@ pub fn road_system(
 			);
 
 			control.new_point = false;
+		}
+
+		while control.recalc_length {
+			let keys = spline.keys();
+			let keys_cnt = keys.len();
+			let mut total_length = 0.0;
+			for key_id in 1 .. keys_cnt {
+				let new_t = spline.calculate_segment_length(key_id);
+				spline.set_control_point_t(key_id, new_t + total_length);
+				println!("[{}]recalc_length {:.3}", key_id, new_t + total_length);
+				total_length += new_t;
+			}
+
+			control.recalc_length = false;
 		}
 	}
 }

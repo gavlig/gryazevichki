@@ -107,7 +107,7 @@ impl Default for Herringbone2Config {
 			seam		: 0.01,
 			
 			width		: 4.0,
-			limit_z		: 8.0,
+			limit_z		: 6.0,
 			limit_mz 	: 0.0,
 			limit_iter	: 100,
 			init_tangent_offset : 1.0,
