@@ -1,4 +1,5 @@
-use bevy				:: { prelude :: * };
+use bevy				:: prelude :: { * };
+use iyes_loopless		:: prelude :: { * };
 
 use super::game 		:: { * };
 
@@ -53,14 +54,14 @@ impl Spline {
 			return 0.0; // return error instead?
 		}
 
-		let mut i = 1;
+		let mut key_id = 1;
 		let mut total_length = 0.0;
 		loop {
-			total_length += (keys[i].value - keys[i - 1].value).length();
-			if i + 1 == total_keys {
+			total_length += self.calculate_segment_length(key_id);
+			if key_id + 1 == total_keys {
 				break;
 			} else {
-				i += 1;
+				key_id += 1;
 			}
 		};
 
@@ -106,12 +107,10 @@ impl Spline {
 				break total_length + new_pos_delta.length();
 			}
 
-			if key_id + 1 == total_keys {
+			key_id += 1;
+			if key_id == total_keys {
 				println!("i + 1 == total_keys so output is {}", total_length + new_pos_delta.length());
 				break total_length + new_pos_delta.length();
-			} else {
-				println!("i += 1");
-				key_id += 1;
 			}
 
 			total_length += self.calculate_segment_length(key_id);
@@ -126,10 +125,10 @@ impl Spline {
 		if key_id < 1 {
 			return 0.0;
 		}
-
+		
 		let keys = self.keys();
 		let key0 = keys[key_id - 1];
-		let key1 = keys[key_id - 0]; // assume we never have invalid key_id
+		let key1 = keys[key_id];
 
 		let t0 = key0.t;
 		let t1 = key1.t;
@@ -139,12 +138,12 @@ impl Spline {
 		let mut segment_length = 0.0;
 		let mut prev_p = key0.value;
 		let mut t = t0 + t_delta;
-		println!("calculate_segment_length t0 {:.3} t1 {:.3} t_delta {:.3}", t0, t1, t_delta);
-		while t < t1 {
-			let new_p = self.sample(t).unwrap();
+		// println!("calculate_segment_length t0 {:.3} t1 {:.3} t_delta {:.3}", t0, t1, t_delta);
+		while t < (t1 + 0.00001) {
+			let new_p = self.clamped_sample(t).unwrap();
 			segment_length += (new_p - prev_p).length();
 			prev_p = new_p;
-			println!("[t: {:.3}] segment_length {:.3} new_p [{:.3} {:.3} {:.3}]", t, segment_length, new_p.x, new_p.y, new_p.z);
+			// println!("[t: {:.3}] tn: {} segment_length {:.3} new_p [{:.3} {:.3} {:.3}]", t, t + t_delta, segment_length, new_p.x, new_p.y, new_p.z);
 			t += t_delta;
 		}
 
@@ -258,9 +257,23 @@ impl Plugin for BevySplinePlugin {
 	fn build(&self, app: &mut App) {
         app
 			.add_system(road_draw)
-			.add_system(road_system)
-			.add_system_to_stage(CoreStage::PostUpdate, on_tangent_moved)
-			.add_system_to_stage(CoreStage::PostUpdate, on_control_point_moved)
+			.add_system_to_stage(
+				CoreStage::PostUpdate,
+				on_tangent_moved
+					.label("bevy_spline::on_tangent_moved")
+			)
+			.add_system_to_stage(
+				CoreStage::PostUpdate,
+				on_control_point_moved
+					.after("bevy_spline::on_tangent_moved")
+					.label("bevy_spline::on_control_point_moved")
+			)
+			.add_system_to_stage(
+				CoreStage::PostUpdate,
+				road_system
+					.after("bevy_spline::on_control_point_moved")
+					.label("bevy_spline::road_system")
+			)
  			;
 	}
 }

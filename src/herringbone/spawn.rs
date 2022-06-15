@@ -39,7 +39,8 @@ pub fn brick_road(
 	sargs.meshes.add(
 	Mesh::from(
 		render_shape::Box::new(
-			tile_size.x, tile_size.y, tile_size.z
+			//tile_size.x, tile_size.y, tile_size.z
+			0.06, 0.06, 0.08
 		)
 	));
 
@@ -111,36 +112,82 @@ pub fn brick_road_iter(
 
 	let tangent01_local = tangent01 - key0.value;
 
-	let seglen0 = tangent01_local.length();
+	let seglen0 = (tangent01 - key0.value).length();
 	let seglen1 = (tangent10 - tangent01).length();
 	let seglen2 = (key1.value - tangent10).length();
 
-	let segment_length = seglen0 + seglen1 + seglen2;
-	let straight_length = (key1.value - key0.value).length();
-	let ratio = straight_length / segment_length;
+	let linear_length = (key1.value - key0.value).length();
+	let spline_segment_length = spline.calculate_segment_length(key_id + 1);
+
+	// let seglen = [seglen0, seglen1, seglen2];
+
+	// let max = seglen0.max(seglen1).max(seglen2);
+
+	let ratio0 = (linear_length / 3.0) / seglen0; // max;
+	let ratio1 = (linear_length / 3.0) / seglen1; // max;
+	let ratio2 = (linear_length / 3.0) / seglen2; // max;
+
+	println!("seglen [{:.3} {:.3} {:.3}] ratio [{:.3} {:.3} {:.3}]", seglen0, seglen1, seglen2, ratio0, ratio1, ratio2);
+
+	// let segment_length = seglen0 + seglen1 + seglen2;
+	
+
+	let ratio = linear_length / spline_segment_length;
 
 	let iter_offset = lenz + seam;
 
 	let calc_offset_z = |iter : f32| -> f32 {
-		hlenz + iter * iter_offset
+		0.2 * iter
+		//hlenz + iter * iter_offset
 	};
 
-	let t = calc_offset_z(iter0);
+	let t = state.t + iter_offset * ratio;
 
-	println!("straight: {:.3} segment: {:.3} ratio: {:.3}", straight_length, segment_length, ratio);
+	let mut ratio_tri = ratio0;
+
+	if t < seglen0 {
+		println!("tri0 {}", ratio0);
+	}
+
+	if seglen0 < t && t < seglen0 + seglen1 {
+		ratio_tri = ratio1;
+		println!("tri1 {}", ratio1);
+	}
+
+	if t > seglen0 + seglen1 {
+		ratio_tri = ratio2;
+		println!("tri2 {}", ratio2);
+	}
+
+	let t = state.t + iter_offset * ratio * ratio_tri;
+
+	println!("0 t: {:.3} offset {:.3} ratio: {:.3} linear: {:.3} spline: {:.3}", t, calc_offset_z(iter0), ratio, linear_length, spline_segment_length);
 
 	if state.prev_spline_p.is_none() {
 		state.prev_spline_p = spline.clamped_sample(key0.t);
 	}
 	let prev_spline_p 	= state.prev_spline_p.unwrap();
 
-	// let spline_p		= match spline.sample(t) {
+	let spline_p		= match spline.clamped_sample(t) {
+	 	Some(p)			=> p,
+	 	None			=> panic!("first spline.sample failed!"),
+	};
+	let spline_p_cache = spline_p.clone();
+
+	let tile_dist = (spline_p - prev_spline_p).length();
+	let correction = iter_offset / tile_dist;
+
+	let t = state.t + iter_offset * ratio * ratio_tri * correction;
+
+	// let spline_p		= match spline.clamped_sample(t) {
 	// 	Some(p)			=> p,
 	// 	None			=> panic!("first spline.sample failed!"),
-	// };
+   	// };
 
-	// let tile_dist = (spline_p - prev_spline_p).length();
-	// // let ratio = iter_offset / tile_dist;
+	// let tile_dist = (spline_p - spline_p_cache).length();
+	// let correction = iter_offset / tile_dist;
+
+	// let t = state.t + iter_offset * ratio * ratio_tri * correction;
 
 	// let ratio = (tangent01.length_squared() - (tangent01.x * tangent01.x)).sqrt();
 
@@ -151,7 +198,7 @@ pub fn brick_road_iter(
 
 	// println!("0 t: {:.3} t_cache : {:.3} spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} ratio {:.3}", t, t_cache, spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
 
-	let spline_p		= match spline.sample(t) {
+	let spline_p		= match spline.clamped_sample(t) {
 		Some(p)			=> p,
 		None			=> panic!("main spline.sample failed!"),
 	};
@@ -163,9 +210,8 @@ pub fn brick_road_iter(
 	};
 
 	let tile_dist = (spline_p - prev_spline_p).length();
-	let ratio = iter_offset / tile_dist;
 
-	println!("1 spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} fffff {:.3}", spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
+	println!("1 spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3}", spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset);
 
 	// pick next position, see how much space left between current and last tile, if more than seem, then either repick spline or trigonometry!
 
@@ -181,7 +227,7 @@ pub fn brick_road_iter(
 	pose.translation.z 	= spline_p.z;//t;
 	pose.rotation		*= init_rotation * detail_spline_rotation; // 
 
-	{
+	if false {
 		let mut vert_offset = Vec3::ZERO; vert_offset.y = 0.5;
 		let normal = detail_spline_rotation;
 		let line_start = transform.translation + spline_p + vert_offset;
@@ -238,13 +284,13 @@ pub fn brick_road_iter(
 	//
 	//
 
-	let newoffz	= hlenz + iter1 * (lenz + seam);
+	let newoffz	= calc_offset_z(iter1);
 
 	if newoffz >= total_length {
 		state.finished = true;
 	}
 
-	if state.iter == 3 {
+	if state.iter == 100 {
 		state.finished = true;
 	}
 }
