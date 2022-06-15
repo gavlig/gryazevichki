@@ -99,7 +99,7 @@ pub fn on_spline_tangent_moved(
 pub fn on_spline_control_point_moved(
 		time			: Res<Time>,
 		q_controlp 		: Query<(&Parent, &ControlPoint), Changed<Transform>>,
-	mut q_spline		: Query<(&Spline, &mut HerringboneControl)>,
+	mut q_spline		: Query<&mut HerringboneControl>,
 ) {
 	if time.seconds_since_startup() < 0.1 {
 		return;
@@ -110,14 +110,10 @@ pub fn on_spline_control_point_moved(
 	}
 
 	for (spline_e, controlp) in q_controlp.iter() {
-		let (spline, mut control) = q_spline.get_mut(spline_e.0).unwrap();
+		let mut control = q_spline.get_mut(spline_e.0).unwrap();
 
-		match controlp {
-			ControlPoint::T(_) => {
-				control.reset	= true;
-				control.next 	= true;
-				control.instant = true;
-			},
-		}
+		control.reset	= true;
+		control.next 	= true;
+		control.instant = true;
 	}
 }
