@@ -39,8 +39,8 @@ pub fn brick_road(
 	sargs.meshes.add(
 	Mesh::from(
 		render_shape::Box::new(
-			//tile_size.x, tile_size.y, tile_size.z
-			0.06, 0.06, 0.08
+			tile_size.x, tile_size.y, tile_size.z
+			//0.06, 0.06, 0.08
 		)
 	));
 
@@ -78,7 +78,7 @@ pub fn brick_road_iter(
 
 	let total_length 	= spline.total_length();
 
-	let seam			= config.seam;
+	let seam			= config.seam * 2.0;
 
 	let hlenz			= config.hsize.z;
 	let lenz			= hlenz * 2.0;
@@ -137,8 +137,8 @@ pub fn brick_road_iter(
 	let iter_offset = lenz + seam;
 
 	let calc_offset_z = |iter : f32| -> f32 {
-		0.2 * iter
-		//hlenz + iter * iter_offset
+		//0.2 * iter
+		hlenz + iter * iter_offset
 	};
 
 	let t = state.t + iter_offset * ratio;
@@ -179,15 +179,15 @@ pub fn brick_road_iter(
 
 	let t = state.t + iter_offset * ratio * ratio_tri * correction;
 
-	// let spline_p		= match spline.clamped_sample(t) {
-	// 	Some(p)			=> p,
-	// 	None			=> panic!("first spline.sample failed!"),
-   	// };
+	let spline_p		= match spline.clamped_sample(t) {
+		Some(p)			=> p,
+		None			=> panic!("first spline.sample failed!"),
+   	};
 
-	// let tile_dist = (spline_p - spline_p_cache).length();
-	// let correction = iter_offset / tile_dist;
+	let tile_dist = (spline_p - prev_spline_p).length();
+	let correction2 = iter_offset / tile_dist;
 
-	// let t = state.t + iter_offset * ratio * ratio_tri * correction;
+	let t = state.t + (iter_offset * ratio * ratio_tri * correction) * correction2;
 
 	// let ratio = (tangent01.length_squared() - (tangent01.x * tangent01.x)).sqrt();
 
