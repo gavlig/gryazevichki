@@ -119,12 +119,6 @@ pub fn brick_road_iter(
 	let linear_length = (key1.value - key0.value).length();
 	let spline_segment_length = spline.calculate_segment_length(key_id + 1);
 
-	let ratio0 = (linear_length / 3.0) / seglen0; // max;
-	let ratio1 = (linear_length / 3.0) / seglen1; // max;
-	let ratio2 = (linear_length / 3.0) / seglen2; // max;
-
-	// println!("seglen [{:.3} {:.3} {:.3}] ratio [{:.3} {:.3} {:.3}]", seglen0, seglen1, seglen2, ratio0, ratio1, ratio2);
-
 	let ratio = linear_length / spline_segment_length;
 
 	let iter_offset = lenz + seam;
@@ -135,24 +129,6 @@ pub fn brick_road_iter(
 	};
 
 	let t = state.t + iter_offset * ratio;
-
-	let mut ratio_tri = ratio0;
-
-	if t < seglen0 {
-		// println!("tri0 {}", ratio0);
-	}
-
-	if seglen0 < t && t < seglen0 + seglen1 {
-		ratio_tri = ratio1;
-		// println!("tri1 {}", ratio1);
-	}
-
-	if t > seglen0 + seglen1 {
-		ratio_tri = ratio2;
-		// println!("tri2 {}", ratio2);
-	}
-
-	let t = state.t + iter_offset * ratio * ratio_tri;
 
 	// println!("0 t: {:.3} offset {:.3} ratio: {:.3} linear: {:.3} spline: {:.3}", t, calc_offset_z(iter0), ratio, linear_length, spline_segment_length);
 
@@ -170,7 +146,7 @@ pub fn brick_road_iter(
 	let tile_dist = (spline_p - prev_spline_p).length();
 	let correction = iter_offset / tile_dist;
 
-	let t = state.t + iter_offset * ratio * ratio_tri * correction;
+	let t = state.t + iter_offset * ratio * correction;
 
 	let spline_p		= match spline.clamped_sample(t) {
 		Some(p)			=> p,
@@ -180,7 +156,7 @@ pub fn brick_road_iter(
 	let tile_dist = (spline_p - prev_spline_p).length();
 	let correction2 = iter_offset / tile_dist;
 
-	let t = state.t + (iter_offset * ratio * ratio_tri * correction) * correction2;
+	let t = state.t + (iter_offset * ratio * correction) * correction2;
 
 	// let ratio = (tangent01.length_squared() - (tangent01.x * tangent01.x)).sqrt();
 
