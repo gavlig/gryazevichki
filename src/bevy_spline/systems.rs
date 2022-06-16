@@ -176,7 +176,7 @@ pub fn road_draw(
 
 			let keys 	= spline.keys();
 			let total_keys = keys.len();
-			let total_verts	= 32 * total_keys;
+			let total_verts	= 2 * total_keys;
 
 			let line	= polylines.get_mut(handle).unwrap();
 			line.vertices.resize(total_verts + 1, Vec3::ZERO);
@@ -185,24 +185,65 @@ pub fn road_draw(
 			let road_width = match road_width_in { Some(rw) => *rw, None => RoadWidth::W(1.0) };
 			let road_width = match road_width { RoadWidth::W(w) => w };
 
-			let mut prev_spline_p = spline.clamped_sample(0.0).unwrap();//Vec3::ZERO;
 			let delta = total_length / total_verts as f32;
 
 			screen_print!("keys: {} total_length: {} road_width: {} delta: {}", keys.len(), total_length, road_width, delta);
 
+			let mut correction0 = false;
+			let mut correction1 = false;
+			let mut start_angle0 = 0.0;
+			let mut start_angle1 = 0.0;
+
 			for i in 0 ..= total_verts {
 				let t = i as f32 * delta;
 				let spline_p = spline.clamped_sample(t).unwrap();
+
+				let mut t_next = t + 0.01;
+				if i == total_verts {
+					t_next = t - 0.01;
+				}
+
+				let next_spline_p = spline.clamped_sample(t + 0.01).unwrap();
 				let vert_offset = Vec3::Y * 0.5;
 
 				let offset_x = (-road_width / 2.0) + line_id as f32 * (road_width / 2.0);
 				let mut www = Vec3::new(offset_x, 0.0, 0.0);
 
-				let spline_r = {
-					let spline_dir	= (spline_p - prev_spline_p).normalize();
-					Quat::from_rotation_arc(Vec3::Z, spline_dir)
-				};
-				prev_spline_p = spline_p;
+				let spline_dir	= (next_spline_p - spline_p).normalize();
+				let mut spline_r = Quat::from_rotation_arc(Vec3::Z, spline_dir);
+
+				let (mut axis, angle) = spline_r.to_axis_angle();
+
+				if correction0 && line_id == 0 && (start_angle0 + angle).to_degrees() > 45.0 && i != 0
+				|| correction1 && line_id == 2 && (start_angle1 + angle).to_degrees() > 45.0 && i != 0
+				{
+					let start_angle = if line_id == 0 { start_angle0 } else { start_angle1 };
+					let new_angle = 0.0f32;//angle - 45.0f32.to_radians();
+					if new_angle < 0.0 {
+						axis.y *= -1.0;
+					}
+					spline_r = Quat::from_axis_angle(axis, new_angle.abs());
+					// println!("[line_id: {}][{}]correction post! start_angle: {:.3} angle: {:.3} sum: {:.3} new_angle: {:.3}", line_id, i, start_angle.to_degrees(), angle.to_degrees(), (start_angle + angle).to_degrees(), new_angle.to_degrees());
+				}
+
+				// println!("line_id {} axis.y {:.3} angle {:.3}", line_id, axis.y, angle.to_degrees());
+				if line_id == 0 && axis.y > 0.0 && angle > 45.0f32.to_radians() && i == 0
+				|| line_id == 2 && axis.y < 0.0 && angle > 45.0f32.to_radians() && i == 0
+				{
+					spline_r = Quat::from_axis_angle(axis, 45.0f32.to_radians());
+					// println!("correction!");
+
+					correction0 = line_id == 0;
+					correction1 = line_id == 2;
+					if line_id == 0 { start_angle0 = angle; }
+					if line_id == 2 { start_angle1 = angle; }
+				}
+
+				// if line_id == 2 {
+				{
+					
+					// println!("[line_id: {}][{}]spline_r: {:?} {:.3}", line_id, i, axis, angle.to_degrees());
+				}
 
 				www = spline_r.mul_vec3(www);
 				line.vertices[i] = spline_p + www;
@@ -210,14 +251,14 @@ pub fn road_draw(
 				
 				//
 				// if i % 7 != 0 { continue }; 
-				// let normal = spline_r;
-				// let line_start = transform.translation + spline_p + vert_offset;
-				// let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 3.0)) + vert_offset;
-				// debug_lines.line(
-				// 	line_start,
-				// 	line_end,
-				// 	0.1,
-				// );
+				let normal = spline_r;
+				let line_start = transform.translation + spline_p + vert_offset;
+				let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 1.0)) + vert_offset;
+				debug_lines.line(
+					line_start,
+					line_end,
+					0.1,
+				);
 			}
 
 			line_id += 1;
@@ -270,7 +311,7 @@ pub fn road_system(
 			for key_id in 1 .. keys_cnt {
 				let new_t = spline.calculate_segment_length(key_id);
 				spline.set_control_point_t(key_id, new_t + total_length);
-				println!("[{}]recalc_length {:.3}", key_id, new_t + total_length);
+				println!("[{}]recalc_length {:.3}\n", key_id, new_t + total_length);
 				total_length += new_t;
 			}
 
