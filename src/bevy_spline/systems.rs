@@ -193,10 +193,13 @@ pub fn road_draw(
 			let mut correction1 = false;
 			let mut start_angle0 = 0.0;
 			let mut start_angle1 = 0.0;
+			// float precision doesn't like when we divide and then multiply (total_length, total_verts, delta)
+			let total_length_eps = total_length - f32::EPSILON * 10.0;
 
 			for i in 0 ..= total_verts {
-				let t = i as f32 * delta;
-				let spline_p = spline.clamped_sample(t).unwrap();
+				let t = (i as f32 * delta).min(total_length_eps);
+
+				let spline_p = spline.sample(t).unwrap();
 
 				let mut t_next = t + 0.01;
 				if i == total_verts {
