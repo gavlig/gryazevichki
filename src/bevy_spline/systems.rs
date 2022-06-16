@@ -185,9 +185,9 @@ pub fn road_draw(
 			let road_width = match road_width_in { Some(rw) => *rw, None => RoadWidth::W(1.0) };
 			let road_width = match road_width { RoadWidth::W(w) => w };
 
-			let delta = total_length / total_verts as f32;
+			let delta = total_length / (total_verts as f32);
 
-			screen_print!("keys: {} total_length: {} road_width: {} delta: {}", keys.len(), total_length, road_width, delta);
+			screen_print!("keys: {} total_length: {} verts: {} road_width: {} delta: {}", keys.len(), total_length, total_verts, road_width, delta);
 
 			let mut correction0 = false;
 			let mut correction1 = false;
@@ -243,6 +243,10 @@ pub fn road_draw(
 				{
 					
 					// println!("[line_id: {}][{}]spline_r: {:?} {:.3}", line_id, i, axis, angle.to_degrees());
+				}
+
+				if line_id == 1 {
+					println!("[{}] t: {} p {:.3} {:.3} {:.3}", i, t, spline_p.x, spline_p.y, spline_p.z);
 				}
 
 				www = spline_r.mul_vec3(www);
