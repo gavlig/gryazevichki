@@ -54,18 +54,7 @@ impl Spline {
 			return 0.0; // return error instead?
 		}
 
-		let mut key_id = 1;
-		let mut total_length = 0.0;
-		loop {
-			total_length += self.calculate_segment_length(key_id);
-			if key_id + 1 == total_keys {
-				break;
-			} else {
-				key_id += 1;
-			}
-		};
-
-		total_length
+		keys.last().unwrap().t
 	}
 
 	pub fn calculate_t_for_pos(&self, pos : Vec3) -> f32 {
@@ -113,7 +102,7 @@ impl Spline {
 				break total_length + new_pos_delta.length();
 			}
 
-			total_length += self.calculate_segment_length(key_id);
+			total_length += keys[key_id].t;//self.calculate_segment_length(key_id);
 			println!("total_length: {}", total_length);
 		};
 
