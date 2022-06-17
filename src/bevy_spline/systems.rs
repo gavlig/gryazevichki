@@ -200,7 +200,11 @@ pub fn road_draw(
 			for i in 0 ..= total_verts {
 				let t = (i as f32 * delta).min(total_length_eps);
 
-				let spline_p = spline.sample(t).unwrap();
+				let mut option = spline.sample(t);
+				if option.is_none() && t == total_length_eps {
+					option = Some(keys.last().unwrap().value);
+				}
+				let spline_p = option.unwrap();
 
 				let mut t_next = t + 0.01;
 				if i == total_verts {
