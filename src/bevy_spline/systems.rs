@@ -1,3 +1,5 @@
+use std::ops::ControlFlow;
+
 use bevy			:: { prelude :: * };
 use bevy_polyline	:: { prelude :: * };
 use bevy_prototype_debug_lines :: { DebugLines };
@@ -169,115 +171,89 @@ pub fn road_draw(
 
 	for (children_e, transform, spline, road_width_in) in q_spline.iter_mut() {
 		let mut line_id = 0;
+
+		let vertices 	= generate_spline_vertices(spline.as_ref(), road_width_in, 40);
+
 		for &child in children_e.iter() {
-			let handle = match q_polyline.get(child) {
+			let handle 	= match q_polyline.get(child) {
 				Ok(handle) => handle,
-				Err(_) => continue,
+				Err(_) 	=> continue,
 			};
 
-			let keys 	= spline.keys();
-			let total_keys = keys.len();
-			let total_verts	= 2 * total_keys;
-
 			let line	= polylines.get_mut(handle).unwrap();
-			line.vertices.resize(total_verts + 1, Vec3::ZERO);
-			let total_length = spline.total_length();
 
-			let road_width = match road_width_in { Some(rw) => *rw, None => RoadWidth::W(1.0) };
-			let road_width = match road_width { RoadWidth::W(w) => w };
 
-			let delta = total_length / (total_verts as f32);
-
-			screen_print!("keys: {} total_length: {} verts: {} road_width: {} delta: {}", keys.len(), total_length, total_verts, road_width, delta);
-
-			let mut correction0 = false;
-			let mut correction1 = false;
-			let mut start_angle0 = 0.0;
-			let mut start_angle1 = 0.0;
-			// float precision doesn't like when we divide and then multiply (total_length, total_verts, delta)
-			let total_length_eps = total_length - f32::EPSILON * 10.0;
-
-			for i in 0 ..= total_verts {
-				let t = (i as f32 * delta).min(total_length_eps);
-
-				let mut option = spline.sample(t);
-				if option.is_none() && t == total_length_eps {
-					option = Some(keys.last().unwrap().value);
-				}
-				let spline_p = option.unwrap();
-
-				let mut t_next = t + 0.01;
-				if i == total_verts {
-					t_next = t - 0.01;
-				}
-
-				let next_spline_p = spline.clamped_sample(t + 0.01).unwrap();
-				let vert_offset = Vec3::Y * 0.5;
-
-				let offset_x = (-road_width / 2.0) + line_id as f32 * (road_width / 2.0);
-				let mut www = Vec3::new(offset_x, 0.0, 0.0);
-
-				let spline_dir	= (next_spline_p - spline_p).normalize();
-				let mut spline_r = Quat::from_rotation_arc(Vec3::Z, spline_dir);
-
-				let (mut axis, angle) = spline_r.to_axis_angle();
-
-				if correction0 && line_id == 0 && (start_angle0 + angle).to_degrees() > 45.0 && i != 0
-				|| correction1 && line_id == 2 && (start_angle1 + angle).to_degrees() > 45.0 && i != 0
-				{
-					let start_angle = if line_id == 0 { start_angle0 } else { start_angle1 };
-					let new_angle = 0.0f32;//angle - 45.0f32.to_radians();
-					if new_angle < 0.0 {
-						axis.y *= -1.0;
-					}
-					spline_r = Quat::from_axis_angle(axis, new_angle.abs());
-					// println!("[line_id: {}][{}]correction post! start_angle: {:.3} angle: {:.3} sum: {:.3} new_angle: {:.3}", line_id, i, start_angle.to_degrees(), angle.to_degrees(), (start_angle + angle).to_degrees(), new_angle.to_degrees());
-				}
-
-				// println!("line_id {} axis.y {:.3} angle {:.3}", line_id, axis.y, angle.to_degrees());
-				if line_id == 0 && axis.y > 0.0 && angle > 45.0f32.to_radians() && i == 0
-				|| line_id == 2 && axis.y < 0.0 && angle > 45.0f32.to_radians() && i == 0
-				{
-					spline_r = Quat::from_axis_angle(axis, 45.0f32.to_radians());
-					// println!("correction!");
-
-					correction0 = line_id == 0;
-					correction1 = line_id == 2;
-					if line_id == 0 { start_angle0 = angle; }
-					if line_id == 2 { start_angle1 = angle; }
-				}
-
-				// if line_id == 2 {
-				{
-					
-					// println!("[line_id: {}][{}]spline_r: {:?} {:.3}", line_id, i, axis, angle.to_degrees());
-				}
-
-				if line_id == 1 {
-					println!("[{}] t: {} p {:.3} {:.3} {:.3}", i, t, spline_p.x, spline_p.y, spline_p.z);
-				}
-
-				www = spline_r.mul_vec3(www);
-				line.vertices[i] = spline_p + www;
-				line.vertices[i] += vert_offset;		
-				
-				//
-				// if i % 7 != 0 { continue }; 
-				if line_id == 1 { continue; };
-				//let normal = spline_r;
-				//(normal.mul_vec3(Vec3::X * road_width / 2.0))
-				let line_start = transform.translation + spline_p + vert_offset;
-				let line_end = transform.translation + spline_p + www + vert_offset;
-				debug_lines.line(
-					line_start,
-					line_end,
-					0.0,
-				);
+			// line.vertices.clear();
+			if line_id == 0 {
+				line.vertices = vertices.to_owned();
 			}
+    		// line.vertices.reserve(total_verts + 1);
+
+			// let offset_x = (-road_width / 2.0) + *line_id as f32 * (road_width / 2.0);
+			// let mut www = Vec3::new(offset_x, 0.0, 0.0);
+			// www = spline_r.mul_vec3(www);
+
+			// let line_start = transform.translation + spline_p + vert_offset;
+			// let line_end = transform.translation + spline_p + www + vert_offset;
+			// debug_lines.line(
+			// 	line_start,
+			// 	line_end,
+			// 	0.01,
+			// );
 
 			line_id += 1;
 		}
 	}
+}
+
+fn generate_spline_vertices(
+	spline				: &Spline,
+	road_width_in		: Option<&RoadWidth>,
+	verts_per_segment 	: usize,
+) -> Vec<Vec3> {
+    let keys = spline.keys();
+	let key0 = keys[0];
+    if keys.len() < 2 {
+		return [key0.value].into();
+	}
+
+    let total_keys = keys.len();
+    let total_verts	= verts_per_segment * total_keys;
+    
+    let total_length 	= spline.total_length();
+    let road_width 		= match road_width_in 	{ Some(rw) => *rw, None => RoadWidth::W(1.0) };
+    let road_width 		= match road_width 		{ RoadWidth::W(w) => w };
+    let delta 			= total_length / (total_verts as f32);
+	
+    screen_print!("keys: {} total_length: {} verts: {} road_width: {} delta: {}", keys.len(), total_length, total_verts, road_width, delta);
+
+	let mut vertices : Vec<Vec3> = [].into();
+	vertices.reserve(total_verts);
+
+    for i in 0 ..= total_verts {
+		let t = i as f32 * delta;
+
+		let mut option = spline.sample(t);
+		if option.is_none() && t >= total_length {
+			option = Some(keys.last().unwrap().value);
+		}
+		let spline_p = option.unwrap();
+
+		let mut t_next = t + 0.01;
+		if i == total_verts {
+			t_next = t - 0.01;
+		}
+
+		let next_spline_p = spline.clamped_sample(t + 0.01).unwrap();
+		let vert_offset = Vec3::Y * 0.5;
+
+		let spline_dir	= (next_spline_p - spline_p).normalize();
+		let mut spline_r = Quat::from_rotation_arc(Vec3::Z, spline_dir);
+
+		vertices.push(spline_p + vert_offset);
+	}
+
+	vertices
 }
 
 pub fn road_system(
