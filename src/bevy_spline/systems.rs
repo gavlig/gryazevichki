@@ -152,6 +152,7 @@ pub fn on_control_point_moved(
 		println!("setting interpolation id: {} tan0: {} tan1: {}", id, tan0, tan1);
 		spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
 
+		*controlp = ControlPoint::POS(controlp_pos);
 		spline_control.recalc_length = true;
 	}
 }
