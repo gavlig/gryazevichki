@@ -259,13 +259,15 @@ pub fn road_draw(
 				
 				//
 				// if i % 7 != 0 { continue }; 
-				let normal = spline_r;
+				if line_id == 1 { continue; };
+				//let normal = spline_r;
+				//(normal.mul_vec3(Vec3::X * road_width / 2.0))
 				let line_start = transform.translation + spline_p + vert_offset;
-				let line_end = transform.translation + spline_p + (normal.mul_vec3(Vec3::X * 1.0)) + vert_offset;
+				let line_end = transform.translation + spline_p + www + vert_offset;
 				debug_lines.line(
 					line_start,
 					line_end,
-					0.1,
+					0.0,
 				);
 			}
 
