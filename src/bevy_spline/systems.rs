@@ -172,7 +172,10 @@ pub fn road_draw(
 	for (children_e, transform, spline, road_width_in) in q_spline.iter_mut() {
 		let mut line_id = 0;
 
-		let vertices 	= generate_spline_vertices(spline.as_ref(), road_width_in, 40);
+		let (vertices, normals) = generate_spline_vertices(spline.as_ref(), road_width_in, 40);
+		let total_vertices = vertices.len();
+
+		// let border_vertices = generate_border_vertices(&vertices, &normals, road_width_in, transform, &mut debug_lines);
 
 		for &child in children_e.iter() {
 			let handle 	= match q_polyline.get(child) {
@@ -182,53 +185,50 @@ pub fn road_draw(
 
 			let line	= polylines.get_mut(handle).unwrap();
 
-
-			// line.vertices.clear();
 			if line_id == 0 {
 				line.vertices = vertices.to_owned();
 			}
-    		// line.vertices.reserve(total_verts + 1);
-
-			// let offset_x = (-road_width / 2.0) + *line_id as f32 * (road_width / 2.0);
-			// let mut www = Vec3::new(offset_x, 0.0, 0.0);
-			// www = spline_r.mul_vec3(www);
-
-			// let line_start = transform.translation + spline_p + vert_offset;
-			// let line_end = transform.translation + spline_p + www + vert_offset;
-			// debug_lines.line(
-			// 	line_start,
-			// 	line_end,
-			// 	0.01,
-			// );
 
 			line_id += 1;
 		}
 	}
 }
 
-fn generate_spline_vertices(
+pub fn generate_spline_vertices(
 	spline				: &Spline,
 	road_width_in		: Option<&RoadWidth>,
 	verts_per_segment 	: usize,
-) -> Vec<Vec3> {
+) -> (Vec<Vec3>, Vec<Quat>) {
     let keys = spline.keys();
 	let key0 = keys[0];
     if keys.len() < 2 {
-		return [key0.value].into();
+		return ([key0.value].into(), [Quat::IDENTITY].into());
 	}
 
     let total_keys = keys.len();
     let total_verts	= verts_per_segment * total_keys;
     
     let total_length 	= spline.total_length();
-    let road_width 		= match road_width_in 	{ Some(rw) => *rw, None => RoadWidth::W(1.0) };
-    let road_width 		= match road_width 		{ RoadWidth::W(w) => w };
     let delta 			= total_length / (total_verts as f32);
 	
-    screen_print!("keys: {} total_length: {} verts: {} road_width: {} delta: {}", keys.len(), total_length, total_verts, road_width, delta);
+    screen_print!("keys: {} total_length: {} verts: {} delta: {}", keys.len(), total_length, total_verts, delta);
 
 	let mut vertices : Vec<Vec3> = [].into();
-	vertices.reserve(total_verts);
+	vertices.reserve(total_verts + 1);
+
+	let mut normals : Vec<Quat> = [].into();
+	normals.reserve(total_verts + 1);
+
+	let mut dotp : Vec<f32> = [].into();
+	dotp.reserve(total_verts + 1);
+
+	let mut positive_dp_segments : Vec<(usize, usize)> = [].into();
+
+	let mut prev_dp = 0.0;
+	let mut positive_dp_start : usize = 0;
+	let mut positive_dp_acc : usize = 0;
+	let mut max_positive_dp_start : usize = 0;
+	let mut max_positive_dp_acc : usize = 0;
 
     for i in 0 ..= total_verts {
 		let t = i as f32 * delta;
@@ -248,12 +248,80 @@ fn generate_spline_vertices(
 		let vert_offset = Vec3::Y * 0.5;
 
 		let spline_dir	= (next_spline_p - spline_p).normalize();
-		let mut spline_r = Quat::from_rotation_arc(Vec3::Z, spline_dir);
+		let spline_norm = Quat::from_rotation_arc(Vec3::Z, spline_dir);
+
+		let dp = spline_p.dot(next_spline_p);
+
+		if dp < 0.0 {
+			positive_dp_segments.push((positive_dp_start, positive_dp_acc));
+			if max_positive_dp_acc < positive_dp_acc {
+				max_positive_dp_acc = positive_dp_acc;
+				max_positive_dp_start = positive_dp_start;
+			}
+			positive_dp_acc = 0;
+		} else {
+			positive_dp_acc += 1;
+			if prev_dp < 0.0 {
+				positive_dp_start = i;
+			}
+		}
+		prev_dp = dp;
 
 		vertices.push(spline_p + vert_offset);
+		normals.push(spline_norm);
+		dotp.push(dp);
 	}
 
-	vertices
+	(vertices, normals)
+}
+
+pub fn generate_border_vertices(
+	vertices		: &Vec<Vec3>,
+	normals			: &Vec<Quat>,
+	road_width_in	: Option<&RoadWidth>,
+	transform		: &GlobalTransform,
+	mut debug_lines	: &mut ResMut<DebugLines>,
+) -> Vec<Vec3>
+{
+	let total_vertices = vertices.len();
+
+	let mut border_vertices : Vec<Vec3> = [].into();
+	border_vertices.reserve(total_vertices);
+
+	let road_width 		= match road_width_in 	{ Some(rw) => *rw, None => RoadWidth::W(1.0) };
+	let road_width 		= match road_width 		{ RoadWidth::W(w) => w };
+
+	let mut prev_bv		= Vec3::ZERO;
+	let mut prev_dir	= Vec3::ZERO;
+	for i in 0 .. total_vertices {
+		let v = vertices[i];
+
+		let offset_x	= (-road_width / 2.0);// + line_id as f32 * (road_width / 2.0);
+		let mut www		= Vec3::new(offset_x, 0.0, 0.0);
+		www				= normals[i].mul_vec3(www);
+
+		let bv 			= v + www;
+		let dir 		= bv - prev_bv;
+		
+		// if prev_dir.dot(dir) < 0.0 {
+		// 	continue;
+		// }
+
+		prev_bv			= bv;
+		prev_dir		= dir;
+
+		border_vertices.push(bv);
+
+		let line_start 	= transform.translation + v;
+		let line_end 	= transform.translation + bv;
+		debug_lines.line(
+			line_start,
+			line_end,
+			0.01,
+		);
+	}
+
+	border_vertices
 }
 
 pub fn road_system(

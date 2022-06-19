@@ -166,7 +166,7 @@ pub fn new(
 	let key1_e 			= self::control_point(&key1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
 
 	// left border, center and right border lines
-	for i in 0..3 {
+	for i in 0..1 {
 		let line_id = sargs.commands.spawn_bundle(PolylineBundle {
 			polyline : polylines.add(Polyline {
 				vertices	: vec![key0_pos, key1_pos],
