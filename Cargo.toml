@@ -20,7 +20,7 @@ scopeguard			= "1.1.0"
 directories 		= "4.0"
 ron 				= "0.7"
 serde 				= { version = "1", features = ["derive"] }
-bevy 				= { version = "0.7" } #, features = ["dynamic"] }
+bevy 				= { version = "0.7", features = ["dynamic"] }
 rapier3d 			= { git = "https://github.com/gavlig/rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render", "parallel" ] }
 bevy_rapier3d 		= { git = "https://github.com/gavlig/bevy_rapier.git", branch = "gryazevichki", features = [ "simd-stable", "debug-render", "parallel" ] }
 bevy_egui 			= "0.13"
