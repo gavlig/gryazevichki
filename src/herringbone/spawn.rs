@@ -111,7 +111,7 @@ pub fn brick_road_iter(
 		herrrot = Quat::from_rotation_y(-FRAC_PI_4);
 	};
 
-	{
+	if state.iter < 2 {
 		let mut herrpos = Vec3::ZERO;
 
 		let offset = iter_offset * linear2spline_ratio;
@@ -124,6 +124,8 @@ pub fn brick_road_iter(
 			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
 			debug_lines.line_gradient(p, herrpos, 0.01, Color::rgb(0.9, 0.9, 0.9), Color::rgb(0.2, 0.2, 0.8));
 		};
+
+		println!("[{}] hboffset from [{:.3} {:.3}] to [{:.3} {:.3}]", state.iter, p.x, p.z, herrpos.x, herrpos.z);
 	}
 
 	let mut calc_t = |state_t : f32, iter : u32, correction0 : f32, correction1 : f32| -> (f32, f32) {
@@ -135,16 +137,16 @@ pub fn brick_road_iter(
 		} else {
 			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
 		};
-		println!("herrpos.z : {:.3} p.z : {:.3} herrpos.xz : [{:.3} {:.3}] state.t : {:.3}", herrpos.z, p.z, herrpos.x, herrpos.z, state_t);
+		println!("calc_t herrpos.z : {:.3} p.z : {:.3} herrpos.xz : [{:.3} {:.3}] state.t : {:.3}", herrpos.z, p.z, herrpos.x, herrpos.z, state_t);
 
-		let t = if iter < 0 { herrpos.length() } else { p.z };
+		let t = if iter < 2 { herrpos.z } else { p.z };
 
 		(state_t + herrpos.z, t)
 	};
 
 	let (t, tile_dist_target) = calc_t(state.t, state.iter, 1.0, 1.0);
 
-	println!("0 [{}] t: {:.3} linear: {:.3}", state.iter, t, state.t + (iter_offset * linear2spline_ratio));
+	println!("0 [{}] t: {:.3} linear: {:.3} tile_dist_target: {:.3}", state.iter, t, state.t + (iter_offset * linear2spline_ratio), tile_dist_target);
 
 	// println!("0 t: {:.3} offset {:.3} ratio: {:.3} linear: {:.3} spline: {:.3}", t, calc_offset_z(iter0), ratio, linear_length, spline_segment_length);
 
@@ -163,6 +165,7 @@ pub fn brick_road_iter(
 	let correction0 = tile_dist_target / tile_dist_actual;
 
 	let (t, _) = calc_t(state.t, state.iter, correction0, 1.0);
+	println!("t0 : {:.3} correction0 {:.3} / {:.3} = {:.3}", t, tile_dist_target, tile_dist_actual, correction0);
 
 	let spline_p		= match spline.clamped_sample(t) {
 		Some(p)			=> p,
@@ -173,6 +176,7 @@ pub fn brick_road_iter(
 	let correction1 = tile_dist_target / tile_dist_actual;
 
 	let (t, herrx) = calc_t(state.t, state.iter, correction0, correction1);
+	println!("t1 : {:.3} correction1 {:.3} / {:.3} = {:.3}", t, tile_dist_target, tile_dist_actual, correction1);
 
 	if t > total_length {
 		state.finished = true;
