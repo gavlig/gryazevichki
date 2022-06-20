@@ -91,6 +91,8 @@ pub fn brick_road_iter(
 
 	// t == z in spherical vacuum
 
+	let dbg_iter = 4;
+
 	let keys = spline.keys();
 	let key_id = state.key;
 	let key0 = keys[key_id + 0];
@@ -111,7 +113,7 @@ pub fn brick_road_iter(
 		herrrot = Quat::from_rotation_y(-FRAC_PI_4);
 	};
 
-	if state.iter < 2 {
+	{
 		let mut herrpos = Vec3::ZERO;
 
 		let offset = iter_offset * linear2spline_ratio;
@@ -125,10 +127,12 @@ pub fn brick_road_iter(
 			debug_lines.line_gradient(p, herrpos, 0.01, Color::rgb(0.9, 0.9, 0.9), Color::rgb(0.2, 0.2, 0.8));
 		};
 
-		println!("[{}] hboffset from [{:.3} {:.3}] to [{:.3} {:.3}]", state.iter, p.x, p.z, herrpos.x, herrpos.z);
+		if state.iter < 4 {
+			println!("[{}] hboffset from [{:.3} {:.3}] to [{:.3} {:.3}]", state.iter, p.x, p.z, herrpos.x, herrpos.z);
+		}
 	}
 
-	let mut calc_t = |state_t : f32, iter : u32, correction0 : f32, correction1 : f32| -> (f32, f32) {
+	let mut calc_t = |state_t : f32, iter : u32, correction0 : f32, correction1 : f32| -> (f32, f32, f32) {
 		let offset = iter_offset * linear2spline_ratio * correction0 * correction1;
 		let p = Vec3::new(0.0, 0.0, offset);
 		let mut herrpos = p;
@@ -139,16 +143,15 @@ pub fn brick_road_iter(
 		};
 		println!("calc_t herrpos.z : {:.3} p.z : {:.3} herrpos.xz : [{:.3} {:.3}] state.t : {:.3}", herrpos.z, p.z, herrpos.x, herrpos.z, state_t);
 
-		let t = if iter < 2 { herrpos.z } else { p.z };
+		let t = if iter < dbg_iter { herrpos.z } else { p.z };
+		let t_clean = p.z;
 
-		(state_t + herrpos.z, t)
+		(state_t + t, t, t_clean)
 	};
 
-	let (t, tile_dist_target) = calc_t(state.t, state.iter, 1.0, 1.0);
+	let (t, tile_dist_target, _) = calc_t(state.t, state.iter, 1.0, 1.0);
 
-	println!("0 [{}] t: {:.3} linear: {:.3} tile_dist_target: {:.3}", state.iter, t, state.t + (iter_offset * linear2spline_ratio), tile_dist_target);
-
-	// println!("0 t: {:.3} offset {:.3} ratio: {:.3} linear: {:.3} spline: {:.3}", t, calc_offset_z(iter0), ratio, linear_length, spline_segment_length);
+	println!("[{}] t: {:.3} linear: {:.3} tile_dist_target: {:.3}", state.iter, t, state.t + (iter_offset * linear2spline_ratio), tile_dist_target);
 
 	if state.prev_spline_p.is_none() {
 		state.prev_spline_p = spline.clamped_sample(key0.t);
@@ -164,8 +167,8 @@ pub fn brick_road_iter(
 	let tile_dist_actual = (spline_p - prev_spline_p).length();
 	let correction0 = tile_dist_target / tile_dist_actual;
 
-	let (t, _) = calc_t(state.t, state.iter, correction0, 1.0);
-	println!("t0 : {:.3} correction0 {:.3} / {:.3} = {:.3}", t, tile_dist_target, tile_dist_actual, correction0);
+	let (t, _, _) = calc_t(state.t, state.iter, correction0, 1.0);
+	println!("[{}] t0 : {:.3} correction0 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction0);
 
 	let spline_p		= match spline.clamped_sample(t) {
 		Some(p)			=> p,
@@ -175,23 +178,26 @@ pub fn brick_road_iter(
 	let tile_dist_actual = (spline_p - prev_spline_p).length();
 	let correction1 = tile_dist_target / tile_dist_actual;
 
-	let (t, herrx) = calc_t(state.t, state.iter, correction0, correction1);
-	println!("t1 : {:.3} correction1 {:.3} / {:.3} = {:.3}", t, tile_dist_target, tile_dist_actual, correction1);
+	let (t, _, t_clean) = calc_t(state.t, state.iter, correction0, correction1);
+	println!("[{}] t1 : {:.3} correction1 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction1);
 
 	if t > total_length {
 		state.finished = true;
 		return;
 	}
 
-	// println!("0 t: {:.3} t_cache : {:.3} spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} ratio {:.3}", t, t_cache, spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
-
-	println!("1 [{}] t: {:.3} spline_p [{:.3} {:.3}] herrx: {:.3}", state.iter, t, spline_p.x, spline_p.z, herrx);
-
 	let spline_p		= match spline.sample(t) {
 		Some(p)			=> p,
 		None			=> panic!("main spline.sample failed! t: {} keys: {:?}", t, keys),
 	};
-	state.prev_spline_p	= Some(spline_p);
+
+	let spline_p_clean	= match spline.clamped_sample(state.t + t_clean) {
+		Some(p)			=> p,
+		None			=> panic!("main spline_p_clean.sample failed! t: {} keys: {:?}", state.t + t_clean, keys),
+	};
+	state.prev_spline_p	= Some(spline_p_clean);
+
+	println!("[{}] final spline_p [{:.3} {:.3}] for t : {:.3} spline_p_clean [{:.3} {:.3}]", state.iter, spline_p.x, spline_p.z, t, spline_p_clean.x, spline_p_clean.z);
 
 	let next_t = 
 	if t + 0.01 < total_length {
@@ -204,13 +210,9 @@ pub fn brick_road_iter(
 		None			=> panic!("secondary spline.clamped_sample failed!"),
 	};
 
-	// let tile_dist = (spline_p - prev_spline_p).length();
-
-	// println!("1 spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3}", spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset);
-
 	let detail_spline_rotation = {
-			let spline_dir	= (next_spline_p - spline_p).normalize();
-			Quat::from_rotation_arc(Vec3::Z, spline_dir)
+		let spline_dir	= (next_spline_p - spline_p).normalize();
+		Quat::from_rotation_arc(Vec3::Z, spline_dir)
 	};
 
 	let mut pose 		= Transform::identity();
@@ -221,17 +223,15 @@ pub fn brick_road_iter(
 	pose.rotation		*= init_rotation * herrrot * detail_spline_rotation; // 
 
 	{
-	if state.iter < 2 && debug > 0 {
-		// pose.translation.x += herrx;
+	if state.iter < dbg_iter && debug > 0 {
 
 		let offset = iter_offset * linear2spline_ratio * correction0 * correction1;
 		let p = Vec3::new(0.0, 0.0, offset);
 		let mut herrpos = p;
 		{
-			// herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
 			if state.iter % 2 == 0 {
 				herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3( Vec3::Z) * hlenx;
-			} else if debug > 1 {
+			} else { //if debug > 1 {
 				herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
 			};
 
@@ -244,7 +244,7 @@ pub fn brick_road_iter(
 			pose.translation.x += herr.x;
 			pose.translation.z += herr.z;
 
-			println!("final xz : [{:.3}({:.3}) {:.3}] herrpos.xz [{:.3} {:.3}] spline_p.xz [{:.3} {:.3}] state.t {:.3}", pose.translation.x, before, pose.translation.z, herrpos.x, herrpos.z, spline_p.x, spline_p.z, state.t);
+			println!("[{}] final xz : [{:.3}({:.3}) {:.3}] herrpos.xz [{:.3} {:.3}] spline_p.xz [{:.3} {:.3}] state.t {:.3}", state.iter, pose.translation.x, before, pose.translation.z, herrpos.x, herrpos.z, spline_p.x, spline_p.z, state.t);
 		};
 	}
 	}
@@ -289,13 +289,16 @@ pub fn brick_road_iter(
 	}
 
 	state.iter	+= 1;
-	state.t		 = t;
+	state.t		+= t_clean;
+	// state.t		 = t;
+
+	println!("[{}] new state.t : {:.3} prev : {:.3} t_clean : {:.3}", state.iter, state.t, state.t - t_clean, t_clean);
 
 	// check for end conditions
 	//
 	//
 
-	let (newoffz, _) = calc_t(state.t, state.iter, 1.0, 1.0);
+	let (newoffz, _, _) = calc_t(state.t, state.iter, 1.0, 1.0);
 
 	if newoffz >= total_length {
 		state.finished = true;
