@@ -307,23 +307,6 @@ pub fn input_misc_system(
 		if !selection_found {
 			selection_found = check_selection_recursive(children, &q_children, &q_selection, 0, 2);
 
-			// for child in children.iter() {
-			// 	let selection = match q_selection.get(*child) {
-			// 		Ok(s) => s,
-			// 		Err(_) => {
-			// 			let subchildren = match q_children.get(*child) {
-			// 				Ok(c) => { q_selection.get() },
-			// 				Err(_) => continue,
-			// 			};
-			// 		},
-			// 	};
-
-			// 	if selection.selected() {
-			// 		selection_found = true;
-			// 		break;
-			// 	}
-			// }
-
 			if !selection_found {
 				continue;
 			}
@@ -356,7 +339,7 @@ pub fn input_misc_system(
 			spline_ctl.new_point = true;
 		}
 
-		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Q) {
+		if key.just_pressed(KeyCode::Q) {
 			tile_ctl.debug += 1;
 			if tile_ctl.debug > 2 {
 				tile_ctl.debug = 0;
