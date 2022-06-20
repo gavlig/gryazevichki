@@ -1,5 +1,6 @@
 use bevy			:: { prelude :: * };
 use bevy			:: { app::AppExit };
+use bevy_debug_text_overlay::screen_print;
 use bevy_rapier3d	:: { prelude :: * };
 use bevy_fly_camera	:: { FlyCamera };
 use bevy_mod_picking:: { * };
@@ -306,6 +307,23 @@ pub fn input_misc_system(
 		if !selection_found {
 			selection_found = check_selection_recursive(children, &q_children, &q_selection, 0, 2);
 
+			// for child in children.iter() {
+			// 	let selection = match q_selection.get(*child) {
+			// 		Ok(s) => s,
+			// 		Err(_) => {
+			// 			let subchildren = match q_children.get(*child) {
+			// 				Ok(c) => { q_selection.get() },
+			// 				Err(_) => continue,
+			// 			};
+			// 		},
+			// 	};
+
+			// 	if selection.selected() {
+			// 		selection_found = true;
+			// 		break;
+			// 	}
+			// }
+
 			if !selection_found {
 				continue;
 			}
@@ -324,13 +342,13 @@ pub fn input_misc_system(
 		}
 
 		if key.pressed(KeyCode::RControl) && !key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
-			tile_ctl.animate	= true;
+			tile_ctl.animate = true;
 			tile_ctl.last_update = time.seconds_since_startup();
 		}
 
 		if key.pressed(KeyCode::RControl) && key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
-			tile_ctl.instant	= true;
-			tile_ctl.next 	= true;
+			tile_ctl.instant = true;
+			tile_ctl.next = true;
 			tile_ctl.last_update = time.seconds_since_startup();
 		}
 
@@ -339,9 +357,13 @@ pub fn input_misc_system(
 		}
 
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Q) {
-			tile_ctl.debug 	= !tile_ctl.debug;
+			tile_ctl.debug += 1;
+			if tile_ctl.debug > 2 {
+				tile_ctl.debug = 0;
+			}
+			screen_print!("Tile Control Debug: {}", tile_ctl.debug);
 			tile_ctl.reset	= true;
-			tile_ctl.instant	= true;
+			tile_ctl.instant = true;
 			tile_ctl.next 	= true;
 		}
 	}

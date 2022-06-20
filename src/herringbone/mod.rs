@@ -23,7 +23,7 @@ pub struct HerringboneControl {
 	pub animate			: bool,
 	pub reset			: bool,
 	pub instant			: bool,
-	pub debug			: bool,
+	pub debug			: u32,
 	pub last_update		: f64,
 	pub anim_delay_sec	: f64,
 }
@@ -35,7 +35,7 @@ impl Default for HerringboneControl {
 			animate		: false,
 			reset		: false,
 			instant		: false,
-			debug		: false,
+			debug		: 0,
 			last_update	: 0.0,
 			anim_delay_sec: 0.001,
 		}

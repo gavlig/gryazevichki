@@ -65,7 +65,7 @@ pub fn brick_road_iter(
 	mut	config			: &mut Herringbone2Config,
 		spline			: &Spline,
 		transform		: &GlobalTransform,
-		debug			: bool,
+		debug			: u32,
 		_ass			: &Res<AssetServer>,
 		sargs			: &mut SpawnArguments,
 
@@ -137,9 +137,9 @@ pub fn brick_road_iter(
 		};
 		println!("herrpos.z : {:.3} p.z : {:.3} herrpos.xz : [{:.3} {:.3}] state.t : {:.3}", herrpos.z, p.z, herrpos.x, herrpos.z, state_t);
 
-		let z = if iter == 1 { herrpos.z } else { p.z };
+		let t = if iter < 0 { herrpos.length() } else { p.z };
 
-		(state_t + herrpos.z, z)
+		(state_t + herrpos.z, t)
 	};
 
 	let (t, tile_dist_target) = calc_t(state.t, state.iter, 1.0, 1.0);
@@ -217,22 +217,28 @@ pub fn brick_road_iter(
 	pose.rotation		*= init_rotation * herrrot * detail_spline_rotation; // 
 
 	{
-	if state.iter % 2 != 0 {
+	if state.iter < 2 && debug > 0 {
 		// pose.translation.x += herrx;
 
 		let offset = iter_offset * linear2spline_ratio * correction0 * correction1;
 		let p = Vec3::new(0.0, 0.0, offset);
 		let mut herrpos = p;
-		if state.iter == 1 {
-			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
+		{
+			// herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
+			if state.iter % 2 == 0 {
+				herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3( Vec3::Z) * hlenx;
+			} else if debug > 1 {
+				herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
+			};
 
 			let z = herrpos.z;
 
-			let mut herr = Vec3::new(herrx, 0.0, 0.0);
+			let mut herr = Vec3::new(herrpos.x, 0.0, 0.0);
 			herr = detail_spline_rotation.mul_vec3(herr);
 
 			let before = pose.translation.x;
-			pose.translation.x += herrpos.x;
+			pose.translation.x += herr.x;
+			pose.translation.z += herr.z;
 
 			println!("final xz : [{:.3}({:.3}) {:.3}] herrpos.xz [{:.3} {:.3}] spline_p.xz [{:.3} {:.3}] state.t {:.3}", pose.translation.x, before, pose.translation.z, herrpos.x, herrpos.z, spline_p.x, spline_p.z, state.t);
 		};
