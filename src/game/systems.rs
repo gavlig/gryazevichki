@@ -276,8 +276,9 @@ pub fn input_misc_system(
 	mut	phys_ctx	: ResMut<DebugRenderContext>,
 	mut exit		: EventWriter<AppExit>,
 	mut q_camera	: Query<&mut FlyCamera>,
-	mut q_control	: Query<(Entity, &Children, &mut bevy_spline::SplineControl, &mut herringbone::HerringboneControl, )>,
+	mut q_control	: Query<(Entity, &Children, &mut bevy_spline::SplineControl, &mut herringbone::HerringboneControl)>,
 		q_selection	: Query<&Selection>,
+		q_children	: Query<&Children>,
 ) {
 	for mut camera in q_camera.iter_mut() {
 		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Space) {
@@ -298,22 +299,12 @@ pub fn input_misc_system(
 	if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Key1) {
 		phys_ctx.enabled = !phys_ctx.enabled;
 	}
-	
+
 	for (control_e, children, mut spline_ctl, mut tile_ctl) in q_control.iter_mut() {
 		let selection = q_selection.get(control_e).unwrap();
 		let mut selection_found = selection.selected();
 		if !selection_found {
-			for child in children.iter() {
-				let selection = match q_selection.get(*child) {
-					Ok(s) => s,
-					Err(_) => continue,
-				};
-
-				if selection.selected() {
-					selection_found = true;
-					break;
-				}
-			}
+			selection_found = check_selection_recursive(children, &q_children, &q_selection, 0, 2);
 
 			if !selection_found {
 				continue;
@@ -354,6 +345,40 @@ pub fn input_misc_system(
 			tile_ctl.next 	= true;
 		}
 	}
+}
+
+fn check_selection_recursive(
+	children	: &Children,
+	q_children	: &Query<&Children>,
+	q_selection : &Query<&Selection>,
+	depth		: u32,
+	max_depth 	: u32
+ ) -> bool {
+	let mut selection_found = false;
+	for child in children.iter() {
+		let selection = match q_selection.get(*child) {
+			Ok(s) => s,
+			Err(_) => continue,
+		};
+
+		if selection.selected() {
+			selection_found = true;
+		} else {
+			if depth >= max_depth {
+				continue;
+			}
+			let subchildren = q_children.get(*child);
+			if subchildren.is_ok() {
+				selection_found = check_selection_recursive(subchildren.unwrap(), q_children, q_selection, depth + 1, max_depth);
+			}
+		}
+
+		if selection_found {
+			break;
+		}
+	}
+
+	selection_found
 }
 
 pub fn despawn_system(mut commands: Commands, time: Res<Time>, mut despawn: ResMut<DespawnResource>) {
