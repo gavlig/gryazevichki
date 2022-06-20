@@ -91,7 +91,7 @@ pub fn brick_road_iter(
 
 	// t == z in spherical vacuum
 
-	let dbg_iter = 4;
+	let dbg_iter = if debug != 1 { 4 } else { 100000000 };
 
 	let keys = spline.keys();
 	let key_id = state.key;
@@ -143,7 +143,7 @@ pub fn brick_road_iter(
 		};
 		println!("calc_t herrpos.z : {:.3} p.z : {:.3} herrpos.xz : [{:.3} {:.3}] state.t : {:.3}", herrpos.z, p.z, herrpos.x, herrpos.z, state_t);
 
-		let t = if iter < dbg_iter { herrpos.z } else { p.z };
+		let t = if iter < dbg_iter && debug < 2 { herrpos.z } else { p.z };
 		let t_clean = p.z;
 
 		(state_t + t, t, t_clean)
@@ -223,15 +223,14 @@ pub fn brick_road_iter(
 	pose.rotation		*= init_rotation * herrrot * detail_spline_rotation; // 
 
 	{
-	if state.iter < dbg_iter && debug > 0 {
-
+	if state.iter < dbg_iter && debug != 2 {
 		let offset = iter_offset * linear2spline_ratio * correction0 * correction1;
 		let p = Vec3::new(0.0, 0.0, offset);
 		let mut herrpos = p;
 		{
 			if state.iter % 2 == 0 {
 				herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3( Vec3::Z) * hlenx;
-			} else { //if debug > 1 {
+			} else {
 				herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
 			};
 
