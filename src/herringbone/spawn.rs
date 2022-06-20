@@ -96,40 +96,13 @@ pub fn brick_road_iter(
 	let key0 = keys[key_id + 0];
 	let key1 = keys[key_id + 1]; // assume we never have invalid key_id
 
-	let interpolation0 = key0.interpolation;
-	let interpolation1 = key1.interpolation;
-
-	// TODO: move this to method
-	let tangent01 = match interpolation0 {
-		splines::Interpolation::StrokeBezier(_V0, V1) => V1,
-		_ => panic!("unsupported interpolation!"),
-	};
-
-	let tangent10 = match interpolation1 {
-		splines::Interpolation::StrokeBezier(V0, _V1) => V0,
-		_ => panic!("unsupported interpolation!"),
-	};
-
-	let tangent01_local = tangent01 - key0.value;
-
-	let seglen0 = (tangent01 - key0.value).length();
-	let seglen1 = (tangent10 - tangent01).length();
-	let seglen2 = (key1.value - tangent10).length();
-
 	let linear_length = (key1.value - key0.value).length();
 	let spline_segment_length = spline.calculate_segment_length(key_id + 1);
 
-	let ratio = linear_length / spline_segment_length;
+	let linear2spline_ratio = linear_length / spline_segment_length;
 
 	let iter_offset = lenz + seam;
 
-	// let calc_offset_z = |iter : f32| -> f32 {
-	// 	//0.2 * iter
-	// 	hlenz + iter * iter_offset
-		
-	// };
-
-	// let mut herrpos = Vec3::ZERO;
 	let mut herrrot = Quat::IDENTITY;
 
 	if state.iter % 2 == 0 {
@@ -141,41 +114,37 @@ pub fn brick_road_iter(
 	{
 		let mut herrpos = Vec3::ZERO;
 
-		let offset = iter_offset * ratio;
+		let offset = iter_offset * linear2spline_ratio;
 		let p = Vec3::new(0.0, 1.5, state.t + offset);
 
 		if state.iter % 2 == 0 {
 			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(Vec3::Z) * hlenx;
-			debug_lines.line_colored(p, herrpos, 0.01, Color::rgb(0.8, 0.2, 0.2));
+			debug_lines.line_gradient(p, herrpos, 0.01, Color::rgb(0.9, 0.9, 0.9), Color::rgb(0.8, 0.2, 0.2))
 		} else {
 			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
-			debug_lines.line_colored(p, herrpos, 0.01, Color::rgb(0.2, 0.2, 0.8));
+			debug_lines.line_gradient(p, herrpos, 0.01, Color::rgb(0.9, 0.9, 0.9), Color::rgb(0.2, 0.2, 0.8));
 		};
 	}
 
 	let mut calc_t = |state_t : f32, iter : u32, correction0 : f32, correction1 : f32| -> (f32, f32) {
-		let offset = iter_offset * ratio * correction0 * correction1;
+		let offset = iter_offset * linear2spline_ratio * correction0 * correction1;
 		let p = Vec3::new(0.0, 0.0, offset);
 		let mut herrpos = p;
 		if iter % 2 == 0 {
-			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(Vec3::Z) * hlenx;
-			// herrpos = spline_p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(Vec3::Z) * 1.0;
-	
-			// debug_lines.line_colored(sp, herrpos + Vec3::Y, 0.01, Color::rgb(0.8, 0.2, 0.8));
+			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3( Vec3::Z) * hlenx;
 		} else {
 			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
-			// herrpos = spline_p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * 1.0;
-			// herrpos = spline_p + -Vec3::Z;
-	
-			// debug_lines.line_colored(sp, herrpos + Vec3::Y, 0.01, Color::rgb(0.2, 0.8, 0.8));
 		};
+		println!("herrpos.z : {:.3} p.z : {:.3} herrpos.xz : [{:.3} {:.3}] state.t : {:.3}", herrpos.z, p.z, herrpos.x, herrpos.z, state_t);
 
-		(state_t + herrpos.z, herrpos.x)
+		let z = if iter == 1 { herrpos.z } else { p.z };
+
+		(state_t + herrpos.z, z)
 	};
 
-	let (t, _) = calc_t(state.t, state.iter, 1.0, 1.0);
+	let (t, tile_dist_target) = calc_t(state.t, state.iter, 1.0, 1.0);
 
-	// let t = state.t + iter_offset * ratio;
+	println!("0 [{}] t: {:.3} linear: {:.3}", state.iter, t, state.t + (iter_offset * linear2spline_ratio));
 
 	// println!("0 t: {:.3} offset {:.3} ratio: {:.3} linear: {:.3} spline: {:.3}", t, calc_offset_z(iter0), ratio, linear_length, spline_segment_length);
 
@@ -190,10 +159,9 @@ pub fn brick_road_iter(
 	};
 	let spline_p_cache = spline_p.clone();
 
-	let tile_dist = (spline_p - prev_spline_p).length();
-	let correction0 = iter_offset / tile_dist;
+	let tile_dist_actual = (spline_p - prev_spline_p).length();
+	let correction0 = tile_dist_target / tile_dist_actual;
 
-	// let t = state.t + iter_offset * ratio * correction0;
 	let (t, _) = calc_t(state.t, state.iter, correction0, 1.0);
 
 	let spline_p		= match spline.clamped_sample(t) {
@@ -201,10 +169,9 @@ pub fn brick_road_iter(
 		None			=> panic!("first spline.sample failed!"),
    	};
 
-	let tile_dist = (spline_p - prev_spline_p).length();
-	let correction1 = iter_offset / tile_dist;
+	let tile_dist_actual = (spline_p - prev_spline_p).length();
+	let correction1 = tile_dist_target / tile_dist_actual;
 
-	// let t = state.t + (iter_offset * ratio * correction0) * correction1;
 	let (t, herrx) = calc_t(state.t, state.iter, correction0, correction1);
 
 	if t > total_length {
@@ -212,14 +179,9 @@ pub fn brick_road_iter(
 		return;
 	}
 
-	// let ratio = (tangent01.length_squared() - (tangent01.x * tangent01.x)).sqrt();
-
-	// let t_cache = t;
-	// let t_delta = t - state.t;
-	// let t = f32::min(state.t + (t_delta * ratio), total_length - 0.001);
-	state.t = t;
-
 	// println!("0 t: {:.3} t_cache : {:.3} spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3} ratio {:.3}", t, t_cache, spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset, ratio);
+
+	println!("1 [{}] t: {:.3} spline_p [{:.3} {:.3}] herrx: {:.3}", state.iter, t, spline_p.x, spline_p.z, herrx);
 
 	let spline_p		= match spline.sample(t) {
 		Some(p)			=> p,
@@ -238,11 +200,9 @@ pub fn brick_road_iter(
 		None			=> panic!("secondary spline.clamped_sample failed!"),
 	};
 
-	let tile_dist = (spline_p - prev_spline_p).length();
+	// let tile_dist = (spline_p - prev_spline_p).length();
 
 	// println!("1 spline_p: {:.3} {:.3} {:.3} tile_dist: {:.3} iter_offset: {:.3}", spline_p.x, spline_p.y, spline_p.z, tile_dist, iter_offset);
-
-	// pick next position, see how much space left between current and last tile, if more than seem, then either repick spline or trigonometry!
 
 	let detail_spline_rotation = {
 			let spline_dir	= (next_spline_p - spline_p).normalize();
@@ -250,11 +210,38 @@ pub fn brick_road_iter(
 	};
 
 	let mut pose 		= Transform::identity();
-
+ 
 	// tile offset/rotation
-	pose.translation.x 	= spline_p.x;// + herrx;
+	pose.translation.x 	= spline_p.x;
 	pose.translation.z 	= spline_p.z;
 	pose.rotation		*= init_rotation * herrrot * detail_spline_rotation; // 
+
+	{
+	if state.iter % 2 != 0 {
+		// pose.translation.x += herrx;
+
+		let offset = iter_offset * linear2spline_ratio * correction0 * correction1;
+		let p = Vec3::new(0.0, 0.0, offset);
+		let mut herrpos = p;
+		if state.iter == 1 {
+			herrpos = p + Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(-Vec3::Z) * hlenx;
+
+			let z = herrpos.z;
+
+			let mut herr = Vec3::new(herrx, 0.0, 0.0);
+			herr = detail_spline_rotation.mul_vec3(herr);
+
+			let before = pose.translation.x;
+			pose.translation.x += herrpos.x;
+
+			println!("final xz : [{:.3}({:.3}) {:.3}] herrpos.xz [{:.3} {:.3}] spline_p.xz [{:.3} {:.3}] state.t {:.3}", pose.translation.x, before, pose.translation.z, herrpos.x, herrpos.z, spline_p.x, spline_p.z, state.t);
+		};
+	}
+	}
+
+	if state.iter > 0 {
+		// pose.translation.x += herrx;
+	}
 
 	// spawning
 	//
@@ -291,7 +278,8 @@ pub fn brick_road_iter(
 		});
 	}
 
-	state.iter			+= 1;
+	state.iter	+= 1;
+	state.t		 = t;
 
 	// check for end conditions
 	//
