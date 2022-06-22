@@ -111,6 +111,7 @@ pub fn brick_road_iter(
 		herrrot = Quat::from_rotation_y(-FRAC_PI_4);
 	};
 
+	let cache_pos = state.pos;
 
 	let mut calc_next_pos = |prev_p : Vec3, iter : u32| -> Vec3 {
 		let ver = Vec3::Y * 1.5;
@@ -120,12 +121,12 @@ pub fn brick_road_iter(
 			let offset0_scalar = hlenz - hlenx;
 			let offset0 = Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(Vec3::Z * offset0_scalar);
 
-			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+			// debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
 
 			let offset1_scalar = hlenx + seam + hlenz;
 			let offset1 = Quat::from_rotation_y(FRAC_PI_4).mul_vec3(Vec3::Z * offset1_scalar);
 
-			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
 			println!("[{}] 0 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
 
 			offset0 + offset1
@@ -133,12 +134,12 @@ pub fn brick_road_iter(
 			let offset0_scalar = hlenz - hlenx;
 			let offset0 = Quat::from_rotation_y(FRAC_PI_4).mul_vec3(Vec3::Z * offset0_scalar);
 
-			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+			// debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
 
 			let offset1_scalar = hlenx + seam + hlenz;
 			let offset1 = Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(Vec3::Z * offset1_scalar);
 
-			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
 			println!("[{}] 1 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
 
 			offset0 + offset1
@@ -183,6 +184,17 @@ pub fn brick_road_iter(
 	let t = state.t + delta.z * correction0 * correction1;
 	println!("[{}] t1 : {:.3} correction1 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction1);
 
+	let spline_p		= match spline.clamped_sample(t) {
+		Some(p)			=> p,
+		None			=> panic!("first spline.sample failed!"),
+   	};
+
+	let tile_dist_actual = (spline_p - prev_spline_p).length();
+	let correction2 = tile_dist_target / tile_dist_actual;
+
+	let t = state.t + delta.z * correction0 * correction1 * correction2;
+	println!("[{}] t2 : {:.3} correction2 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction2);
+
 	if t > total_length {
 		state.finished = true;
 		return;
@@ -224,6 +236,48 @@ pub fn brick_road_iter(
 	pose.rotation		*= init_rotation * herrrot * detail_spline_rotation; // 
 
 	println!("[{}] final pose: [{:.3} {:.3}] delta.x: {:.3}", state.iter, pose.translation.x, pose.translation.z, delta.x);
+
+	{
+		let ver = Vec3::Y * 1.5;
+		let iter = state.iter;
+		let prev_p = cache_pos;
+
+		// let detail_spline_rotation = Quat::IDENTITY;
+	
+		let herrpos = prev_p +
+		if iter % 2 == 0 {
+			let offset0_scalar = hlenz - hlenx;
+			let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
+			// (detail_spline_rotation * init_rot)
+			let offset0 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
+	
+			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+	
+			let offset1_scalar = hlenx + seam + hlenz;
+			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
+			let offset1 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
+	
+			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+			println!("[{}] 0 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+	
+			offset0 + offset1
+		} else {
+			let offset0_scalar = hlenz - hlenx;
+			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
+			let offset0 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
+	
+			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+	
+			let offset1_scalar = hlenx + seam + hlenz;
+			let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
+			let offset1 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
+	
+			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+			println!("[{}] 1 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+	
+			offset0 + offset1
+		};
+	}
 
 	// spawning
 	//
