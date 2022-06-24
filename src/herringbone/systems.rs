@@ -3,7 +3,7 @@ use crate				:: { bevy_spline };
 use bevy_prototype_debug_lines :: { DebugLines };
 
 pub fn brick_road_system(
-	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut HerringboneControl, &mut Herringbone2Config, &mut TileState), Changed<HerringboneControl>>,
+	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut HerringboneControl, &mut Herringbone2Config, &mut TileState)>,//, Changed<HerringboneControl>>,
 
 	mut despawn			: ResMut<DespawnResource>,
 		time			: Res<Time>,
@@ -43,31 +43,50 @@ pub fn brick_road_system(
 
 		let do_spawn 	= control.next || control.animate;
 		if !do_spawn || tile_state.finished {
-			return;
+			continue;
 		}
 
 		let cur_time	= time.seconds_since_startup();
 		if (cur_time - control.last_update) < control.anim_delay_sec && !control.instant {
-			return;
+			continue;
 		}
 
 		control.last_update = cur_time;
 
-		if !control.instant {
-			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, &mut debug_lines);
-		} else {
+		let verbose = control.verbose;
+		let dry_run = control.dry_run;
+		let looped = control.looped;
+
+		if control.instant {
 			let mut tiles_cnt = 0;
-			while !tile_state.finished {// && ((tiles_cnt < 36 && control.debug) || !control.debug) {
-				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, &mut debug_lines);
+			while !tile_state.finished {
+				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, verbose, dry_run, &mut debug_lines);
 				tiles_cnt += 1;
 			}
-			println!("total tiles: {}", tiles_cnt);
-			control.instant = false;
+
+			if verbose {
+				println!("total tiles: {}", tiles_cnt);
+			}
+
+			if !looped { 
+				control.instant = false;
+			}
+		} else {
+			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, verbose, dry_run, &mut debug_lines);
+
+			if tile_state.finished {
+				if looped {
+					control.reset = true;
+				} else {
+					control.animate	= false;
+				}
+			}
 		}
 
-		control.next	= false;
-		if tile_state.finished {
-			control.animate	= false;
+		if looped && control.next == true && tile_state.finished {
+			control.reset	= true;
+		} else {
+			control.next	= false;
 		}
 	}
 }

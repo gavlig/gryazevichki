@@ -369,7 +369,7 @@ pub fn road_system(
 			for key_id in 1 .. keys_cnt {
 				let new_t = spline.calculate_segment_length(key_id);
 				spline.set_control_point_t(key_id, new_t + total_length);
-				println!("[{}]recalc_length {:.3}\n", key_id, new_t + total_length);
+				screen_print!("[{}]recalc_length {:.3}\n", key_id, new_t + total_length);
 				total_length += new_t;
 			}
 

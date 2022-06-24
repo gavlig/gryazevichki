@@ -314,25 +314,30 @@ pub fn input_misc_system(
 
 		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::T) {
 			tile_ctl.next 	= true;
+			screen_print!	("Tile Control Spawn");
 		}
 
-		if key.just_released(KeyCode::T) {
+		if key.just_released(KeyCode::T) && !key.pressed(KeyCode::RControl) && !key.pressed(KeyCode::RShift) {
 			tile_ctl.next 	= false;
+			screen_print!	("Tile Control Spawn Stopped");
 		}
 
 		if key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::T) {
 			tile_ctl.reset	= true;
+			screen_print!	("Tile Control Reset");
 		}
 
 		if key.pressed(KeyCode::RControl) && !key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
 			tile_ctl.animate = true;
 			tile_ctl.last_update = time.seconds_since_startup();
+			screen_print!	("Tile Control Animate");
 		}
 
 		if key.pressed(KeyCode::RControl) && key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
 			tile_ctl.instant = true;
 			tile_ctl.next = true;
 			tile_ctl.last_update = time.seconds_since_startup();
+			screen_print!	("Tile Control Spawn Instantly");
 		}
 
 		if btn.just_pressed(MouseButton::Right) {
@@ -348,6 +353,21 @@ pub fn input_misc_system(
 			tile_ctl.reset	= true;
 			tile_ctl.instant = true;
 			tile_ctl.next 	= true;
+		}
+
+		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::V) {
+			tile_ctl.verbose = !tile_ctl.verbose;
+			screen_print!("Tile Control Verbose: {}", tile_ctl.verbose);
+		}
+
+		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::D) {
+			tile_ctl.dry_run = !tile_ctl.dry_run;
+			screen_print!("Tile Control Dry Run: {}", tile_ctl.dry_run);
+		}
+
+		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::L) {
+			tile_ctl.looped = !tile_ctl.looped;
+			screen_print!("Tile Control Looped: {}", tile_ctl.looped);
 		}
 	}
 }

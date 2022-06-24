@@ -68,6 +68,8 @@ pub fn brick_road_iter(
 		debug			: u32,
 		_ass			: &Res<AssetServer>,
 		sargs			: &mut SpawnArguments,
+		verbose			: bool,
+		dry_run			: bool,
 
 	mut debug_lines		: &mut ResMut<DebugLines>,
 ) {
@@ -126,8 +128,10 @@ pub fn brick_road_iter(
 			let offset1_scalar = hlenx + seam + hlenz;
 			let offset1 = Quat::from_rotation_y(FRAC_PI_4).mul_vec3(Vec3::Z * offset1_scalar);
 
+			if verbose {
+				println!("[{}] 0 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			}
 			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
-			println!("[{}] 0 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
 
 			offset0 + offset1
 		} else {
@@ -140,7 +144,9 @@ pub fn brick_road_iter(
 			let offset1 = Quat::from_rotation_y(-FRAC_PI_4).mul_vec3(Vec3::Z * offset1_scalar);
 
 			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
-			println!("[{}] 1 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			if verbose {
+				println!("[{}] 1 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			}
 
 			offset0 + offset1
 		};
@@ -154,7 +160,9 @@ pub fn brick_road_iter(
 	let t = state.t + delta.z;
 	let tile_dist_target = delta.z;
 
-	println!("[{}] t: {:.3} next_pos:[{:.3} {:.3}] prev_pos: [{:.3} {:.3}] delta: [{:.3} {:.3}]", state.iter, t, next_pos.x, next_pos.z, state.pos.x, state.pos.z, delta.x, delta.z);
+	if verbose {
+		println!("[{}] t: {:.3} next_pos:[{:.3} {:.3}] prev_pos: [{:.3} {:.3}] delta: [{:.3} {:.3}]", state.iter, t, next_pos.x, next_pos.z, state.pos.x, state.pos.z, delta.x, delta.z);
+	}
 
 	if state.prev_spline_p.is_none() {
 		state.prev_spline_p = spline.clamped_sample(key0.t);
@@ -171,7 +179,9 @@ pub fn brick_road_iter(
 	let correction0 = tile_dist_target / tile_dist_actual;
 
 	let t = state.t + delta.z * correction0;
-	println!("[{}] t0 : {:.3} correction0 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction0);
+	if verbose {
+		println!("[{}] t0 : {:.3} correction0 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction0);
+	}
 
 	let spline_p		= match spline.clamped_sample(t) {
 		Some(p)			=> p,
@@ -182,7 +192,9 @@ pub fn brick_road_iter(
 	let correction1 = tile_dist_target / tile_dist_actual;
 
 	let t = state.t + delta.z * correction0 * correction1;
-	println!("[{}] t1 : {:.3} correction1 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction1);
+	if verbose {
+		println!("[{}] t1 : {:.3} correction1 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction1);
+	}
 
 	let spline_p		= match spline.clamped_sample(t) {
 		Some(p)			=> p,
@@ -193,7 +205,9 @@ pub fn brick_road_iter(
 	let correction2 = tile_dist_target / tile_dist_actual;
 
 	let t = state.t + delta.z * correction0 * correction1 * correction2;
-	println!("[{}] t2 : {:.3} correction2 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction2);
+	if verbose {
+		println!("[{}] t2 : {:.3} correction2 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction2);
+	}
 
 	if t > total_length {
 		state.finished = true;
@@ -206,7 +220,9 @@ pub fn brick_road_iter(
 	};
 	state.prev_spline_p	= Some(spline_p);
 
-	println!("[{}] final spline_p [{:.3} {:.3}] for t : {:.3}", state.iter, spline_p.x, spline_p.z, t);
+	if verbose {
+		println!("[{}] final spline_p [{:.3} {:.3}] for t : {:.3}", state.iter, spline_p.x, spline_p.z, t);
+	}
 
 	let next_t = 
 	if t + 0.01 < total_length {
@@ -235,9 +251,11 @@ pub fn brick_road_iter(
 	pose.translation.z 	= spline_p.z;
 	pose.rotation		*= init_rotation * herrrot * detail_spline_rotation; // 
 
-	println!("[{}] final pose: [{:.3} {:.3}] delta.x: {:.3}", state.iter, pose.translation.x, pose.translation.z, delta.x);
+	if verbose {
+		println!("[{}] final pose: [{:.3} {:.3}] delta.x: {:.3}", state.iter, pose.translation.x, pose.translation.z, delta.x);
+	}
 
-	{
+	if state.iter > 0 {
 		let ver = Vec3::Y * 1.5;
 		let iter = state.iter;
 		let prev_p = cache_pos;
@@ -256,9 +274,11 @@ pub fn brick_road_iter(
 			let offset1_scalar = hlenx + seam + hlenz;
 			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
 			let offset1 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
-	
+
 			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
-			println!("[{}] 0 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			if verbose {
+				println!("[{}] 0 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			}
 	
 			offset0 + offset1
 		} else {
@@ -273,7 +293,9 @@ pub fn brick_road_iter(
 			let offset1 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
 	
 			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
-			println!("[{}] 1 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			if verbose {	
+				println!("[{}] 1 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			}
 	
 			offset0 + offset1
 		};
@@ -283,13 +305,13 @@ pub fn brick_road_iter(
 	//
 	//
 
-	// spawn first brick with a strong reference to keep reference count > 0 and mesh/material from dying when out of scope
-	let (mut me, mut ma) = (config.mesh.clone_weak(), config.material.clone_weak());
-	if state.iter == 0 {
-		(me, ma) = (config.mesh.clone(), config.material.clone());
-	}
+	if !dry_run {
+		// spawn first brick with a strong reference to keep reference count > 0 and keep mesh/material from dying when out of scope
+		let (mut me, mut ma) = (config.mesh.clone_weak(), config.material.clone_weak());
+		if state.iter == 0 {
+			(me, ma) = (config.mesh.clone(), config.material.clone());
+		}
 
-	{
 		// this can be done without macro, but i need it for a reference
 		macro_rules! insert_tile_components {
 			($a:expr) => {
