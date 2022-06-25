@@ -3,7 +3,15 @@ use crate				:: { bevy_spline };
 use bevy_prototype_debug_lines :: { DebugLines };
 
 pub fn brick_road_system(
-	mut q_spline		: Query<(Entity, &Children, &GlobalTransform, &mut Spline, &mut HerringboneControl, &mut Herringbone2Config, &mut TileState)>,//, Changed<HerringboneControl>>,
+	mut q_spline		: Query<(
+							Entity,
+							&Children,
+							&GlobalTransform,
+							&mut Spline,
+							&mut HerringboneControl,
+							&mut Herringbone2Config,
+							&mut TileState
+						)>,//, Changed<HerringboneControl>>,
 
 	mut despawn			: ResMut<DespawnResource>,
 		time			: Res<Time>,

@@ -61,6 +61,7 @@ pub struct TileState {
 	pub x 				: u32,
 	pub z 				: u32,
 	pub iter			: u32,
+	pub iter_width		: u32,
 	pub key				: usize,
 	pub t				: f32,
 	pub pos				: Vec3,
@@ -77,6 +78,7 @@ impl Default for TileState {
 			x 			: 0,
 			z 			: 0,
 			iter		: 0,
+			iter_width	: 0,
 			key			: 0,
 			t			: 0.0,
 			pos			: Vec3::Y * 0.5, // VERTICALITY
