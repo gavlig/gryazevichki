@@ -309,18 +309,18 @@ pub fn input_misc_system(
 		}
 
 		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::T) {
-			tile_ctl.next 	= true;
-			screen_print!	("Tile Control Spawn");
+			tile_ctl.spawn_tile = true;
+			screen_print!	("Tile Control Spawn Single Tile");
 		}
 
 		if key.just_released(KeyCode::T) && !key.pressed(KeyCode::RControl) && !key.pressed(KeyCode::RShift) {
-			tile_ctl.next 	= false;
+			tile_ctl.spawn_tile = false;
 			screen_print!	("Tile Control Spawn Stopped");
 		}
 
 		if key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::T) {
-			tile_ctl.reset	= true;
-			screen_print!	("Tile Control Reset");
+			tile_ctl.clean_tiles = true;
+			screen_print!	("Tile Control Clean Tiles");
 		}
 
 		if key.pressed(KeyCode::RControl) && !key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
@@ -331,9 +331,9 @@ pub fn input_misc_system(
 
 		if key.pressed(KeyCode::RControl) && key.pressed(KeyCode::RShift) && key.just_pressed(KeyCode::T) {
 			tile_ctl.instant = true;
-			tile_ctl.next = true;
+			tile_ctl.spawn_tile = true;
 			tile_ctl.last_update = time.seconds_since_startup();
-			screen_print!	("Tile Control Spawn Instantly");
+			screen_print!	("Tile Control Spawn All Tiles Instantly");
 		}
 
 		if btn.just_pressed(MouseButton::Right) {
@@ -346,9 +346,7 @@ pub fn input_misc_system(
 				tile_ctl.debug = 0;
 			}
 			screen_print!("Tile Control Debug: {}", tile_ctl.debug);
-			tile_ctl.reset	= true;
-			tile_ctl.instant = true;
-			tile_ctl.next 	= true;
+			tile_ctl.respawn_all_tiles_instantly();
 		}
 
 		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::V) {

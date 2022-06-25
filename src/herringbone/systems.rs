@@ -28,7 +28,7 @@ pub fn brick_road_system(
 	};
 
 	for (root_e, children_e, transform, mut spline, mut control, mut config, mut tile_state) in q_spline.iter_mut() {
-		if control.reset {
+		if control.clean_tiles {
 			for e in q_tiles.iter() {
 				if !children_e.contains(&e) {
 					continue;
@@ -38,10 +38,10 @@ pub fn brick_road_system(
 		
 			tile_state.set_default();
 		
-			control.reset = false;
+			control.clean_tiles = false;
 		}
 
-		let do_spawn 	= control.next || control.animate;
+		let do_spawn 	= control.spawn_tile || control.animate;
 		if !do_spawn || tile_state.finished {
 			continue;
 		}
@@ -58,6 +58,10 @@ pub fn brick_road_system(
 		let looped = control.looped;
 
 		if control.instant {
+			if verbose {
+				println!("\ninstant Herringbone2 road spawn started!");
+			}
+
 			let mut tiles_cnt = 0;
 			while !tile_state.finished {
 				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, verbose, dry_run, &mut debug_lines);
@@ -76,17 +80,17 @@ pub fn brick_road_system(
 
 			if tile_state.finished {
 				if looped {
-					control.reset = true;
+					control.clean_tiles = true;
 				} else {
 					control.animate	= false;
 				}
 			}
 		}
 
-		if looped && control.next == true && tile_state.finished {
-			control.reset	= true;
+		if looped && control.spawn_tile == true && tile_state.finished {
+			control.clean_tiles	= true;
 		} else {
-			control.next	= false;
+			control.spawn_tile	= false;
 		}
 	}
 }
@@ -108,10 +112,7 @@ pub fn on_spline_tangent_moved(
 	for control_point_e in q_tangent_parent.iter() {
 		let control_e 	= q_controlp_parent.get(control_point_e.0).unwrap();
 		let mut control	= q_control.get_mut(control_e.0).unwrap();
-
-		control.reset 	= true;
-		control.next 	= true;
-		control.instant = true;
+		control.respawn_all_tiles_instantly();
 	}
 }
 
@@ -130,9 +131,6 @@ pub fn on_spline_control_point_moved(
 
 	for (spline_e, controlp) in q_controlp.iter() {
 		let mut control = q_spline.get_mut(spline_e.0).unwrap();
-
-		control.reset	= true;
-		control.next 	= true;
-		control.instant = true;
+		control.respawn_all_tiles_instantly();
 	}
 }

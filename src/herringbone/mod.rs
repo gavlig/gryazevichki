@@ -19,9 +19,9 @@ pub struct Herringbone3;
 
 #[derive(Component)]
 pub struct HerringboneControl {
-	pub next			: bool,
+	pub spawn_tile		: bool,
 	pub animate			: bool,
-	pub reset			: bool,
+	pub clean_tiles		: bool,
 	pub instant			: bool,
 	pub verbose			: bool,
 	pub dry_run			: bool,
@@ -34,17 +34,25 @@ pub struct HerringboneControl {
 impl Default for HerringboneControl {
 	fn default() -> Self {
 		Self {
-			next		: false,
+			spawn_tile	: false,
 			animate		: false,
-			reset		: false,
+			clean_tiles	: false,
 			instant		: false,
-			verbose		: false,
+			verbose		: true,
 			dry_run		: false,
 			looped		: false,
 			debug		: 0,
 			last_update	: 0.0,
 			anim_delay_sec: 0.001,
 		}
+	}
+}
+
+impl HerringboneControl {
+	pub fn respawn_all_tiles_instantly(&mut self) {
+		self.clean_tiles = true;
+		self.spawn_tile = true;
+		self.instant 	= true;
 	}
 }
 

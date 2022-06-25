@@ -73,11 +73,6 @@ pub fn brick_road_iter(
 
 	mut debug_lines		: &mut ResMut<DebugLines>,
 ) {
-	let init_rotation	= match state.orientation {
-		Orientation2D::Horizontal 	=> Quat::from_rotation_y(FRAC_PI_2),
-		Orientation2D::Vertical 	=> Quat::IDENTITY,
-		};
-
 	let total_length 	= spline.total_length();
 
 	let seam			= config.seam * 2.0;
@@ -115,8 +110,12 @@ pub fn brick_road_iter(
 
 	let cache_pos = state.pos;
 
-	let mut calc_next_pos = |prev_p : Vec3, iter : u32| -> Vec3 {
-		let ver = Vec3::Y * 1.5;
+	let calc_next_pos = |prev_p : Vec3, iter : u32| -> Vec3 {
+		let ver = Vec3::Y * 0.5;
+
+		// if iter == 0 {
+		// 	return ver;
+		// }
 
 		let herrpos = prev_p +
 		if iter % 2 == 0 {
@@ -129,7 +128,7 @@ pub fn brick_road_iter(
 			let offset1 = Quat::from_rotation_y(FRAC_PI_4).mul_vec3(Vec3::Z * offset1_scalar);
 
 			if verbose {
-				println!("[{}] 0 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+				println!("[{}] 0 calc_next_pos: [{:.3} {:.3}] prev: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z, prev_p.x, prev_p.z);
 			}
 			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
 
@@ -145,7 +144,7 @@ pub fn brick_road_iter(
 
 			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
 			if verbose {
-				println!("[{}] 1 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+				println!("[{}] 1 calc_next_pos: [{:.3} {:.3}] prev: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z, prev_p.x, prev_p.z);
 			}
 
 			offset0 + offset1
@@ -154,111 +153,23 @@ pub fn brick_road_iter(
 		herrpos
 	};
 
-	let next_pos = calc_next_pos(state.pos, state.iter);
-	let delta = next_pos - state.pos;
+	let calc_offset_from_spline = |iter : u32, spline_rotation_ref : &Quat, spline_offset_scalar : f32| {
+		let angle =
+		if iter % 2 == 0 {
+			FRAC_PI_4
+		} else {
+			-FRAC_PI_4
+		};
 
-	let t = state.t + delta.z;
-	let tile_dist_target = delta.z;
-
-	if verbose {
-		println!("[{}] t: {:.3} next_pos:[{:.3} {:.3}] prev_pos: [{:.3} {:.3}] delta: [{:.3} {:.3}]", state.iter, t, next_pos.x, next_pos.z, state.pos.x, state.pos.z, delta.x, delta.z);
-	}
-
-	if state.prev_spline_p.is_none() {
-		state.prev_spline_p = spline.clamped_sample(key0.t);
-	}
-	let prev_spline_p 	= state.prev_spline_p.unwrap();
-
-	let spline_p		= match spline.clamped_sample(t) {
-	 	Some(p)			=> p,
-	 	None			=> panic!("first spline.sample failed!"),
-	};
-	let spline_p_cache = spline_p.clone();
-
-	let tile_dist_actual = (spline_p - prev_spline_p).length();
-	let correction0 = tile_dist_target / tile_dist_actual;
-
-	let t = state.t + delta.z * correction0;
-	if verbose {
-		println!("[{}] t0 : {:.3} correction0 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction0);
-	}
-
-	let spline_p		= match spline.clamped_sample(t) {
-		Some(p)			=> p,
-		None			=> panic!("first spline.sample failed!"),
-   	};
-
-	let tile_dist_actual = (spline_p - prev_spline_p).length();
-	let correction1 = tile_dist_target / tile_dist_actual;
-
-	let t = state.t + delta.z * correction0 * correction1;
-	if verbose {
-		println!("[{}] t1 : {:.3} correction1 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction1);
-	}
-
-	let spline_p		= match spline.clamped_sample(t) {
-		Some(p)			=> p,
-		None			=> panic!("first spline.sample failed!"),
-   	};
-
-	let tile_dist_actual = (spline_p - prev_spline_p).length();
-	let correction2 = tile_dist_target / tile_dist_actual;
-
-	let t = state.t + delta.z * correction0 * correction1 * correction2;
-	if verbose {
-		println!("[{}] t2 : {:.3} correction2 {:.3} / {:.3} = {:.3}", state.iter, t, tile_dist_target, tile_dist_actual, correction2);
-	}
-
-	if t > total_length {
-		state.finished = true;
-		return;
-	}
-
-	let spline_p		= match spline.sample(t) {
-		Some(p)			=> p,
-		None			=> panic!("main spline.sample failed! t: {} keys: {:?}", t, keys),
-	};
-	state.prev_spline_p	= Some(spline_p);
-
-	if verbose {
-		println!("[{}] final spline_p [{:.3} {:.3}] for t : {:.3}", state.iter, spline_p.x, spline_p.z, t);
-	}
-
-	let next_t = 
-	if t + 0.01 < total_length {
-		t + 0.01
-	} else {
-		t - 0.01
-	};
-	let next_spline_p	= match spline.clamped_sample(next_t) {
-		Some(p)			=> p,
-		None			=> panic!("secondary spline.clamped_sample failed!"),
+		let init_rot = Quat::from_rotation_y(angle);
+		let offset = (*spline_rotation_ref * init_rot).mul_vec3(Vec3::Z * spline_offset_scalar);
+		offset
 	};
 
-	let detail_spline_rotation = {
-		let spline_dir	= (next_spline_p - spline_p).normalize();
-		Quat::from_rotation_arc(Vec3::Z, spline_dir)
-	};
-
-	let mut pose 		= Transform::identity();
- 
-	// tile offset/rotation
-	pose.translation.x 	= spline_p.x;
-	if state.iter % 2 != 0 {
-		pose.translation.x += delta.x;
-	}
-
-	pose.translation.z 	= spline_p.z;
-	pose.rotation		*= init_rotation * herrrot * detail_spline_rotation; // 
-
-	if verbose {
-		println!("[{}] final pose: [{:.3} {:.3}] delta.x: {:.3}", state.iter, pose.translation.x, pose.translation.z, delta.x);
-	}
-
-	if state.iter > 0 {
-		let ver = Vec3::Y * 1.5;
+	let calc_offset_from_spline2 = |spline_rotation_ref : &Quat| {
+		let ver = Vec3::Y * 0.5;
 		let iter = state.iter;
-		let prev_p = cache_pos;
+		let prev_p = state.pos;
 
 		// let detail_spline_rotation = Quat::IDENTITY;
 	
@@ -267,39 +178,208 @@ pub fn brick_road_iter(
 			let offset0_scalar = hlenz - hlenx;
 			let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
 			// (detail_spline_rotation * init_rot)
-			let offset0 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
+			let offset0 = (*spline_rotation_ref * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
 	
-			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+			// debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
 	
 			let offset1_scalar = hlenx + seam + hlenz;
 			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
-			let offset1 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
+			let offset1 = (*spline_rotation_ref * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
 
-			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
-			if verbose {
-				println!("[{}] 0 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
-			}
+			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+			// if verbose {
+			// 	println!("[{}] 0 dbg next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			// }
 	
 			offset0 + offset1
 		} else {
 			let offset0_scalar = hlenz - hlenx;
 			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
-			let offset0 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
+			let offset0 = (*spline_rotation_ref * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
 	
-			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+			// debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
 	
 			let offset1_scalar = hlenx + seam + hlenz;
 			let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
-			let offset1 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
+			let offset1 = (*spline_rotation_ref * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
 	
-			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
-			if verbose {	
-				println!("[{}] 1 calc_next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
-			}
+			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+			// if verbose {	
+			// 	println!("[{}] 1 dbg next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+			// }
 	
 			offset0 + offset1
 		};
+	};
+
+	let calc_spline_rotation = |t : f32, spline_p : Vec3| -> Quat {
+		let next_t = 
+		if t + 0.01 < total_length {
+			t + 0.01
+		} else {
+			t - 0.01
+		};
+		let next_spline_p	= match spline.clamped_sample(next_t) {
+			Some(p)			=> p,
+			None			=> panic!("secondary spline.clamped_sample failed!"),
+		};
+
+		let spline_dir		= (next_spline_p - spline_p).normalize();
+		Quat::from_rotation_arc(Vec3::Z, spline_dir)
+	};
+
+	// Sample with given t and adjust it until distance between tiles is close to target
+	let calc_t_on_spline = |iter : u32, state_t : f32, spline_offset_scalar : f32, init_offset : f32, prev_p : Vec3, tile_dist_target : f32| -> (f32, Vec3) {
+		let ver 		= Vec3::Y * 0.5;
+
+		let mut spline_p = Vec3::ZERO;
+		let mut t 		= state_t + init_offset;
+		let mut i 		= 0;
+		let mut corrections : Vec<f32> = Vec::new();
+
+		if tile_dist_target <= 0.0 {
+			return 		(t, spline_p);
+		}
+
+		loop {
+			spline_p = match spline.clamped_sample(t) {
+				Some(p)	=> p,
+				None	=> panic!("calc_t_corrected spline.clamped_sample failed!"),
+			};
+
+			let q = calc_spline_rotation(t, spline_p);
+			let spline_offset = calc_offset_from_spline(iter, &q, spline_offset_scalar);
+			let new_p = spline_p + spline_offset;
+
+			let tile_dist_actual = (new_p - prev_p).length();
+
+			let correction = tile_dist_target / tile_dist_actual;
+			corrections.push(correction);
+			let mut corrected_offset = init_offset;
+			for c in corrections.iter() {
+				corrected_offset *= c;
+			}
+			t = state_t + corrected_offset;
+
+			if verbose {
+				println!("[{} {}] tile_dist_actual : {:.3} = new_p({:.3} {:.3} {:.3}) - prev_p({:.3} {:.3} {:.3}) (spline_p: ({:.3} {:.3} {:.3}) spline_offset_scalar: {:.3})", state.iter, i, tile_dist_actual, new_p.x, new_p.y, new_p.z, prev_p.x, prev_p.y, prev_p.z, spline_p.x, spline_p.y, spline_p.z, spline_offset_scalar);
+				println!("[{} {}] t : {:.3} correction : tile_dist_target({:.3}) / tile_dist_actual({:.3}) = correction({:.3})", state.iter, i, t, tile_dist_target, tile_dist_actual, correction);
+			}
+
+			i += 1;
+
+			if correction >= 0.99 || i >= 5 {
+				break;
+			}
+		}
+
+		(t, spline_p)
+	};
+
+	if verbose {
+		println!("[{}] getting next pos on straight line (along +z with little +-x) prev pos: [{:.3} {:.3}]", state.iter, state.pos.x, state.pos.z);
 	}
+
+	let next_pos 			= calc_next_pos(state.pos, state.iter);
+	let tile_pos_delta 		= next_pos - state.pos;
+	let t 					= state.t + tile_pos_delta.z;
+	let tile_dist_target 	= tile_pos_delta.length();
+
+	if next_pos.z >= total_length {
+		if verbose {
+			println!("[{}] total_length limit reached! Next tile pos: [{:.3} {:.3}(<-)] total spline length: {:.3}", state.iter, next_pos.x, next_pos.z, total_length);
+		}
+		state.finished = true;
+		return;
+	}
+
+	if verbose {
+		println!("[{}] t: {:.3} next_pos:[{:.3} {:.3}] prev_pos: [{:.3} {:.3}] tile_pos_delta: [{:.3} {:.3}]", state.iter, t, next_pos.x, next_pos.z, state.pos.x, state.pos.z, tile_pos_delta.x, tile_pos_delta.z);
+	}
+
+	// if state.prev_spline_p.is_none() {
+	// 	state.prev_spline_p = spline.clamped_sample(key0.t);
+	// }
+	// let prev_spline_p 	= state.prev_spline_p.unwrap();
+
+	let mut prev_p = state.pos;
+	prev_p.y = 0.5; // VERTICALITY
+
+	let (t, spline_p)	= calc_t_on_spline(state.iter, state.t, tile_pos_delta.x, tile_pos_delta.z, prev_p, tile_dist_target);
+
+	if t > total_length {
+		state.finished = true;
+		return;
+	}
+
+	state.prev_spline_p	= Some(spline_p);
+
+	if verbose {
+		println!("[{}] final spline_p [{:.3} {:.3}] for t : {:.3}", state.iter, spline_p.x, spline_p.z, t);
+	}
+
+	let detail_spline_rotation = calc_spline_rotation(t, spline_p);
+
+	let mut pose 		= Transform::identity();
+ 
+	// tile offset/rotation
+	pose.translation.x 	= spline_p.x;
+	if state.iter % 2 != 0 {
+		pose.translation.x += tile_pos_delta.x;
+	}
+
+	pose.translation.z 	= spline_p.z;
+	pose.rotation		*= herrrot * detail_spline_rotation; // 
+
+	if verbose {
+		println!("[{}] final pose: [{:.3} {:.3}] tile_pos_delta.x: {:.3}", state.iter, pose.translation.x, pose.translation.z, tile_pos_delta.x);
+	}
+
+	// if state.iter > 0 {
+	// 	let ver = Vec3::Y * 1.5;
+	// 	let iter = state.iter;
+	// 	let prev_p = cache_pos;
+
+	// 	// let detail_spline_rotation = Quat::IDENTITY;
+	
+	// 	let herrpos = prev_p +
+	// 	if iter % 2 == 0 {
+	// 		let offset0_scalar = hlenz - hlenx;
+	// 		let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
+	// 		// (detail_spline_rotation * init_rot)
+	// 		let offset0 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
+	
+	// 		debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+	
+	// 		let offset1_scalar = hlenx + seam + hlenz;
+	// 		let init_rot = Quat::from_rotation_y(FRAC_PI_4);
+	// 		let offset1 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
+
+	// 		debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+	// 		// if verbose {
+	// 		// 	println!("[{}] 0 dbg next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+	// 		// }
+	
+	// 		offset0 + offset1
+	// 	} else {
+	// 		let offset0_scalar = hlenz - hlenx;
+	// 		let init_rot = Quat::from_rotation_y(FRAC_PI_4);
+	// 		let offset0 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
+	
+	// 		debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+	
+	// 		let offset1_scalar = hlenx + seam + hlenz;
+	// 		let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
+	// 		let offset1 = (detail_spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
+	
+	// 		debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+	// 		// if verbose {	
+	// 		// 	println!("[{}] 1 dbg next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+	// 		// }
+	
+	// 		offset0 + offset1
+	// 	};
+	// }
 
 	// spawning
 	//
@@ -344,15 +424,13 @@ pub fn brick_road_iter(
 	//
 	//
 
-	let next_pos = calc_next_pos(state.pos, state.iter);
-
-	if next_pos.z >= total_length {
+	if state.iter == 10 {
 		state.finished = true;
 	}
 
-	// if state.iter == 100 {
-	// 	state.finished = true;
-	// }
+	if verbose {
+		println!("----------------------------");
+	}
 }
 
 pub fn brick_road_iter2(
