@@ -340,6 +340,11 @@ pub fn input_misc_system(
 			spline_ctl.new_point = true;
 		}
 
+		if key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::S) {
+			spline_ctl.reset = true;
+			screen_print!	("Spline Control Reset");
+		}
+
 		if key.just_pressed(KeyCode::Q) {
 			tile_ctl.debug += 1;
 			if tile_ctl.debug > 2 {

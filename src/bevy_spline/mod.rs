@@ -180,6 +180,31 @@ impl Spline {
 		Some(&keys[key_id])
 	}
 
+	// TODO: "reset" spline to default values
+	// pub fn fff(length : f32) {
+	// 	let offset_y		= 0.5; // VERTICALITY
+	
+	// 	// spline requires at least 4 points: 2 control points(Key) and 2 tangents
+	// 	//
+	// 	//
+	// 	let tan_offset		= length / 3.0;
+
+	// 	// limit_z and offset_z are used both for final tile coordinates and for final value of t to have road length tied to spline length and vice versa
+	// 	let key0_pos		= Vec3::new(0.0, offset_y, 0.0);
+		
+	// 	// StrokeBezier allows having two tangent points and we're going to use that
+	// 	let tangent00		= Vec3::new(0.0, offset_y, 0.0 - tan_offset);
+	// 	let tangent01		= Vec3::new(0.0, offset_y, 0.0 + tan_offset);
+
+	// 	let tangent10		= Vec3::new(0.0, offset_y, length - tan_offset);
+	// 	let tangent11		= Vec3::new(0.0, offset_y, length + tan_offset);
+
+	// 	let key1_pos		= Vec3::new(0.0, offset_y, length);
+
+	// 	let t0				= 0.0;
+	// 	let t1				= (key1_pos - key0_pos).length();
+	// }
+
 	// wrapper
 	pub fn from_vec(keys : Vec<Key>) -> Self {
 		Self {
@@ -238,6 +263,7 @@ pub enum RoadWidth {
 pub struct SplineControl {
 	pub recalc_length : bool,
 	pub new_point : bool,
+	pub reset : bool,
 }
 
 pub struct BevySplinePlugin;

@@ -348,6 +348,10 @@ pub fn road_system(
 	let mouse_pick 	= q_mouse_pick.single();
 
 	for (root_e, children_e, transform, mut spline, mut control) in q_spline.iter_mut() {
+		while control.reset {
+			control.reset = false;
+		}
+
 		while control.new_point {
 			spawn::new_point(
 				root_e,
