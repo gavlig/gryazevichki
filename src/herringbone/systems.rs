@@ -61,6 +61,7 @@ pub fn brick_road_system(
 
 		control.last_update = cur_time;
 
+		let visual_debug = control.visual_debug;
 		let verbose = control.verbose;
 		let dry_run = control.dry_run;
 		let looped = control.looped;
@@ -72,7 +73,7 @@ pub fn brick_road_system(
 
 			let mut tiles_cnt = 0;
 			while !tile_state.finished {
-				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, verbose, dry_run, &mut debug_lines);
+				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, &ass, &mut sargs, control.debug, visual_debug, verbose, dry_run, &mut debug_lines);
 				tiles_cnt += 1;
 			}
 
@@ -84,7 +85,7 @@ pub fn brick_road_system(
 				control.instant = false;
 			}
 		} else {
-			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, control.debug, &ass, &mut sargs, verbose, dry_run, &mut debug_lines);
+			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &transform, &ass, &mut sargs, control.debug, visual_debug, verbose, dry_run, &mut debug_lines);
 
 			if tile_state.finished {
 				if looped {

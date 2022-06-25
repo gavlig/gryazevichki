@@ -65,9 +65,10 @@ pub fn brick_road_iter(
 	mut	config			: &mut Herringbone2Config,
 		spline			: &Spline,
 		transform		: &GlobalTransform,
-		debug			: u32,
 		_ass			: &Res<AssetServer>,
 		sargs			: &mut SpawnArguments,
+		debug			: u32,
+		visual_debug	: bool,
 		verbose			: bool,
 		dry_run			: bool,
 
@@ -202,7 +203,7 @@ pub fn brick_road_iter(
 			let q = calc_spline_rotation(t, spline_p);
 			let spline_offset = calc_offset_from_spline(iter, &q, spline_offset_scalar);
 
-			if verbose {
+			if visual_debug {
 				debug_lines.line_colored(spline_p + ver, spline_p + spline_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
 			}
 
@@ -326,7 +327,7 @@ pub fn brick_road_iter(
 		println!("[{}] final pose: [{:.3} {:.3}] tile_pos_delta.x: {:.3}", state.iter, pose.translation.x, pose.translation.z, tile_pos_delta.x);
 	}
 
-	if state.iter > 0 && verbose {
+	if state.iter > 0 && visual_debug {
 		let ver = Vec3::Y * 1.5;
 		let iter = state.iter;
 		let prev_p = state.pos;

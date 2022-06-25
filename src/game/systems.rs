@@ -359,6 +359,11 @@ pub fn input_misc_system(
 			screen_print!("Tile Control Verbose: {}", tile_ctl.verbose);
 		}
 
+		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::Key2) {
+			tile_ctl.visual_debug = !tile_ctl.visual_debug;
+			screen_print!("Tile Control Visual Debug: {}", tile_ctl.visual_debug);
+		}
+
 		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::LAlt) && key.just_pressed(KeyCode::D) {
 			tile_ctl.dry_run = !tile_ctl.dry_run;
 			screen_print!("Tile Control Dry Run: {}", tile_ctl.dry_run);
