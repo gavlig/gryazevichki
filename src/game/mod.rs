@@ -183,7 +183,7 @@ impl Plugin for GamePlugin {
 				0xFF as f32 / 255.0,
 			));
 
-        app	.add_loopless_state(GameMode::InGame)
+        app	.add_loopless_state(GameMode::Editor)
 
 			.insert_resource(clear_color)
 			.insert_resource(Msaa			::default())
@@ -205,7 +205,7 @@ impl Plugin for GamePlugin {
          	.add_plugin		(InteractablePickingPlugin)
  			.add_plugin		(CustomHighlightPlugin(GryazevichkiPickingHighlight))
 
- 			.add_startup_system(setup_cursor_visibility_system)
+ 			// .add_startup_system(setup_cursor_visibility_system)
  			.add_startup_system(setup_lighting_system)
  			.add_startup_system(setup_world_system)
  			.add_startup_system_to_stage(StartupStage::PostStartup, setup_camera_system)

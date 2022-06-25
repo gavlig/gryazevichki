@@ -3,10 +3,11 @@
     {
         "type": "lldb",
         "request": "launch",
-        "name": "Launch",
+        "name": "Launch Debug",
         "program": "${workspaceFolder}/target/debug/gryazevichki",
         "args": [],
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "env": {"LD_LIBRARY_PATH" : "${env:LD_LIBRARY_PATH}:${workspaceFolder}/gryazevichki/target/debug/deps:/home/gavlig/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib"}
     }
     ],
 }

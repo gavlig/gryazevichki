@@ -14,25 +14,6 @@ use crate			:: vehicle;
 use crate			:: herringbone;
 use crate			:: bevy_spline;
 
-pub fn setup_camera_system(
-		game			: ResMut<GameState>,
-	mut query			: Query<&mut FlyCamera>
-) {
-	// initialize camera with target to look at
-	if game.camera.is_some() {
-		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
-		if game.body.is_some() {
-			camera.target = Some(game.body.unwrap().entity);
-			println!	("camera.target Entity ID {:?}", camera.target);
-		}
-
-		// temp
-		camera.enabled_follow = false;
-		camera.enabled_translation = true;
-		camera.enabled_rotation = true;
-	}
-}
-
 #[derive(Component)]
 pub struct RedLine;
 
@@ -200,6 +181,25 @@ pub fn setup_lighting_system(
 	//
 }
 
+pub fn setup_camera_system(
+		game			: ResMut<GameState>,
+	mut query			: Query<&mut FlyCamera>
+) {
+	// initialize camera with target to look at
+	if game.camera.is_some() {
+		let mut camera 	= query.get_mut(game.camera.unwrap()).unwrap();
+		if game.body.is_some() {
+			camera.target = Some(game.body.unwrap().entity);
+			println!	("camera.target Entity ID {:?}", camera.target);
+		}
+
+		// enable bare minimum first to run first update (TODO: probably do this in plugin instead)
+		camera.enabled_follow = false;
+		camera.enabled_translation = true;
+		camera.enabled_rotation = true;
+	}
+}
+
 pub fn setup_cursor_visibility_system(
 	mut windows	: ResMut<Windows>,
 	mut picking	: ResMut<PickingPluginsState>,
@@ -219,7 +219,8 @@ pub fn cursor_visibility_system(
 	btn				: Res<Input<MouseButton>>,
 	key				: Res<Input<KeyCode>>,
 	time			: Res<Time>,
-	mut window_focused : EventReader<bevy::window::WindowFocused>,
+	mut q_camera	: Query<&mut FlyCamera>,
+		game		: Res<GameState>,
 		game_mode	: Res<CurrentState<GameMode>>,
 	mut picking		: ResMut<PickingPluginsState>,
 	mut	commands	: Commands
@@ -254,18 +255,13 @@ pub fn cursor_visibility_system(
 		set_cursor_visibility(false);
 	}
 
+	// #[cfg(debug_assertions)]
 	if time.seconds_since_startup() > 1.0 {
-		for ev in window_focused.iter() {
-			if ev.id == window_id {
+		let is_editor = game_mode.0 == GameMode::Editor;
+		set_cursor_visibility(is_editor);
 
-				if !ev.focused {
-					set_cursor_visibility(true);
-				} else {
-					// this works bad because winit says we cant grab cursor right after window gets alt-tabbed back to focused
-					set_cursor_visibility(game_mode.0 == GameMode::Editor);
-				}
-			}
-		}
+		let mut camera 	= q_camera.get_mut(game.camera.unwrap()).unwrap();
+		camera.enabled_rotation = !is_editor;
 	}
 }
 
