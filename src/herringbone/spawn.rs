@@ -113,9 +113,9 @@ pub fn brick_road_iter(
 	let calc_next_pos = |prev_p : Vec3, iter : u32| -> Vec3 {
 		let ver = Vec3::Y * 0.5;
 
-		// if iter == 0 {
-		// 	return ver;
-		// }
+		if iter == 0 {
+			return ver;
+		}
 
 		let herrpos = prev_p +
 		if iter % 2 == 0 {
@@ -252,7 +252,11 @@ pub fn brick_road_iter(
 
 			let q = calc_spline_rotation(t, spline_p);
 			let spline_offset = calc_offset_from_spline(iter, &q, spline_offset_scalar);
+
+			// calc_offset_from_spline2(&q);
+
 			debug_lines.line_colored(spline_p + ver, spline_p + spline_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
+
 			let new_p = spline_p + spline_offset;
 
 			let tile_dist_actual = (new_p - prev_p).length();
@@ -272,7 +276,7 @@ pub fn brick_road_iter(
 
 			i += 1;
 
-			if correction >= 0.99 || i >= 5 {
+			if (1.0 - correction).abs() <= 0.01  || i >= 5 {
 				break;
 			}
 		}
@@ -316,7 +320,7 @@ pub fn brick_road_iter(
 		return;
 	}
 
-	state.prev_spline_p	= Some(spline_p);
+	// state.prev_spline_p	= Some(spline_p);
 
 	if verbose {
 		println!("[{}] final spline_p [{:.3} {:.3}] for t : {:.3}", state.iter, spline_p.x, spline_p.z, t);
@@ -328,11 +332,12 @@ pub fn brick_road_iter(
  
 	// tile offset/rotation
 	pose.translation.x 	= spline_p.x;
+	pose.translation.z 	= spline_p.z;
+
 	if state.iter % 2 != 0 {
-		pose.translation.x += tile_pos_delta.x;
+		pose.translation += calc_offset_from_spline(state.iter, &spline_rotation, tile_pos_delta.x);
 	}
 
-	pose.translation.z 	= spline_p.z;
 	pose.rotation		*= herrrot * spline_rotation; // 
 
 	if verbose {

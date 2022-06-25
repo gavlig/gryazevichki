@@ -79,7 +79,7 @@ impl Default for TileState {
 			iter		: 0,
 			key			: 0,
 			t			: 0.0,
-			pos			: Vec3::ZERO,
+			pos			: Vec3::Y * 0.5, // VERTICALITY
 			orientation	: Orientation2D::Vertical,
 			finished_hor: false,
 			finished	: false,
