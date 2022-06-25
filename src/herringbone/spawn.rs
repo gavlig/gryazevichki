@@ -75,6 +75,10 @@ pub fn brick_road_iter(
 ) {
 	let total_length 	= spline.total_length();
 
+	if verbose {
+		println!("[{}] total_length: {:.3}", state.iter, total_length);
+	}
+
 	let seam			= config.seam * 2.0;
 
 	let hlenz			= config.hsize.z;
@@ -217,7 +221,7 @@ pub fn brick_road_iter(
 		if t + 0.01 < total_length {
 			t + 0.01
 		} else {
-			t - 0.01
+			total_length - 0.01
 		};
 		let next_spline_p	= match spline.clamped_sample(next_t) {
 			Some(p)			=> p,
@@ -281,6 +285,10 @@ pub fn brick_road_iter(
 			}
 		}
 
+		if t.is_infinite() || t.is_nan() {
+			panic!("calc_t_on_spline: t is invalid!");
+		}
+
 		(t, spline_p)
 	};
 
@@ -293,7 +301,7 @@ pub fn brick_road_iter(
 	let t 					= state.t + tile_pos_delta.z;
 	let tile_dist_target 	= tile_pos_delta.length();
 
-	if next_pos.z >= total_length {
+	if t >= total_length {
 		if verbose {
 			println!("[{}] total_length limit reached! Next tile pos: [{:.3} {:.3}(<-)] total spline length: {:.3}", state.iter, next_pos.x, next_pos.z, total_length);
 		}
@@ -433,9 +441,9 @@ pub fn brick_road_iter(
 	//
 	//
 
-	if state.iter == 10 {
-		state.finished = true;
-	}
+	// if state.iter == 10 {
+	// 	state.finished = true;
+	// }
 
 	if verbose {
 		println!("----------------------------");
