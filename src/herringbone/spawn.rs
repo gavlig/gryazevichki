@@ -156,9 +156,9 @@ pub fn brick_road_iter(
 	let calc_offset_from_spline = |iter : u32, spline_rotation_ref : &Quat, spline_offset_scalar : f32| {
 		let angle =
 		if iter % 2 == 0 {
-			FRAC_PI_4
+			-FRAC_PI_2
 		} else {
-			-FRAC_PI_4
+			FRAC_PI_2
 		};
 
 		let init_rot = Quat::from_rotation_y(angle);
@@ -229,8 +229,11 @@ pub fn brick_road_iter(
 	};
 
 	// Sample with given t and adjust it until distance between tiles is close to target
-	let calc_t_on_spline = |iter : u32, state_t : f32, spline_offset_scalar : f32, init_offset : f32, prev_p : Vec3, tile_dist_target : f32| -> (f32, Vec3) {
-		let ver 		= Vec3::Y * 0.5;
+	let mut calc_t_on_spline = |iter : u32, state_t : f32, tile_pos_delta : Vec3, prev_p : Vec3, tile_dist_target : f32| -> (f32, Vec3) {
+		let ver 		= Vec3::Y * 1.0;
+
+		let spline_offset_scalar = tile_pos_delta.x;
+		let init_offset = tile_pos_delta.z;
 
 		let mut spline_p = Vec3::ZERO;
 		let mut t 		= state_t + init_offset;
@@ -249,6 +252,7 @@ pub fn brick_road_iter(
 
 			let q = calc_spline_rotation(t, spline_p);
 			let spline_offset = calc_offset_from_spline(iter, &q, spline_offset_scalar);
+			debug_lines.line_colored(spline_p + ver, spline_p + spline_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
 			let new_p = spline_p + spline_offset;
 
 			let tile_dist_actual = (new_p - prev_p).length();
@@ -305,7 +309,7 @@ pub fn brick_road_iter(
 	let mut prev_p = state.pos;
 	prev_p.y = 0.5; // VERTICALITY
 
-	let (t, spline_p)	= calc_t_on_spline(state.iter, state.t, tile_pos_delta.x, tile_pos_delta.z, prev_p, tile_dist_target);
+	let (t, spline_p)	= calc_t_on_spline(state.iter, state.t, tile_pos_delta, prev_p, tile_dist_target);
 
 	if t > total_length {
 		state.finished = true;
@@ -318,7 +322,7 @@ pub fn brick_road_iter(
 		println!("[{}] final spline_p [{:.3} {:.3}] for t : {:.3}", state.iter, spline_p.x, spline_p.z, t);
 	}
 
-	let detail_spline_rotation = calc_spline_rotation(t, spline_p);
+	let spline_rotation = calc_spline_rotation(t, spline_p);
 
 	let mut pose 		= Transform::identity();
  
@@ -329,7 +333,7 @@ pub fn brick_road_iter(
 	}
 
 	pose.translation.z 	= spline_p.z;
-	pose.rotation		*= herrrot * detail_spline_rotation; // 
+	pose.rotation		*= herrrot * spline_rotation; // 
 
 	if verbose {
 		println!("[{}] final pose: [{:.3} {:.3}] tile_pos_delta.x: {:.3}", state.iter, pose.translation.x, pose.translation.z, tile_pos_delta.x);
