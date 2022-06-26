@@ -12,8 +12,7 @@ pub fn root_handle(
 ) -> Entity {
 	sargs.commands.spawn_bundle(
 	PbrBundle {
-		// mesh			: sargs.meshes.add		(Mesh::from(render_shape::Box::new(0.4, 0.3, 0.4))),
-		mesh			: sargs.meshes.add		(Mesh::from(render_shape::UVSphere{ radius: 0.225, ..default() })),
+		mesh			: sargs.meshes.add		(Mesh::from(render_shape::UVSphere{ radius: 0.05, ..default() })), // 0.225
 		material		: sargs.materials.add(
 		StandardMaterial {
 			base_color	: Color::LIME_GREEN.into(),

@@ -271,7 +271,7 @@ pub fn vehicle_params_ui_system(
 pub fn coords_on_hover_ui_system(
 	mut windows			: ResMut<Windows>,
 	mut ui_context		: ResMut<EguiContext>,
-		q_hover_tile	: Query<(&Hover, &herringbone::TileState, &Transform)>,
+		q_hover_tile	: Query<(&Hover, &herringbone::BrickRoadProgressState, &Transform)>,
 		q_hover			: Query<(&Hover, &Transform, &GlobalTransform), Without<Tile>>,
 ) {
 	if q_hover.is_empty() && q_hover_tile.is_empty() {

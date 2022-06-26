@@ -59,7 +59,7 @@ impl HerringboneControl {
 }
 
 #[derive(Component, Clone, Copy)]
-pub struct TileState {
+pub struct BrickRoadProgressState {
 	pub x 				: u32,
 	pub z 				: u32,
 	pub iter			: u32,
@@ -70,11 +70,10 @@ pub struct TileState {
 	pub orientation		: Orientation2D,
 	pub finished_hor	: bool,
 	pub finished		: bool,
-	pub prev_spline_p	: Option<Vec3>,
 	pub next_spline_p	: Vec3,
 }
 
-impl Default for TileState {
+impl Default for BrickRoadProgressState {
 	fn default() -> Self {
 		Self {
 			x 			: 0,
@@ -87,17 +86,24 @@ impl Default for TileState {
 			orientation	: Orientation2D::Vertical,
 			finished_hor: false,
 			finished	: false,
-			prev_spline_p : None,
 			next_spline_p : Vec3::ZERO,
 		}
 	}
 }
 
-impl TileState {
+impl BrickRoadProgressState {
 	#[allow(dead_code)]
 	pub fn set_default(&mut self) {
 		*self			= Self::default();
 	}
+}
+
+#[derive(Default, Clone, Copy)]
+pub struct TileRowIterState {
+	pub t 				: f32,
+	pub tile_p 			: Vec3,
+	pub spline_p 		: Vec3,
+	pub spline_r 		: Quat,
 }
 
 #[derive(Component)]
