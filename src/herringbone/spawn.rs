@@ -76,10 +76,11 @@ pub fn brick_road_iter(
 	let total_length 	= spline.total_length();
 
 	if control.verbose {
-		println!("[{}] total_length: {:.3}", state.iter, total_length);
+		println!("[{}] t: {:.3} spline.total_length: {:.3}", state.iter, state.t, total_length);
 	}
 
-	let seam			= config.seam * 2.0;
+	let hseam			= config.seam;
+	let seam			= hseam * 2.0; // 0.01 * 2.0
 
 	let hlenz			= config.hsize.z;
 	let lenz			= hlenz * 2.0;
@@ -92,18 +93,9 @@ pub fn brick_road_iter(
 
 	// t == z in spherical vacuum
 
-	let keys 			= spline.keys();
-	let key_id 			= state.key;
-	let key0 			= keys[key_id + 0];
-	let key1 			= keys[key_id + 1]; // assume we never have invalid key_id
-
-	let linear_length 	= (key1.value - key0.value).length();
-	let spline_segment_length = spline.calculate_segment_length(key_id + 1);
-
-	let linear2spline_ratio = linear_length / spline_segment_length;
-
 	let calc_width_offset = |neg : bool, iter : f32, spline_rotation : Quat| -> (f32, Vec3) {
-		let single_offset = lenx * 1.5 + seam;
+		// let single_offset = lenx * 1.5 + seam;
+		let single_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
 		let offset_x	= iter * single_offset;
 		let mut www		= Vec3::new(offset_x, 0.0, 0.0);
 		if neg 			{ www.x = -www.x; }
@@ -111,7 +103,7 @@ pub fn brick_road_iter(
 		(offset_x, www)
 	};
 
-	let calc_next_pos = |prev_p : Vec3, iter : u32| -> Vec3 {
+	let calc_next_pos = |prev_p : Vec3, iter : usize| -> Vec3 {
 		let ver = Vec3::Y * 0.5;
 
 		if iter == 0 {
@@ -148,7 +140,7 @@ pub fn brick_road_iter(
 		herrpos
 	};
 
-	let calc_offset_from_spline = |iter : u32, spline_rotation : Quat, spline_offset_scalar : f32| {
+	let calc_offset_from_spline = |iter : usize, spline_rotation : Quat, spline_offset_scalar : f32| {
 		let angle =
 		if iter % 2 == 0 {
 			-FRAC_PI_2
@@ -177,8 +169,7 @@ pub fn brick_road_iter(
 		Quat::from_rotation_arc(Vec3::Z, spline_dir)
 	};
 
-	// Sample with given t and adjust it until distance between tiles is close to target
-	let mut calc_t_on_spline_wwidth = |iter : u32, state_t : f32, spline_offset_scalar : f32, tile_dist_target : f32, tiles_row : &Vec<TileRowIterState>| -> (f32, Vec3) {
+	let mut calc_t_on_spline_wwidth = |iter : usize, state_t : f32, spline_offset_scalar : f32, tile_dist_target : f32, tiles_row : &Vec<TileRowIterState>| -> (f32, Vec3) {
 		let ver 		= Vec3::Y * 1.0; // VERTICALITY
 
 		let iter_state	= tiles_row[iter as usize];
@@ -193,7 +184,7 @@ pub fn brick_road_iter(
 			return 		(t, spline_p);
 		}
 
-		let tile_for_alignment = tiles_row[(iter + 1) as usize];
+		let tile_for_alignment = iter_state;//iter_state_prev;//tiles_row[(iter + 1) as usize];
 		let pos_for_alignment = tile_for_alignment.tile_p;
 
 		if control.verbose {
@@ -210,6 +201,79 @@ pub fn brick_road_iter(
 				let p0 = spline_p + width_offset + ver;
 				let p1 = spline_p + spline_offset + width_offset + ver;
 				debug_lines.line_colored(p0, p1, 0.01, Color::rgb(0.8, 0.2, 0.8));
+			}
+
+			let new_p = spline_p + spline_offset + width_offset;
+
+			let tile_dist_actual = (pos_for_alignment - new_p).length();
+
+			let correction = tile_dist_target / tile_dist_actual;
+			corrections.push(correction);
+			let mut corrected_offset = init_offset;
+			for c in corrections.iter() {
+				corrected_offset *= c;
+			}
+			t = state_t + corrected_offset;
+
+			if t.is_infinite() || t.is_nan() {
+				panic!("calc_t_on_spline_wwidth: t is invalid!");
+			}
+
+			if control.verbose {
+				println!("[{} {}] ww tile_dist_actual : {:.3} = new_p({:.3} {:.3} {:.3}) - prev_p({:.3} {:.3} {:.3}) (spline_p: ({:.3} {:.3} {:.3}) spline_offset_scalar: {:.3} width_offset: ({:.3} {:.3} {:.3}))", state.iter, i, tile_dist_actual, new_p.x, new_p.y, new_p.z, pos_for_alignment.x, pos_for_alignment.y, pos_for_alignment.z, spline_p.x, spline_p.y, spline_p.z, spline_offset_scalar, width_offset.x, width_offset.y, width_offset.z);
+				println!("[{} {}] ww t : {:.3} correction({:.3}) : tile_dist_target({:.3}) / tile_dist_actual({:.3})", state.iter, i, t, correction, tile_dist_target, tile_dist_actual);
+			}
+
+			i += 1;
+
+			if (1.0 - correction).abs() <= 0.01  || i >= 5 {
+				break;
+			}
+
+			spline_p = match spline.clamped_sample(t) {
+				Some(p)	=> p,
+				None	=> panic!("calc_t_corrected spline.clamped_sample failed!"),
+			};
+
+			spline_r = calc_spline_rotation(t, spline_p);
+		}
+
+		(t, spline_p)
+	};
+
+	// Sample with given t and adjust it until distance between tiles is close to target
+	let mut calc_t_on_spline_wwidth2 = |iter : usize, state_t : f32, spline_offset_scalar : f32, tile_dist_target : f32, tiles_row : &Vec<TileRowIterState>| -> (f32, Vec3) {
+		let ver 		= Vec3::Y * 1.0; // VERTICALITY
+
+		let iter_state	= tiles_row[iter];
+		let mut t 		= iter_state.t;
+		let mut spline_p = iter_state.spline_p;
+		let mut spline_r = iter_state.spline_r;
+		let mut i 		= 0;
+		let mut corrections : Vec<f32> = Vec::new();
+		let init_offset	= t - state_t;
+
+		if tile_dist_target <= 0.0 {
+			return 		(t, spline_p);
+		}
+
+		let tile_for_alignment = tiles_row[iter + 1];
+		let pos_for_alignment = tile_for_alignment.tile_p;
+
+		if control.verbose {
+			println!("[{}] init ww t : {:.3} spline_p: ({:.3} {:.3} {:.3}) pos_for_alignment: ({:.3} {:.3} {:.3}) tile_dist_target: {:.3}", state.iter, t, spline_p.x, spline_p.y, spline_p.z, pos_for_alignment.x, pos_for_alignment.y, pos_for_alignment.z, tile_dist_target);
+		}
+
+		loop {
+			// first we use existing spline_p, t and so on, because they are obtained from previous row of tiles.
+			// we compare them to our desireable position and then keep adjusting until we're close enough to the tile_dist_target
+			let spline_offset = calc_offset_from_spline(iter, spline_r, spline_offset_scalar);
+			let (_width_offset_scalar, width_offset) = calc_width_offset(false, state.iter_width as f32, spline_r);
+
+			if control.visual_debug {
+				let p0 = spline_p + width_offset + ver;
+				let p1 = spline_p + spline_offset + width_offset + ver;
+				// debug_lines.line_colored(p0, p1, 0.01, Color::rgb(0.8, 0.2, 0.8));
 			}
 
 			let new_p = spline_p + spline_offset + width_offset;
@@ -250,7 +314,7 @@ pub fn brick_road_iter(
 		(t, spline_p)
 	};
 
-	let mut calc_t_on_spline = |iter : u32, state_t : f32, tile_pos_delta : Vec3, prev_p : Vec3, tile_dist_target : f32| -> (f32, Vec3) {
+	let mut calc_t_on_spline = |iter : usize, state_t : f32, tile_pos_delta : Vec3, prev_p : Vec3, tile_dist_target : f32| -> (f32, Vec3) {
 		let ver 		= Vec3::Y * 1.0; // VERTICALITY
 
 		let spline_offset_scalar = if state.iter % 2 != 0 { tile_pos_delta.x } else { 0.0 };
@@ -327,12 +391,16 @@ pub fn brick_road_iter(
 	let t 				= state.t + tile_pos_delta.z;
 	let tile_dist_target = tile_pos_delta.length();
 
-	if t >= total_length {//|| state.iter > 2 {
+	if t >= total_length {//|| state.iter > 3 {
 		if control.verbose {
 			println!("[{}] total_length limit reached! Next tile pos: [{:.3} {:.3}(<-)] total spline length: {:.3}", state.iter, next_pos.x, next_pos.z, total_length);
 		}
 
 		let (hwidth, _) = calc_width_offset(false, (state.iter_width + 1) as f32, Quat::IDENTITY);
+
+		if control.verbose {
+			println!("[{}] new width_offset scalar(hwidth): {:.3}", state.iter, hwidth);
+		}
 
 		if hwidth * 2.0 < config.width {
 			// let spline_rotation = calc_spline_rotation(state.t, spline.clamped_sample(state.t).unwrap());
@@ -376,25 +444,21 @@ pub fn brick_road_iter(
 	prev_p.y = 0.5; // VERTICALITY
 
 	let (t, spline_p) =
-	if state.iter % 2 == 0 || state.iter_width == 0 || (state.iter + 1) as usize >= tiles_row_prev.len() {
+	if state.iter_width == 0 || (state.iter + 1) as usize >= tiles_row_prev.len() {
 		calc_t_on_spline(state.iter, state.t, tile_pos_delta, prev_p, tile_dist_target)
 	} else {
-		let tile_dist_target = ((hlenz + seam + hlenx).powf(2.0) + (hlenz - hlenx).powf(2.0)).sqrt();
+		// let tile_dist_target = ((hlenz + seam + hlenx).powf(2.0) + (hlenz - hlenx).powf(2.0)).sqrt();
+		// let tile_dist_target = ((hlenx + seam + hlenx).powf(2.0) + (hlenz).powf(2.0)).sqrt();
+		let tile_dist_target = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
+		// let single_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
 		let spline_offset_scalar = if state.iter % 2 != 0 { tile_pos_delta.x } else { 0.0 };
 		calc_t_on_spline_wwidth(state.iter, state.t, spline_offset_scalar, tile_dist_target, tiles_row_prev)
 	};
 
-	// if state.iter == 2 && state.iter_width == 1 {
+	// if state.iter == 3 && state.iter_width == 1 {
 	// 	state.finished = true;
 	// 	return;
 	// }
-
-	// let (t, spline_p) = calc_t_on_spline(state.iter, state.t, tile_pos_delta, prev_p, tile_dist_target);
-
-	// //let tile_dist_target = hlenx * 3.0 + seam;
-	// let tile_dist_target = ((hlenx * 2.0 + seam).powf(2.0) + hlenx.powf(2.0)).sqrt();
-	// let spline_offset_scalar = if state.iter % 2 != 0 { tile_pos_delta.x } else { 0.0 };
-	// calc_t_on_spline_wwidth(state.iter, spline_offset_scalar, tile_dist_target);
 
 	if t > total_length {
 		state.finished = true;

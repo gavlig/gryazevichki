@@ -60,33 +60,21 @@ impl HerringboneControl {
 
 #[derive(Component, Clone, Copy)]
 pub struct BrickRoadProgressState {
-	pub x 				: u32,
-	pub z 				: u32,
-	pub iter			: u32,
-	pub iter_width		: u32,
-	pub key				: usize,
+	pub iter			: usize,
+	pub iter_width		: usize,
 	pub t				: f32,
 	pub pos				: Vec3,
-	pub orientation		: Orientation2D,
-	pub finished_hor	: bool,
 	pub finished		: bool,
-	pub next_spline_p	: Vec3,
 }
 
 impl Default for BrickRoadProgressState {
 	fn default() -> Self {
 		Self {
-			x 			: 0,
-			z 			: 0,
 			iter		: 0,
 			iter_width	: 0,
-			key			: 0,
 			t			: 0.0,
 			pos			: Vec3::Y * 0.5, // VERTICALITY
-			orientation	: Orientation2D::Vertical,
-			finished_hor: false,
 			finished	: false,
-			next_spline_p : Vec3::ZERO,
 		}
 	}
 }

@@ -288,7 +288,7 @@ pub fn coords_on_hover_ui_system(
 		// crashes randomly when we drag something outside window
 		if !window.physical_cursor_position().is_none() {
 			egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
-				ui.label(format!("#[{} {:?}] x: {:.3} z: {:.3} lx: {:.3} lz: {:.3}", state.iter, state.orientation, state.x, state.z, tform.translation.x, tform.translation.z));
+				ui.label(format!("#[{} {}] t: {:.3} lx: {:.3} lz: {:.3}", state.iter_width, state.iter, state.t, tform.translation.x, tform.translation.z));
 			});
 		}
 	}
