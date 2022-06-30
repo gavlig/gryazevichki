@@ -35,13 +35,13 @@ fn main() {
 		.add_plugin(DebugLinesPlugin::default())
 		.add_plugin(OverlayPlugin { font_size: 12.0, fallback_color: Color::rgb(0.1, 0.1, 0.1), ..default() })
 
-		.add_plugin(ConsolePlugin)
 		.add_plugin(InfiniteGridPlugin)
+		// .add_plugin(ConsolePlugin)
 		// .insert_resource(ConsoleConfiguration {
         //     // override config here
         //     ..Default::default()
         // })
-		.add_console_command::<ExampleCommand, _, _>(example_command)
+		// .add_console_command::<ExampleCommand, _, _>(example_command)
 
 // 		.add_system(daylight_cycle)
 		.add_system(show_fps)
