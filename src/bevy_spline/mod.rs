@@ -139,20 +139,30 @@ impl Spline {
 		segment_length
 	}
 
-	pub fn calc_rotation(&self, t : f32, spline_p : Vec3) -> Quat {
+	pub fn calc_rotation(&self, t : f32) -> Quat {
+		let spline_p		= match self.clamped_sample(t) {
+			Some(p)			=> p,
+			None			=> panic!("calc_rotation: primary spline.clamped_sample failed!"),
+		};
+
+		self.calc_rotation_wpos(t, spline_p)
+	}
+
+	pub fn calc_rotation_wpos(&self, t : f32, spline_p : Vec3) -> Quat {
 		let total_length 	= self.total_length();
-		let next_t = 
-		if t + 0.01 < total_length {
-			t.max(0.0) + 0.01
+		let eps				= 0.00001;
+		let (next_t, reverse) = 
+		if t + eps < total_length {
+			(t.max(0.0) + eps, false)
 		} else {
-			total_length - 0.01
+			(total_length - eps, true)
 		};
 		let next_spline_p	= match self.clamped_sample(next_t) {
 			Some(p)			=> p,
-			None			=> panic!("secondary spline.clamped_sample failed!"),
+			None			=> panic!("calc_rotation: spline.clamped_sample failed!"),
 		};
 
-		let spline_dir		= (next_spline_p - spline_p).normalize();
+		let spline_dir		= (if !reverse { next_spline_p - spline_p } else { spline_p - next_spline_p }).normalize();
 		Quat::from_rotation_arc(Vec3::Z, spline_dir)
 	}
 
@@ -200,7 +210,7 @@ impl Spline {
 	pub fn clone_with_offset(&self, offset_in : Vec3) -> Spline {
 		let mut keys_with_offset : Vec<Key> = Vec::new();
 		for k in self.keys() {
-			let spline_rotation = self.calc_rotation(k.t, self.clamped_sample(k.t).unwrap());
+			let spline_rotation = self.calc_rotation(k.t);
 			let offset = spline_rotation.mul_vec3(offset_in);
 
 			let new_interpolation = match k.interpolation {
