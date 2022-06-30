@@ -6,6 +6,7 @@ use bevy_fly_camera	:: { FlyCamera };
 use bevy_mod_picking:: { * };
 use bevy_polyline	:: { prelude :: * };
 use iyes_loopless	:: { prelude :: * };
+use bevy_infinite_grid :: { InfiniteGridBundle };
 
 use std				:: { path::PathBuf };
 
@@ -64,6 +65,11 @@ pub fn setup_world_system(
 		spawn::wall		(&mut meshes, &mut materials, &mut commands);
 	}
 
+	if true {
+		commands.spawn_bundle(InfiniteGridBundle::default());
+	}
+
+	// road with herringbone tiles
 	if true {
 		let y = 1.5;
 		let transform = Transform::from_translation(Vec3::new(0.0, y, 0.0));
