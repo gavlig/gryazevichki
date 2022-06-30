@@ -206,7 +206,7 @@ pub fn generate_spline_vertices(
 	}
 
     let total_keys = keys.len();
-    let total_verts	= verts_per_segment * total_keys;
+    let total_verts	= verts_per_segment * (total_keys - 1);
     
     let total_length 	= spline.total_length();
     let delta 			= total_length / (total_verts as f32);
