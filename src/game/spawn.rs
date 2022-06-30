@@ -1,12 +1,12 @@
-use bevy				::	prelude :: { * };
-use bevy_rapier3d		::	prelude :: { * };
-use bevy_fly_camera		::	FlyCamera;
-use bevy_mod_picking	::	{ * };
-use bevy_polyline		::	{ prelude :: * };
+use bevy				:: prelude :: { * };
+use bevy_rapier3d		:: prelude :: { * };
+use bevy_fly_camera		:: FlyCamera;
+use bevy_mod_picking	:: { * };
+use bevy_polyline		:: { prelude :: * };
 
 use bevy::render::mesh::shape as render_shape;
 
-use super				::	{ * };
+use super				:: { * };
 
 pub fn camera(
 	game				: &mut ResMut<GameState>,

@@ -32,7 +32,7 @@ bevy_polyline		= "0.2"
 bevy_prototype_debug_lines = { version = "0.7.1", features = [ "3d" ] }
 bevy-debug-text-overlay = "2.0"
 bevy_console		= { git = "https://github.com/RichoDemus/bevy-console.git", rev = "1f565e3"}
-bevy_infinite_grid	= { git = "https://github.com/ForesightMiningSoftwareCorporation/bevy_infinite_grid", rev = "0b48f98" }
+bevy_infinite_grid	= { git = "https://github.com/gavlig/bevy_infinite_grid.git", rev = "f38a186" }
 splines 			= { version = "4.1.0", features = ["glam"] }
 #bevy_transform_gizmo = { path = "../bevy_transform_gizmo/" }
 
