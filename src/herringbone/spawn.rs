@@ -93,30 +93,34 @@ pub fn brick_road_iter(
 		Quat::from_rotation_y(-FRAC_PI_4)
 	};
 
-	let calc_width_offset = |positive : bool, iter_width : f32| -> (f32, Vec3) {
+	let ir = state.iter_row;
+	let il = state.iter;
+	let log = |str_in : String| {
+	 	println!("[{} {}] {}", ir, il, str_in);
+	};
+
+	let calc_row_offset = |positive : bool, iter_row : f32| -> (f32, Vec3) {
 		let single_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
 		// let single_offset = config.width / 8.0;
-		let width		= iter_width * single_offset;
+		let width		= iter_row * single_offset;
 		let mut offset_x = Vec3::new(width, 0.0, 0.0);
 		if !positive	{ offset_x.x = -offset_x.x; }
 		(width, offset_x)
 	};
 
-	let calc_width_offset_wrotation = |positive : bool, iter_width : f32, spline_rotation : Quat| -> (f32, Vec3) {
-		let (width, mut offset_x) = calc_width_offset(positive, iter_width);
+	let calc_row_offset_wrotation = |positive : bool, iter_row : f32, spline_rotation : Quat| -> (f32, Vec3) {
+		let (width, mut offset_x) = calc_row_offset(positive, iter_row);
 		offset_x				= spline_rotation.mul_vec3(offset_x);
 		(width, offset_x)
 	};
 
-	let (row_offset, row_offset_x) = calc_width_offset(true, state.iter_width as f32);
+	let (row_offset, row_offset_x) = calc_row_offset(true, state.iter_row as f32);
 	let spline			= spline_in.clone_with_offset(row_offset_x);
 	let total_length 	= spline.total_length();
 
 	if control.verbose {
-		println!("[{} {}] t: {:.3} spline.total_length: {:.3} iter_width: {} row_offset(width): {:.3}", state.iter_width, state.iter, state.t, total_length, state.iter_width, row_offset);
+		log(format!("new brick_road_iter! t: {:.3} spline.total_length: {:.3} row_offset(width): {:.3}", state.t, total_length, row_offset));
 	}
-
-	// t == z in spherical vacuum
 
 	let calc_next_pos = |prev_p : Vec3, iter : usize| -> Vec3 {
 		let ver = Vec3::Y * 0.5; // VERTICALITY
@@ -135,7 +139,7 @@ pub fn brick_road_iter(
 
 			if control.verbose {
 				let offset = prev_p + offset0 + offset1;
-				println!("[{}] (even) calc_next_pos: [{:.3} {:.3} {:.3}]", iter, offset.x, offset.y, offset.z);
+				log(format!("(even) calc_next_pos: [{:.3} {:.3} {:.3}]", offset.x, offset.y, offset.z));
 			}
 
 			offset0 + offset1
@@ -148,14 +152,14 @@ pub fn brick_road_iter(
 
 			if control.verbose {
 				let offset = prev_p + offset0 + offset1;
-				println!("[{}] (odd) calc_next_pos: [{:.3} {:.3} {:.3}]", iter, offset.x, offset.y, offset.z);
+				log(format!("(odd) calc_next_pos: [{:.3} {:.3} {:.3}]", offset.x, offset.y, offset.z));
 			}
 
 			offset0 + offset1
 		};
 
 		if control.verbose {
-			println!("[{}] prev: [{:.3} {:.3} {:.3}]", iter, prev_p.x, prev_p.y, prev_p.z);
+			log(format!("prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
 		}
 
 		herrpos
@@ -189,7 +193,7 @@ pub fn brick_road_iter(
 			let spline_r = spline.calc_rotation_wpos(t, spline_p);
 			let spline_offset = calc_offset_from_spline(iter, spline_r, spline_offset_scalar);
 
-			let (_width_offset_scalar, width_offset) = calc_width_offset_wrotation(true, state.iter_width as f32, spline_r);
+			let (_width_offset_scalar, width_offset) = calc_row_offset_wrotation(true, state.iter_row as f32, spline_r);
 
 			if control.visual_debug {
 				// debug_lines.line_colored(spline_p + width_offset + ver, spline_p + spline_offset + width_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
@@ -210,9 +214,8 @@ pub fn brick_road_iter(
 			t = state_t + corrected_offset;
 
 			if control.verbose {
-				// println!("[{} {}] tile_dist_actual : {:.3} = new_p({:.3} {:.3} {:.3}) - prev_p({:.3} {:.3} {:.3}) (spline_p: ({:.3} {:.3} {:.3}) spline_offset_scalar: {:.3} width_offset: ({:.3} {:.3} {:.3}))", state.iter, i, tile_dist_actual, new_p.x, new_p.y, new_p.z, prev_p.x, prev_p.y, prev_p.z, spline_p.x, spline_p.y, spline_p.z, spline_offset_scalar, width_offset.x, width_offset.y, width_offset.z);
-				println!("[{} {}] tile_dist_actual : {:.3} = new_p({:.3} {:.3} {:.3}) - prev_p({:.3} {:.3} {:.3}) (spline_p: ({:.3} {:.3} {:.3}) spline_offset_scalar: {:.3})", state.iter, i, tile_dist_actual, new_p.x, new_p.y, new_p.z, prev_p.x, prev_p.y, prev_p.z, spline_p.x, spline_p.y, spline_p.z, spline_offset_scalar);
-				println!("[{} {}] t : {:.3} correction : tile_dist_target({:.3}) / tile_dist_actual({:.3}) = correction({:.3})", state.iter, i, t, tile_dist_target, tile_dist_actual, correction);
+				log(format!("[{}] tile_dist_target : {:.3} tile_dist_actual : {:.3} = new_p({:.3} {:.3} {:.3}) - prev_p({:.3} {:.3} {:.3}) (spline_p: ({:.3} {:.3} {:.3}) spline_offset_scalar: {:.3})", i, tile_dist_target, tile_dist_actual, new_p.x, new_p.y, new_p.z, prev_p.x, prev_p.y, prev_p.z, spline_p.x, spline_p.y, spline_p.z, spline_offset_scalar));
+				log(format!("[{}] t : {:.3} correction : tile_dist_target({:.3}) / tile_dist_actual({:.3}) = correction({:.3})", i, t, tile_dist_target, tile_dist_actual, correction));
 			}
 
 			i += 1;
@@ -229,8 +232,85 @@ pub fn brick_road_iter(
 		(t, new_p, new_r, spline_p, spline_r)
 	};
 
+	let mut calc_t_on_spline_wwidth = |
+		iter : usize,
+		state_t : f32,
+		spline_offset_scalar : f32,
+		tile_dist_target : f32,
+		iter_state : &TileRowIterState,
+		iter_state_target : &TileRowIterState
+	| -> (f32, Vec3, Quat, Vec3, Quat) {
+		let ver 		= Vec3::Y * 1.0; // VERTICALITY
+	
+		let mut t 		= iter_state.t;
+		let mut spline_p = iter_state.spline_p;
+		let mut spline_r = iter_state.spline_r;
+		let mut i 		= 0;
+		let mut corrections : Vec<f32> = Vec::new();
+		let init_offset	= t - state_t;
+	
+		let pos_for_alignment = iter_state_target.tile_p;
+	
+		if control.verbose {
+			log(format!("init ww t : {:.3} spline_p: ({:.3} {:.3} {:.3}) pos_for_alignment: ({:.3} {:.3} {:.3}) tile_dist_target: {:.3}", t, spline_p.x, spline_p.y, spline_p.z, pos_for_alignment.x, pos_for_alignment.y, pos_for_alignment.z, tile_dist_target));
+		}
+	
+		let (tile_p, tile_r, spline_p, spline_r) =
+		loop {
+			// first we use existing spline_p, t and so on, because they are obtained from previous row of tiles.
+			// we compare them to our desireable position and then keep adjusting until we're close enough to the tile_dist_target
+			let spline_offset = calc_offset_from_spline(iter, spline_r, spline_offset_scalar);
+			// let (_width_offset_scalar, width_offset) = calc_width_offset_wrotation(true, state.iter_width as f32, spline_r);
+	
+			if control.visual_debug {
+				// let p0 = spline_p + width_offset + ver;
+				// let p1 = spline_p + spline_offset + width_offset + ver;
+				let p0 = spline_p + ver;
+				let p1 = spline_p + spline_offset + ver;
+				// debug_lines.line_colored(p0, p1, 0.01, Color::rgb(0.8, 0.2, 0.8));
+			}
+	
+			let new_p = spline_p + spline_offset;// + width_offset;
+			let new_r = herrrot * spline_r;
+	
+			let tile_dist_actual = (pos_for_alignment - new_p).length();
+	
+			let correction = tile_dist_target / tile_dist_actual;
+			corrections.push(correction);
+			let mut corrected_offset = init_offset;
+			for c in corrections.iter() {
+				corrected_offset *= c;
+			}
+			t = state_t + corrected_offset;
+	
+			if t.is_infinite() || t.is_nan() {
+				panic!("calc_t_on_spline_wwidth: t is invalid! corrected_offset: {:.3} state_t: {:.3} init_offset: {:.3} tile_dist_target: {:.3} tile_dist_actual: {:.3}", corrected_offset, state_t, init_offset, tile_dist_target, tile_dist_actual);
+			}
+	
+			if control.verbose {
+				log(format!("[{}] ww tile_dist_target : {:.3} tile_dist_actual : {:.3} = new_p({:.3} {:.3} {:.3}) - prev_p({:.3} {:.3} {:.3}) (spline_p: ({:.3} {:.3} {:.3}) spline_offset_scalar: {:.3})", i, tile_dist_target, tile_dist_actual, new_p.x, new_p.y, new_p.z, pos_for_alignment.x, pos_for_alignment.y, pos_for_alignment.z, spline_p.x, spline_p.y, spline_p.z, spline_offset_scalar));
+				log(format!("[{}] ww t : {:.3} correction({:.3}) : tile_dist_target({:.3}) / tile_dist_actual({:.3})", i, t, correction, tile_dist_target, tile_dist_actual));
+			}
+	
+			i += 1;
+	
+			if (1.0 - correction).abs() <= 0.01  || i >= 5 {
+				break (new_p, new_r, spline_p, spline_r);
+			}
+	
+			spline_p = match spline.clamped_sample(t) {
+				Some(p)	=> p,
+				None	=> panic!("calc_t_corrected spline.clamped_sample failed!"),
+			};
+	
+			spline_r = spline.calc_rotation_wpos(t, spline_p);
+		};
+	
+		(t, tile_p, tile_r, spline_p, spline_r)
+	};
+
 	if control.verbose {
-		println!("[{}] getting next pos on straight line (along +z with little +-x) prev pos: [{:.3} {:.3} {:.3}]", state.iter, state.pos.x, state.pos.y, state.pos.z);
+		log(format!("getting next pos on straight line (along +z with little +-x) prev pos: [{:.3} {:.3} {:.3}]", state.pos.x, state.pos.y, state.pos.z));
 	}
 
 	let next_pos 		= calc_next_pos(state.pos, state.iter);
@@ -239,24 +319,22 @@ pub fn brick_road_iter(
 	let t 				= state.t + tile_pos_delta.z;
 	let tile_dist_target = tile_pos_delta.length();
 
-	if t >= total_length || state.iter > 4 {
+	if t >= total_length { // || state.iter > 2 {
 		if control.verbose {
-			println!("[{}] total_length limit reached! Next tile pos: [{:.3} {:.3} {:.3}(<-)] total spline length: {:.3}", state.iter, next_pos.x, next_pos.y, next_pos.z, total_length);
+			log(format!("total_length limit reached! Next tile pos: [{:.3} {:.3} {:.3}(<-)] total spline length: {:.3}", next_pos.x, next_pos.y, next_pos.z, total_length));
 		}
 
-		let (hwidth, _) = calc_width_offset(false, (state.iter_width + 1) as f32);
+		let (row_offset, row_offset_x) = calc_row_offset(false, (state.iter_row + 1) as f32);
 
 		if control.verbose {
-			println!("[{}] new width_offset scalar(hwidth): {:.3}", state.iter, hwidth);
+			log(format!("new width_offset scalar(hwidth): {:.3}", row_offset));
 		}
 
-		if hwidth * 2.0 < config.width {
-			// let spline_rotation = calc_spline_rotation(state.t, spline.clamped_sample(state.t).unwrap());
-			// let (_, width_offset) = calc_width_offset(false, state.iter_width as f32, spline_rotation);
-			state.pos = Vec3::Y * 0.5;// + width_offset; // VERTICALITY
+		if row_offset * 2.0 < config.width {
+			state.pos = Vec3::Y * 0.5 + row_offset_x; // VERTICALITY
 
 			// we only keep cached positions of previous row, everything else gets cleaned up
-			if state.iter_width > 0 {
+			if state.iter_row > 0 {
 				tiles_row_prev.resize_with(tiles_row_cur.len(), default);
 				tiles_row_prev.copy_from_slice(tiles_row_cur.as_slice());
 				tiles_row_cur.clear();
@@ -264,28 +342,27 @@ pub fn brick_road_iter(
 
 			state.t = 0.0;
 			state.iter = 0;
-
-			state.iter_width += 1;
+			state.iter_row += 1;
 
 			if control.verbose {
-				println!("[{}] width limit not reached({:.3}/{:.3}), inc iter_width({} -> {})", state.iter, hwidth * 2.0, config.width, state.iter_width - 1, state.iter_width);
+				log(format!("width limit not reached({:.3}/{:.3}), inc iter_row({} -> {})", row_offset * 2.0, config.width, state.iter_row - 1, state.iter_row));
 			}
 		} else {
 			state.finished = true;
 
 			if control.verbose {
-				println!("[{}] width limit reached! finished!", state.iter);
+				log(format!("width limit reached! finished!"));
 			}
 		}
 		
 		if control.verbose {
-			println!("----------------------------");
+			log(format!("----------------------------"));
 		}
 		return;
 	}
 
 	if control.verbose {
-		println!("[{}] t: {:.3} next_pos:[{:.3} {:.3}] prev_pos: [{:.3} {:.3}] tile_pos_delta: [{:.3} {:.3}]", state.iter, t, next_pos.x, next_pos.z, state.pos.x, state.pos.z, tile_pos_delta.x, tile_pos_delta.z);
+		log(format!("[{}] t: {:.3} next_pos:[{:.3} {:.3}] prev_pos: [{:.3} {:.3}] tile_pos_delta: [{:.3} {:.3}]", state.iter, t, next_pos.x, next_pos.z, state.pos.x, state.pos.z, tile_pos_delta.x, tile_pos_delta.z));
 	}
 
 	let mut prev_p = state.pos;
@@ -293,12 +370,27 @@ pub fn brick_road_iter(
 
 	let (t, tile_p, tile_r, spline_p, spline_r) =
 	if state.iter != 0 {
-		fit_tile_on_spline(state.iter, state.t, prev_p, tile_dist_target, spline_offset_scalar)
+		if state.iter_row == 0 || state.iter == 0 || state.iter + 1 >= tiles_row_prev.len() {
+			fit_tile_on_spline(state.iter, state.t, prev_p, tile_dist_target, spline_offset_scalar)
+		} else {
+			let iter_state	= tiles_row_prev[state.iter];
+			let (tile_dist_target, iter_state_target) = 
+			if state.t < total_length / 2.0 {
+				let tile_dist_target = ((hlenx).powf(2.0) + (hlenx + seam + hlenz).powf(2.0)).sqrt(); // distance to next tile in row
+				(tile_dist_target, tiles_row_cur[state.iter - 1])
+			} else {
+				let tile_dist_target = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt(); // same iter prev row
+				(tile_dist_target, iter_state)
+			};
+
+			calc_t_on_spline_wwidth(state.iter, state.t, spline_offset_scalar, tile_dist_target, &iter_state, &iter_state_target)
+		}
 	} else {
-		(t, next_pos, Quat::IDENTITY, next_pos, Quat::IDENTITY)
+		let p = next_pos + row_offset_x;
+		(t, p, herrrot, p, Quat::IDENTITY)
 	};
 	
-	// if true || state.iter_width == 0 || state.iter == 0 || state.iter + 1 >= tiles_row_prev.len() {
+	// if true || state.iter_row == 0 || state.iter == 0 || state.iter + 1 >= tiles_row_prev.len() {
 		// fit_tile_on_spline(state.iter, state.t, prev_p, tile_dist_target, spline_offset_scalar)
 	// } else {
 	// 	// let tile_dist_target = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt(); // same iter prev row
@@ -316,7 +408,7 @@ pub fn brick_road_iter(
 	// 	calc_t_on_spline_wwidth(state.iter, state.t, spline_offset_scalar, tile_dist_target, &iter_state, &iter_state_target)
 	// }
 
-	// if state.iter == 4 && state.iter_width == 1 {
+	// if state.iter == 2 && state.iter_row == 3 {
 	// 	state.finished = true;
 	// 	return;
 	// }
@@ -327,7 +419,7 @@ pub fn brick_road_iter(
 	}
 
 	if control.verbose {
-		println!("[{}] final tile_p [{:.3} {:.3}] for t : {:.3}", state.iter, tile_p.x, tile_p.z, t);
+		log(format!("final tile_p [{:.3} {:.3}] for t : {:.3}", tile_p.x, tile_p.z, t));
 	}
 
 	let mut pose 		= Transform::identity();
@@ -336,13 +428,11 @@ pub fn brick_road_iter(
 	//
 	//
 
-	let spline_rotation = spline.calc_rotation_wpos(t, spline_p);
-
 	pose.translation 	= tile_p;
-	pose.rotation		= herrrot * spline_rotation;
+	pose.rotation		= tile_r;
 
 	if control.verbose {
-		println!("[{}] final pose: [{:.3} {:.3} {:.3}] tile_pos_delta.x: {:.3}", state.iter, pose.translation.x, pose.translation.y, pose.translation.z, tile_pos_delta.x);
+		log(format!("final pose: [{:.3} {:.3} {:.3}] tile_pos_delta.x: {:.3}", pose.translation.x, pose.translation.y, pose.translation.z, tile_pos_delta.x));
 	}
 
 	if state.iter > 0 && control.visual_debug {
@@ -353,34 +443,34 @@ pub fn brick_road_iter(
 		if iter % 2 == 0 {
 			let offset0_scalar = hlenz - hlenx;
 			let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
-			let offset0 = (spline_rotation * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
+			let offset0 = (spline_r * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
 	
 			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
 	
 			let offset1_scalar = hlenx + seam + hlenz;
 			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
-			let offset1 = (spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
+			let offset1 = (spline_r * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
 
 			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
 			if control.verbose {
-				println!("[{}] 0 dbg next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+				log(format!("[{}] 0 dbg next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z));
 			}
 	
 			offset0 + offset1
 		} else {
 			let offset0_scalar = hlenz - hlenx;
 			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
-			let offset0 = (spline_rotation * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
+			let offset0 = (spline_r * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
 	
 			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
 	
 			let offset1_scalar = hlenx + seam + hlenz;
 			let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
-			let offset1 = (spline_rotation * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
+			let offset1 = (spline_r * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
 	
 			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
 			if control.verbose {	
-				println!("[{}] 1 dbg next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z);
+				log(format!("[{}] 1 dbg next_pos: [{:.3} {:.3}]", iter, (prev_p + offset0 + offset1).x, (prev_p + offset0 + offset1).z));
 			}
 	
 			offset0 + offset1
@@ -427,13 +517,13 @@ pub fn brick_road_iter(
 	state.pos	 = pose.translation;
 
 	let iter_state = TileRowIterState{ t: t, tile_p: state.pos, spline_p: spline_p, spline_r: spline_r };
-	if state.iter_width == 0 {
+	if state.iter_row == 0 {
 		tiles_row_prev.push(iter_state);
 	} else {
 		tiles_row_cur.push(iter_state);
 	}
 
 	if control.verbose {
-		println!("----------------------------");
+		log(format!("----------------------------"));
 	}
 }
