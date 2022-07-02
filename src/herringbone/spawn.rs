@@ -126,7 +126,7 @@ pub fn brick_road_iter(
 		let ver = Vec3::Y * 0.5; // VERTICALITY
 
 		if iter == 0 {
-			return ver;
+			return prev_p;
 		}
 
 		let herrpos = prev_p +
@@ -316,12 +316,15 @@ pub fn brick_road_iter(
 	let t 				= state.t + tile_pos_delta.z;
 	let tile_dist_target = tile_pos_delta.length();
 
+	let keys			= spline.keys();
+	let start_t			= keys[0].t;
+	let init_spline_r	= spline.calc_rotation(start_t);
+	let (row_offset, row_offset_x) = calc_row_offset_wrotation(true, (state.iter_row + 1) as f32, init_spline_r);
+
 	if t >= total_length { // || state.iter > 2 {
 		if control.verbose {
 			log(format!("total_length limit reached! Next tile pos: [{:.3} {:.3} {:.3}(<-)] total spline length: {:.3}", next_pos.x, next_pos.y, next_pos.z, total_length));
 		}
-
-		let (row_offset, row_offset_x) = calc_row_offset(false, (state.iter_row + 1) as f32);
 
 		if control.verbose {
 			log(format!("new width_offset scalar(hwidth): {:.3}", row_offset));
@@ -363,7 +366,6 @@ pub fn brick_road_iter(
 	}
 
 	let mut prev_p = state.pos;
-	prev_p.y = 0.5; // VERTICALITY
 
 	let (t, tile_p, tile_r, spline_p, spline_r) =
 	if state.iter != 0 {
@@ -386,8 +388,9 @@ pub fn brick_road_iter(
 			fit_tile_on_spline_wwidth(state.iter, state.t, spline_offset_scalar, tile_dist_target, &iter_state_target)
 		}
 	} else {
-		let p = next_pos + row_offset_x;
-		(t, p, herrrot, p, Quat::IDENTITY)
+		let p = next_pos;
+		let r = spline.calc_rotation(start_t);
+		(t, p, r * herrrot, p, Quat::IDENTITY)
 	};
 	
 	// if true || state.iter_row == 0 || state.iter == 0 || state.iter + 1 >= tiles_row_prev.len() {
