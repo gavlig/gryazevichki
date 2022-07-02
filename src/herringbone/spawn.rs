@@ -200,8 +200,7 @@ pub fn brick_road_iter(
 			let spline_offset = calc_offset_from_spline(iter, spline_r, spline_offset_scalar);
 
 			if control.visual_debug {
-				// debug_lines.line_colored(spline_p + width_offset + ver, spline_p + spline_offset + width_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
-				debug_lines.line_colored(spline_p + ver, spline_p + spline_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
+				// debug_lines.line_colored(spline_p + ver, spline_p + spline_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
 			}
 
 			let new_p = spline_p + spline_offset;
@@ -369,52 +368,139 @@ pub fn brick_road_iter(
 
 	let (t, tile_p, tile_r, spline_p, spline_r) =
 	if state.iter != 0 {
-		if state.iter_row == 0 || state.iter == 0 || state.iter + 1 >= tiles_row_prev.len() {
+		if state.iter_row == 0 {
 			fit_tile_on_spline(state.iter, state.t, prev_p, tile_dist_target, spline_offset_scalar)
 		} else {
-			// let iter_state_prev_row = tiles_row_prev[state.iter];
-			let (tile_dist_target, iter_state_target) = 
-			if state.t < total_length / 2.0 {
-				let tile_dist_target = ((hlenx).powf(2.0) + (hlenx + seam + hlenz).powf(2.0)).sqrt(); // distance to next tile in row
-				(tile_dist_target, tiles_row_cur[state.iter - 1])
-			} else {
-				state.finished = true;
-				return;
-				// log(format!("second half"));
-				// let tile_dist_target = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt(); // same iter prev row
-				// (tile_dist_target, iter_state)
-			};
+			// if state.iter % 2 != 0 && state.iter + 1 < tiles_row_prev.len() {
+			// 	// we need to calc 2 points: one on a prev row tile, second on prev tile on the same row.
+			// 	let p0_iter_state = tiles_row_cur[state.iter - 1];
+			// 	let p0_center_offset = Vec3::Z * (hlenz - hlenx);
+			// 	let p0 = p0_iter_state.tile_p + p0_iter_state.tile_r.mul_vec3(p0_center_offset);
 
-			fit_tile_on_spline_wwidth(state.iter, state.t, spline_offset_scalar, tile_dist_target, &iter_state_target)
+			// 	let p1_iter_state = tiles_row_prev[state.iter + 1];
+			// 	let p1_center_offset = Vec3::Z * (hlenz - hlenx) * -1.0;
+			// 	let p1 = p1_iter_state.tile_p + p1_iter_state.tile_r.mul_vec3(p1_center_offset);
+
+			// 	let ver = Vec3::Y * 1.5;
+
+			// 	// debug_lines.line_colored(p0 + ver, p1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
+
+			// 	let p_delta = p1 - p0;
+
+			// 	let p = p0 + p_delta;
+
+			// 	let dir = p_delta.normalize();
+			// 	let r = Quat::from_rotation_arc(Vec3::Z, dir);
+			// 	(t, p, r, p, herrrot)
+			// }
+
+			// if state.iter % 2 == 0 || state.iter + 1 >= tiles_row_prev.len() {
+			// 	// let iter_state_prev_row = tiles_row_prev[state.iter];
+			// 	let (tile_dist_target, iter_state_target) = 
+			// 	if state.t < total_length / 2.0 {
+			// 		// let tile_dist_target = ((hlenx).powf(2.0) + (hlenx + seam + hlenz).powf(2.0)).sqrt(); // distance to next tile in row
+			// 		// (tile_dist_target, tiles_row_cur[state.iter - 1])
+
+			// 		let tile_dist_target = ((hlenx).powf(2.0) + (hlenx + seam + hlenz).powf(2.0)).sqrt(); // distance to next tile in row
+			// 		(tile_dist_target, tiles_row_cur[state.iter - 1])
+			// 	} else {
+			// 		state.finished = true;
+			// 		return;
+			// 		// log(format!("second half"));
+			// 		// let tile_dist_target = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt(); // same iter prev row
+			// 		// (tile_dist_target, iter_state)
+			// 	};
+
+			// 	fit_tile_on_spline_wwidth(state.iter, state.t, spline_offset_scalar, tile_dist_target, &iter_state_target)
+
+
+			let ver = Vec3::Y * 1.5;
+			if state.iter % 2 == 0 || state.iter + 1 >= tiles_row_prev.len() {
+				let p0_iter_state = tiles_row_prev[state.iter];
+				let p0_center_offset = Vec3::Z * (hlenz - hlenx);
+				let p0 = p0_iter_state.tile_p + p0_iter_state.tile_r.mul_vec3(p0_center_offset);
+
+				let p1_offset = Vec3::Z * (hlenx + seam + hlenx) * -1.0;
+				let p1_r = p0_iter_state.tile_r * Quat::from_rotation_y(-FRAC_PI_2);
+				let p1 = p0 + p1_r.mul_vec3(p1_offset);
+
+				let p2_offset = Vec3::Z * (hlenz - hlenx + seam);
+				let p2_r = p1_r * Quat::from_rotation_y(FRAC_PI_2);
+				let p2 = p1 + p2_r.mul_vec3(p2_offset);
+
+				debug_lines.line_colored(p0_iter_state.tile_p + ver, p0 + ver, 0.01, Color::rgb(0.2, 0.8, 0.2));
+				debug_lines.line_colored(p0 + ver, p1 + ver, 0.01, Color::rgb(0.8, 0.8, 0.2));
+				debug_lines.line_colored(p1 + ver, p2 + ver, 0.01, Color::rgb(0.8, 0.8, 0.8));
+
+				(t, p2, p0_iter_state.tile_r, p2, p0_iter_state.tile_r)
+			} else {
+				// we need to calc 2 points: one on a prev row tile, second on prev tile on the same row.
+				let p0_iter_state = tiles_row_cur[state.iter - 1];
+				let p0_center_offset = Vec3::Z * (hlenz - hlenx);
+				let p0 = p0_iter_state.tile_p + p0_iter_state.tile_r.mul_vec3(p0_center_offset);
+
+				let p1_iter_state = tiles_row_prev[state.iter + 1];
+				let p1_center_offset = Vec3::Z * (hlenz - hlenx) * -1.0;
+				let p1 = p1_iter_state.tile_p + p1_iter_state.tile_r.mul_vec3(p1_center_offset);
+
+				debug_lines.line_colored(p0 + ver, p1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
+
+				let p_delta = p1 - p0;
+
+				let p = p0 + (p_delta / 2.0);
+				let p_cache = p.clone();
+
+				let dir = p_delta.normalize();
+				let r = Quat::from_rotation_arc(Vec3::Z, dir);
+
+				// now fit it with prev row tiles to avoid overlaps
+				// triangle
+
+				let p0_iter_state = tiles_row_prev[state.iter - 1];
+				let p0 = p0_iter_state.tile_p;
+
+				let p1_iter_state = tiles_row_prev[state.iter];
+				let p1 = p1_iter_state.tile_p;
+
+				let p0_dist_target = ((hlenz + seam + hlenx).powf(2.0) + (hlenx).powf(2.0)).sqrt();
+				let p1_dist_target = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
+
+				let p0_delta = p - p0;
+				let p1_delta = p - p1;
+
+				let p0_dist_actual = (p0 - p).length();
+				let p1_dist_actual = (p1 - p).length();
+
+				let correction0 = p0_dist_target / p0_dist_actual;
+				let correction1 = p1_dist_target / p1_dist_actual;
+
+				let p0_dist_new = p0_dist_actual * correction0;
+				let p1_dist_new = p1_dist_actual * correction1;
+
+				let p_from_p0 = p0 + p0_delta.normalize() * p0_dist_target;//p0_dist_new;
+				let p_from_p1 = p1 + p1_delta.normalize() * p1_dist_target;//p1_dist_new;
+				let delta = p_from_p1 - p_from_p0;
+
+				debug_lines.line_colored(p0 + ver, p_from_p0 + ver, 0.01, Color::rgb(0.8, 0.8, 0.2));
+				debug_lines.line_colored(p1 + ver, p_from_p1 + ver, 0.01, Color::rgb(0.8, 0.8, 0.2));
+
+				let p = p_from_p0 + (delta / 2.0);
+
+				debug_lines.line_colored(p_cache + ver, p + ver, 0.01, Color::rgb(0.2, 0.8, 0.2));
+
+				(t, p, r, p, herrrot)
+			}
 		}
 	} else {
 		let p = next_pos;
 		let r = spline.calc_rotation(start_t);
 		(t, p, r * herrrot, p, Quat::IDENTITY)
 	};
-	
-	// if true || state.iter_row == 0 || state.iter == 0 || state.iter + 1 >= tiles_row_prev.len() {
-		// fit_tile_on_spline(state.iter, state.t, prev_p, tile_dist_target, spline_offset_scalar)
-	// } else {
-	// 	// let tile_dist_target = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt(); // same iter prev row
-	// 	// let tile_dist_target = ((hlenx).powf(2.0) + (hlenx + seam + hlenz).powf(2.0)).sqrt(); // distance to next tile in row
-		
-	// 	let iter_state	= tiles_row_prev[state.iter];
-	// 	let (tile_dist_target, iter_state_target) = 
-	// 	if state.t < total_length / 2.0 {
-	// 		let tile_dist_target = ((hlenx).powf(2.0) + (hlenx + seam + hlenz).powf(2.0)).sqrt(); // distance to next tile in row
-	// 		(tile_dist_target, tiles_row_cur[state.iter - 1])
-	// 	} else {
-	// 		let tile_dist_target = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt(); // same iter prev row
-	// 		(tile_dist_target, iter_state)
-	// 	};
-	// 	calc_t_on_spline_wwidth(state.iter, state.t, spline_offset_scalar, tile_dist_target, &iter_state, &iter_state_target)
-	// }
 
-	// if state.iter == 2 && state.iter_row == 3 {
-	// 	state.finished = true;
-	// 	return;
-	// }
+	if state.iter == 4 && state.iter_row == 1 {
+		state.finished = true;
+		return;
+	}
 
 	if t > total_length {
 		state.finished = true;
@@ -422,7 +508,7 @@ pub fn brick_road_iter(
 	}
 
 	if control.verbose {
-		log(format!("final tile_p [{:.3} {:.3}] for t : {:.3}", tile_p.x, tile_p.z, t));
+		log(format!("final tile_p [{:.3} {:.3} {:.3}] for t : {:.3}", tile_p.x, tile_p.y, tile_p.z, t));
 	}
 
 	let mut pose 		= Transform::identity();
@@ -448,13 +534,13 @@ pub fn brick_road_iter(
 			let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
 			let offset0 = (spline_r * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
 	
-			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+			// debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
 	
 			let offset1_scalar = hlenx + seam + hlenz;
 			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
 			let offset1 = (spline_r * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
 
-			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
+			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.8, 0.2, 0.2));
 			if control.verbose {
 				let next_pos = prev_p + offset0 + offset1;
 				log(format!("[{}] 0 dbg next_pos: [{:.3} {:.3} {:.3}]", iter, next_pos.x, next_pos.y, next_pos.z));
@@ -466,13 +552,13 @@ pub fn brick_road_iter(
 			let init_rot = Quat::from_rotation_y(FRAC_PI_4);
 			let offset0 = (spline_r * init_rot).mul_vec3(Vec3::Z * offset0_scalar);
 	
-			debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+			// debug_lines.line_colored(prev_p + ver, prev_p + offset0 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
 	
 			let offset1_scalar = hlenx + seam + hlenz;
 			let init_rot = Quat::from_rotation_y(-FRAC_PI_4);
 			let offset1 = (spline_r * init_rot).mul_vec3(Vec3::Z * offset1_scalar);
 	
-			debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
+			// debug_lines.line_colored(prev_p + offset0 + ver, prev_p + offset0 + offset1 + ver, 0.01, Color::rgb(0.2, 0.2, 0.8));
 			if control.verbose {	
 				let next_pos = prev_p + offset0 + offset1;
 				log(format!("[{}] 1 dbg next_pos: [{:.3} {:.3} {:.3}]", iter, next_pos.x, next_pos.y, next_pos.z));
@@ -521,7 +607,7 @@ pub fn brick_road_iter(
 	state.t		 = t;
 	state.pos	 = pose.translation;
 
-	let iter_state = TileRowIterState{ t: t, tile_p: state.pos, spline_p: spline_p, spline_r: spline_r };
+	let iter_state = TileRowIterState{ t: t, tile_p: state.pos, tile_r: tile_r, spline_p: spline_p, spline_r: spline_r };
 	if state.iter_row == 0 {
 		tiles_row_prev.push(iter_state);
 	} else {

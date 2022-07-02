@@ -90,6 +90,7 @@ impl BrickRoadProgressState {
 pub struct TileRowIterState {
 	pub t 				: f32,
 	pub tile_p 			: Vec3,
+	pub tile_r			: Quat,
 	pub spline_p 		: Vec3,
 	pub spline_r 		: Quat,
 }
