@@ -172,7 +172,7 @@ fn fit_tile_on_spline(
 	loop {
 		let spline_p = match spline.clamped_sample(t) {
 			Some(p)	=> p,
-			None	=> panic!("fit_tile_on_spline spline.clamped_sample failed!"),
+			None	=> panic!("fit_tile_on_spline spline.clamped_sample failed! t: {:.3} spline.keys: {:?}", t, spline.keys()),
 		};
 
 		let spline_r = spline.calc_rotation_wpos(t, spline_p);
@@ -234,25 +234,26 @@ fn end_conditions_met(
 		return false;
 	}
 
-	let column_offset_scalar = calc_column_offset(state.column_id + 1, config);
+	let column_offset 	= calc_column_offset(state.column_id + 1, config);
 	
-	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3} column_offset_scalar: {:.3}", t, total_length, column_offset_scalar));
+	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3} column_offset: {:.3}", t, total_length, column_offset));
 
 	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
-	let debug			= state.column_id < 1 || false;
-	if column_offset_scalar * 2.0 < config.width && debug {
+	let debug			= state.column_id < 1 || true;
+	if column_offset * 2.0 < config.width && debug {
 		// we only keep cached positions of previous row, everything else gets cleaned up
 		// if state.column_id > 0 {
 		// 	tiles_row_prev.resize_with(tiles_row_cur.len(), default);
 		// 	tiles_row_prev.copy_from_slice(tiles_row_cur.as_slice());
 		// 	tiles_row_cur.clear();
 		// }
+		state.pos		= Vec3::Y * 0.5 + Vec3::X * column_offset; // VERTICALITY
 
 		state.t			= 0.0;
 		state.row_id 	= 0;
 		state.column_id += 1;
 
-		log(format!("width limit not reached({:.3}/{:.3}), inc column_id({} -> {})", column_offset_scalar * 2.0, config.width, state.column_id - 1, state.column_id));
+		log(format!("width limit not reached({:.3}/{:.3}), inc column_id({} -> {})", column_offset * 2.0, config.width, state.column_id - 1, state.column_id));
 	} else {
 		state.set_default();
 		state.finished = true;
@@ -359,24 +360,39 @@ pub fn brick_road_iter(
 
 	let (t, tile_p, tile_r, spline_p, spline_r) =
 	if state.row_id != 0 {
-		let tile_dist_target = tile_pos_delta.length();
-		// in herringbone pattern every odd tile we have horizontal offset from center of row
-		let spline_offset_scalar = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
-		fit_tile_on_spline(
-			init_t_delta,
-			tile_dist_target,
-			column_offset,
-			spline_offset_scalar,
-			pattern_rotation,
-			state,
-			spline,
-			log
-		) // FIXME: too many parameters, something is not right
+		let spline_p 	= match spline.clamped_sample(t) {
+			Some(p)	=> p,
+			None	=> panic!("brick_road_iter spline.clamped_sample failed! t: {:.3} spline.keys: {:?}", t, spline.keys()),
+		};
+
+		let spline_r	= spline.calc_rotation_wpos(t, spline_p);
+		let spline_offset = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
+		let ver			= 0.5; // VERTICALITY
+
+//		let p			= spline_p + Vec3::X * (spline_offset + column_offset);
+		let p			= Vec3::new(spline_p.x + spline_offset + column_offset, ver, next_pos.z);// + Vec3::X * (column_offset);// + (spline_p.x - next_pos.x));
+		let r			= spline_r * pattern_rotation;
+
+		(t, p, r, spline_p, spline_r)
+// THIS SHOULD BE USEFUL FOR OTHER PATTERNS
+//		let tile_dist_target = tile_pos_delta.length();
+//		// in herringbone pattern every odd tile we have horizontal offset from center of row
+//		let spline_offset_scalar = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
+//		fit_tile_on_spline(
+//			init_t_delta,
+//			tile_dist_target,
+//			column_offset,
+//			spline_offset_scalar,
+//			pattern_rotation,
+//			state,
+//			spline,
+//			log
+//		) // FIXME: too many parameters, something is not right
 	} else {
 		let spline_p	= spline.calc_init_position();
 		let spline_r	= spline.calc_init_rotation();
 
-		let p			= spline_p + spline_r.mul_vec3(Vec3::X * column_offset);
+		let p			= spline_p + Vec3::X * column_offset;
 		let r			= spline_r * pattern_rotation;
 		
 		(t, p, r, spline_p, spline_r)
@@ -415,14 +431,14 @@ pub fn brick_road_iter(
 	// Iteration ended
 	state.row_id		+= 1;
 	state.t		 		= t;
-	state.pos	 		= pose.translation;
+	state.pos	 		= tile_p;
 
-	let iter_state = TileRowIterState{ t: t, tile_p: state.pos, tile_r: tile_r, spline_p: spline_p, spline_r: spline_r };
-	if state.column_id == 0 {
-		tiles_row_prev.push(iter_state);
-	} else {
-		tiles_row_cur.push(iter_state);
-	}
+//	let iter_state = TileRowIterState{ t: t, tile_p: state.pos, tile_r: tile_r, spline_p: spline_p, spline_r: spline_r };
+//	if state.column_id == 0 {
+//		tiles_row_prev.push(iter_state);
+//	} else {
+//		tiles_row_cur.push(iter_state);
+//	}
 
 	log(format!("----------------------------"));
 }
