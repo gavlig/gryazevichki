@@ -219,7 +219,8 @@ fn end_conditions_met(
 	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
 	let debug			= state.row_id < 2 || true;
 	if t < total_length && debug {
-		log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.row_id: {:.3}", t, total_length, state.row_id));
+		// very verbose
+		// log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.row_id: {:.3}", t, total_length, state.row_id));
 		return false;
 	}
 
@@ -348,8 +349,6 @@ pub fn brick_road_iter(
 	let mut pose 		= Transform::identity();
 	pose.translation 	= next_pos;
 	pose.rotation		= pattern_rotation;
-
-	log(format!("final pose: [{:.3} {:.3} {:.3}] tile_pos_delta.x: {:.3}", pose.translation.x, pose.translation.y, pose.translation.z, tile_pos_delta.x));
 
 	// 
 	//

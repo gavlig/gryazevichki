@@ -172,10 +172,7 @@ pub fn road_draw(
 	for (children_e, transform, spline, road_width_in) in q_spline.iter_mut() {
 		let mut line_id = 0;
 
-		let (vertices, normals) = generate_spline_vertices(spline.as_ref(), road_width_in, 40);
-		let total_vertices = vertices.len();
-
-		// let border_vertices = generate_border_vertices(&vertices, &normals, road_width_in, transform, &mut debug_lines);
+		let (vertices, normals) = generate_spline_vertices(spline.as_ref(), 40);
 
 		for &child in children_e.iter() {
 			let handle 	= match q_polyline.get(child) {
@@ -184,10 +181,7 @@ pub fn road_draw(
 			};
 
 			let line	= polylines.get_mut(handle).unwrap();
-
-			if line_id == 0 {
-				line.vertices = vertices.to_owned();
-			}
+			line.vertices = generate_border_vertices(&vertices, &normals, road_width_in, line_id, transform, &mut debug_lines);
 
 			line_id += 1;
 		}
@@ -196,7 +190,6 @@ pub fn road_draw(
 
 pub fn generate_spline_vertices(
 	spline				: &Spline,
-	road_width_in		: Option<&RoadWidth>,
 	verts_per_segment 	: usize,
 ) -> (Vec<Vec3>, Vec<Quat>) {
     let keys = spline.keys();
@@ -279,6 +272,7 @@ pub fn generate_border_vertices(
 	vertices		: &Vec<Vec3>,
 	normals			: &Vec<Quat>,
 	road_width_in	: Option<&RoadWidth>,
+	line_id			: i32,
 	transform		: &GlobalTransform,
 	mut debug_lines	: &mut ResMut<DebugLines>,
 ) -> Vec<Vec3>
@@ -291,34 +285,16 @@ pub fn generate_border_vertices(
 	let road_width 		= match road_width_in 	{ Some(rw) => *rw, None => RoadWidth::W(1.0) };
 	let road_width 		= match road_width 		{ RoadWidth::W(w) => w };
 
-	let mut prev_bv		= Vec3::ZERO;
-	let mut prev_dir	= Vec3::ZERO;
 	for i in 0 .. total_vertices {
-		let v = vertices[i];
+		let v			= vertices[i];
 
-		let offset_x	= (-road_width / 2.0);// + line_id as f32 * (road_width / 2.0);
+		let offset_x	= (-road_width / 2.0) + line_id as f32 * (road_width / 2.0);
 		let mut www		= Vec3::new(offset_x, 0.0, 0.0);
 		www				= normals[i].mul_vec3(www);
 
 		let bv 			= v + www;
-		let dir 		= bv - prev_bv;
-		
-		// if prev_dir.dot(dir) < 0.0 {
-		// 	continue;
-		// }
-
-		prev_bv			= bv;
-		prev_dir		= dir;
 
 		border_vertices.push(bv);
-
-		let line_start 	= transform.translation + v;
-		let line_end 	= transform.translation + bv;
-		debug_lines.line(
-			line_start,
-			line_end,
-			0.01,
-		);
 	}
 
 	border_vertices

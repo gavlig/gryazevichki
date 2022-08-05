@@ -107,6 +107,8 @@
 49.20. (done!)basic filtering cutting off tiles not on road
 49.21. attach road to spline control points
 49.22. draw extra rows when needed
+49.23. bug: with certain width tiles overlap in the middle of the road
+49.24. connect RoadWidth component and config.width?
 50. make utils for debug drawing
 51. make plugin with common stuff from game to avoid including game
 

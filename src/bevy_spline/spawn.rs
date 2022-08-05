@@ -167,7 +167,7 @@ pub fn new(
 	let key1_e 			= self::control_point(&key1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
 
 	// left border, center and right border lines
-	for i in 0..1 {
+	for i in 0..3 {
 		let line_id = sargs.commands.spawn_bundle(PolylineBundle {
 			polyline : polylines.add(Polyline {
 				vertices	: vec![key0_pos, key1_pos],
@@ -190,7 +190,7 @@ pub fn new(
 	sargs.commands.entity(root_e)
 		.insert			(spline)
 		.insert			(SplineControl::default())
-		.insert			(RoadWidth::W(4.0))
+		.insert			(RoadWidth::W(1.0))
 		.add_child		(key0_e)
 		.add_child		(key1_e)
 		;
