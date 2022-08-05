@@ -348,31 +348,23 @@ pub fn brick_road_iter(
 	let pattern_angle	= herringbone_angle(state.row_id);
 	let pattern_rotation = Quat::from_rotation_y(pattern_angle);
 
-	let (tile_p, tile_r) =
-	if state.row_id != 0 {
-		let spline_p 	= spline.calc_position(t);
-		let spline_r	= spline.calc_rotation_wpos(t, spline_p);
-		let pattern_offset = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
+	let spline_p 		= spline.calc_position(t);
+	let spline_r		= spline.calc_rotation_wpos(t, spline_p);
 
-		let ver			= 0.5; // VERTICALITY
+	let pattern_offset 	= if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
 
-		let p = Vec3::new(
-			spline_p.x + pattern_offset + column_offset,// X
-			ver,										// Y
-			next_pos.z									// Z
-		);
-		let r			= spline_r * pattern_rotation;
+	let tile_p = Vec3::new(
+		spline_p.x + pattern_offset + column_offset,// X
+		spline_p.y,									// Y
+		next_pos.z									// Z
+	);
 
-		(p, r)
-	} else {
-		let spline_p	= spline.calc_init_position();
-		let spline_r	= spline.calc_init_rotation();
+	let tile_r			= spline_r * pattern_rotation;
 
-		let p			= spline_p + Vec3::X * column_offset;
-		let r			= spline_r * pattern_rotation;
-		
-		(p, r)
-	};
+	if state.row_id == 1 && state.column_id == 0 {
+		// println!("angle_between: {:.3}", spline_r.angle_between(Quat::IDENTITY).to_degrees());
+		// println!("spline_p.x: {:.3}", spline_p.x);
+	}
 
 	log(format!("final tile_p [{:.3} {:.3} {:.3}] for t: {:.3}", tile_p.x, tile_p.y, tile_p.z, t));
 

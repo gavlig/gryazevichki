@@ -13,38 +13,54 @@ pub type Key 			= splines::Key<f32, Vec3>;
 
 // wrapper for SplineRaw to have it as a Bevy Component
 #[derive(Component)]
-pub struct Spline(pub Raw);
+pub struct Spline {
+	pub raw : Raw,
+	pub clamp_x : Option<f32>,
+	pub clamp_y : Option<f32>,
+	pub clamp_z : Option<f32>,
+}
+
+impl Default for Spline {
+	fn default() -> Self {
+		Self {
+			raw : Raw::from_vec(Vec::<Key>::new()),
+			clamp_x : None,
+			clamp_y : None,
+			clamp_z : None,
+		}
+	}
+}
 
 impl Spline {
 	pub fn set_interpolation(&mut self, t : f32, interpolation : Interpolation) {
 		let id = self.get_key_id(t).unwrap();
-		*self.0.get_mut(id).unwrap().interpolation = interpolation;
+		*self.raw.get_mut(id).unwrap().interpolation = interpolation;
 	}
 
 	pub fn set_interpolation_from_id(&mut self, id : usize, interpolation : Interpolation) {
-		*self.0.get_mut(id).unwrap().interpolation = interpolation;
+		*self.raw.get_mut(id).unwrap().interpolation = interpolation;
 	}
 
 	pub fn get_interpolation(&self, t : f32) -> &Interpolation {
 		let id = self.get_key_id(t).unwrap();
-		&self.0.get(id).unwrap().interpolation
+		&self.raw.get(id).unwrap().interpolation
 	}
 
 	pub fn set_control_point(&mut self, t : f32, controlp_pos : Vec3) {
 		let id = self.get_key_id(t).unwrap();
-		self.0.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
+		self.raw.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
 	}
 
 	pub fn set_control_point_by_id(&mut self, id : usize, t : f32, controlp_pos : Vec3) {
-		self.0.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
+		self.raw.replace(id, |k : &Key| { Key::new(t, controlp_pos, k.interpolation) });
 	}
 
 	pub fn set_control_point_t(&mut self, id : usize, t : f32) {
-		self.0.replace(id, |k : &Key| { Key::new(t, k.value, k.interpolation) });
+		self.raw.replace(id, |k : &Key| { Key::new(t, k.value, k.interpolation) });
 	}
 
 	pub fn set_control_point_pos(&mut self, id : usize, controlp_pos : Vec3) {
-		*self.0.get_mut(id).unwrap().value = controlp_pos;
+		*self.raw.get_mut(id).unwrap().value = controlp_pos;
 	}
 
 	pub fn total_length(&self) -> f32 {
@@ -142,23 +158,19 @@ impl Spline {
 	pub fn calc_init_position(&self) -> Vec3 {
 		let keys			= self.keys();
 		if keys.len() <= 0 {
-			assert!		(false, "calc_init_position was called on an empty spline! (keys.len() <= 0)");
-			return 		Vec3::ZERO;
+			assert!			(false, "calc_init_position was called on an empty spline! (keys.len() <= 0)");
+			return 			Vec3::ZERO;
 		}
 
 		let t				= keys[0].t;
-		let spline_p		= match self.clamped_sample(t) {
-			Some(p)			=> p,
-			None			=> panic!("calc_init_position: spline.clamped_sample failed! t: {:.3}", t),
-		};
-		
-		spline_p
+		self.calc_position	(t)
 	}
 
 	pub fn calc_init_rotation(&self) -> Quat {
 		let keys			= self.keys();
 		if keys.len() <= 0 {
-			return Quat::IDENTITY;
+			assert!			(false, "calc_init_rotation was called on an empty spline! (keys.len() <= 0)");
+			return 			Quat::IDENTITY;
 		}
 
 		let t				= keys[0].t;
@@ -166,25 +178,28 @@ impl Spline {
 	}
 
 	pub fn calc_position(&self, t : f32) -> Vec3 {
-		let keys			= self.keys();
-		if keys.len() <= 0 {
-			assert!		(false, "calc_init_position was called on an empty spline! (keys.len() <= 0)");
-			return 		Vec3::ZERO;
-		}
-
-		let spline_p		= match self.clamped_sample(t) {
+		let mut spline_p	= match self.clamped_sample(t) {
 			Some(p)			=> p,
 			None			=> panic!("calc_position: spline.clamped_sample failed! t: {:.3}", t),
 		};
+
+		let clamp = |val : f32, clamp_xxx : Option<f32>| -> f32 {
+			if clamp_xxx.is_none() {
+				return		val;
+			}
+			let clxxx		= clamp_xxx.unwrap();
+			val.clamp(-clxxx, clxxx)
+		};
+
+		spline_p.x = clamp(spline_p.x, self.clamp_x);
+		spline_p.y = clamp(spline_p.y, self.clamp_y);
+		spline_p.z = clamp(spline_p.z, self.clamp_z);
 		
 		spline_p
 	}
 
 	pub fn calc_rotation(&self, t : f32) -> Quat {
-		let spline_p		= match self.clamped_sample(t) {
-			Some(p)			=> p,
-			None			=> panic!("calc_rotation: spline.clamped_sample failed! t: {:.3}", t),
-		};
+		let spline_p		= self.calc_position(t);
 
 		self.calc_rotation_wpos(t, spline_p)
 	}
@@ -198,27 +213,25 @@ impl Spline {
 		} else {
 			(total_length - eps, true)
 		};
-		let next_spline_p	= match self.clamped_sample(next_t) {
-			Some(p)			=> p,
-			None			=> panic!("calc_rotation: spline.clamped_sample failed! t: {:.3} next_t: {:.3} total_length: {:.3}", t, next_t, total_length),
-		};
+
+		let next_spline_p	= self.calc_position(next_t);
 
 		let spline_dir		= (if !reverse { next_spline_p - spline_p } else { spline_p - next_spline_p }).normalize();
 		Quat::from_rotation_arc(Vec3::Z, spline_dir)
 	}
 
 	pub fn get_key_id(&self, t_in : f32) -> Option<usize> {
-		let keys = self.0.keys();
+		let keys = self.raw.keys();
 		keys.iter().position(|&key| { (key.t - t_in).abs() <= f32::EPSILON })
 	}
 
 	pub fn get_key(&self, key_id : usize) -> &Key {
-		let keys = self.0.keys();
+		let keys = self.raw.keys();
 		&keys[key_id]
 	}
 
 	pub fn get_key_id_from_pos(&self, pos : Vec3) -> Option<usize> {
-		let keys = self.0.keys();
+		let keys = self.raw.keys();
 		let keys_cnt : usize = keys.len();
 		let mut key_id = 0;
 		let mut found = false;
@@ -243,7 +256,7 @@ impl Spline {
 		}
 
 		let key_id = option.unwrap();
-		let keys = self.0.keys();
+		let keys = self.raw.keys();
 
 		Some(&keys[key_id])
 	}
@@ -300,33 +313,34 @@ impl Spline {
 	// wrapper
 	pub fn from_vec(keys : Vec<Key>) -> Self {
 		Self {
-			0 : Raw::from_vec(keys),
+			raw : Raw::from_vec(keys),
+			..default()
 		}
 	}
 
 	// wrapper
 	pub fn sample(&self, t : f32) -> Option<Vec3> {
-		self.0.sample(t)
+		self.raw.sample(t)
 	}
 
 	// wrapper
 	pub fn clamped_sample(&self, t : f32) -> Option<Vec3> {
-		self.0.clamped_sample(t)
+		self.raw.clamped_sample(t)
 	}
 
 	// wrapper
 	pub fn add(&mut self, key : Key) {
-		self.0.add(key);
+		self.raw.add(key);
 	}
 
 	// wrapper
 	pub fn len(&self) -> usize {
-		self.0.len()
+		self.raw.len()
 	}
 
 	// wrapper
 	pub fn keys(&self) -> &[Key] {
-		self.0.keys()
+		self.raw.keys()
 	}
 }
 
