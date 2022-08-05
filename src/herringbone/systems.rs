@@ -33,7 +33,7 @@ pub fn brick_road_system(
 		commands	: &mut commands,
 	};
 
-	for (children_e, mut spline, mut control, mut config, mut tile_state) in q_spline.iter_mut() {
+	for (children_e, mut spline, mut control, mut config, mut progress_state) in q_spline.iter_mut() {
 		if control.clean_tiles {
 			for e in q_tiles.iter() {
 				if !children_e.contains(&e) {
@@ -42,13 +42,13 @@ pub fn brick_road_system(
 				despawn.entities.push(e);
 			}
 		
-			tile_state.set_default();
+			progress_state.set_default();
 		
 			control.clean_tiles = false;
 		}
 
 		let do_spawn 	= control.spawn_tile || control.animate;
-		if !do_spawn || tile_state.finished {
+		if !do_spawn || progress_state.finished {
 			continue;
 		}
 
@@ -62,14 +62,32 @@ pub fn brick_road_system(
 		let verbose = control.verbose;
 		let looped = control.looped;
 
+		// do a dry run first to calculate max/min_spline_offset
+		if progress_state.hasnt_started() {
+			let mut dry_run_control = control.clone();
+			let mut progress_state_clone = progress_state.clone();
+			dry_run_control.dry_run = true;
+
+			while progress_state_clone.column_id == 0 {
+				spawn::brick_road_iter(&mut progress_state_clone, &mut config, &mut spline, &ass, &mut sargs, &dry_run_control, &mut debug_lines);
+			}
+
+			progress_state.max_spline_offset = progress_state_clone.max_spline_offset;
+			progress_state.min_spline_offset = progress_state_clone.min_spline_offset;
+
+			if verbose {
+				println!("Herringbone2 road initialized! max_spline_offset: {:.3} min_spline_offset: {:.3}", progress_state.max_spline_offset, progress_state.min_spline_offset);
+			}
+		}
+
 		if control.instant {
 			if verbose {
 				println!("\ninstant Herringbone2 road spawn started!");
 			}
 
 			let mut tiles_cnt = 0;
-			while !tile_state.finished {
-				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &ass, &mut sargs, &control, &mut debug_lines);
+			while !progress_state.finished {
+				spawn::brick_road_iter(&mut progress_state, &mut config, &mut spline, &ass, &mut sargs, &control, &mut debug_lines);
 				tiles_cnt += 1;
 			}
 
@@ -81,9 +99,9 @@ pub fn brick_road_system(
 				control.instant = false;
 			}
 		} else {
-			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &ass, &mut sargs, &control, &mut debug_lines);
+			spawn::brick_road_iter(&mut progress_state, &mut config, &mut spline, &ass, &mut sargs, &control, &mut debug_lines);
 
-			if tile_state.finished {
+			if progress_state.finished {
 				if looped {
 					control.clean_tiles = true;
 				} else {
@@ -92,7 +110,7 @@ pub fn brick_road_system(
 			}
 		}
 
-		if looped && control.spawn_tile == true && tile_state.finished {
+		if looped && control.spawn_tile == true && progress_state.finished {
 			control.clean_tiles	= true;
 		} else {
 			control.spawn_tile	= false;

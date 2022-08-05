@@ -69,7 +69,8 @@ fn herringbone_angle(row_id : usize) -> f32 {
 
 fn calc_column_offset(
 	column_id_in : usize,
-	config       : &Herringbone2Config,
+	state	: &BrickRoadProgressState,
+	config	: &Herringbone2Config,
 ) -> f32 {
 	let hlenx			= config.hsize.x;
 	let hlenz			= config.hsize.z;
@@ -77,25 +78,13 @@ fn calc_column_offset(
 
 	let single_column_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
 
-	let column_count	= (config.width / single_column_offset).round();
+	let total_width		= config.width + state.min_spline_offset.abs() + state.max_spline_offset;
+
+	let column_count	= (total_width / single_column_offset).round();
 	let column_id 		= column_id_in as f32 - (column_count / 2.0);
 
 	let offset 			= column_id * single_column_offset;
 	offset
-}
-
-fn calc_column_offset_wrotation(
-	positive  : bool,
-	column_id : usize,
-	config    : &Herringbone2Config,
-	rotation  : Quat
-) -> Vec3 {
-	let offset 			= calc_column_offset(column_id, config);
-
-	let mut offset_x 	= Vec3::new(offset, 0.0, 0.0);
-	if !positive 		{ offset_x.x = -offset_x.x; }
-	offset_x 			= rotation.mul_vec3(offset_x);
-	offset_x
 }
 
 // calculate tile position in a row, pattern: herringbone2
@@ -160,7 +149,6 @@ fn fit_tile_on_spline(
 	spline               : &Spline,
 	log                  : impl Fn(String)
 ) -> (f32, Vec3, Quat, Vec3, Quat) {
-	let row_id		= state.row_id;
 	let state_t		= state.t;
 	let prev_p		= state.pos;
 	let t_without_spline = state_t + init_t_delta;
@@ -235,7 +223,7 @@ fn end_conditions_met(
 		return false;
 	}
 
-	let column_offset 	= calc_column_offset(state.column_id + 1, config);
+	let column_offset 	= calc_column_offset(state.column_id + 1, state, config);
 	
 	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3} column_offset: {:.3}", t, total_length, column_offset));
 
@@ -246,7 +234,7 @@ fn end_conditions_met(
 
 		state.t			= 0.0;
 		state.row_id 	= 0;
-		state.column_id += 1;
+		state.column_id	+= 1;
 
 		log(format!("width limit not reached({:.3}/{:.3}), inc column_id({} -> {})", column_offset * 2.0, config.width, state.column_id - 1, state.column_id));
 	} else {
@@ -315,7 +303,7 @@ pub fn brick_road_iter(
 
 	log(format!("getting next tile pos on straight line (along +z with little +-x) prev pos: [{:.3} {:.3} {:.3}]", state.pos.x, state.pos.y, state.pos.z));
 
-	let column_offset	= calc_column_offset(state.column_id, config);
+	let column_offset	= calc_column_offset(state.column_id, state, config);
 	let total_length 	= spline.total_length();
 
 	log(format!("new brick_road_iter! spline.total_length: {:.3} column_offset(width): {:.3}", total_length, column_offset));
@@ -351,10 +339,8 @@ pub fn brick_road_iter(
 
 	let spline_p 		= spline.calc_position(t);
 
-	if state.row_id == 1 && state.column_id == 0 {
-		// println!("angle_between: {:.3}", spline_r.angle_between(Quat::IDENTITY).to_degrees());
-		// println!("spline_p.x: {:.3}", spline_p.x);
-	}
+	state.max_spline_offset = spline_p.x.max(state.max_spline_offset);
+	state.min_spline_offset = spline_p.x.min(state.min_spline_offset);
 
 	// 
 	//

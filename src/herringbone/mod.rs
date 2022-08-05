@@ -17,7 +17,7 @@ pub struct Herringbone2;
 pub struct Herringbone3;
 */
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct HerringboneControl {
 	pub spawn_tile		: bool,
 	pub animate			: bool,
@@ -64,6 +64,8 @@ pub struct BrickRoadProgressState {
 	pub column_id		: usize,
 	pub t				: f32,
 	pub pos				: Vec3,
+	pub max_spline_offset : f32,
+	pub min_spline_offset : f32,
 	pub finished		: bool,
 }
 
@@ -74,6 +76,8 @@ impl Default for BrickRoadProgressState {
 			column_id	: 0,
 			t			: 0.0,
 			pos			: Vec3::Y * 0.5, // VERTICALITY
+			max_spline_offset : 0.0,
+			min_spline_offset : 0.0,
 			finished	: false,
 		}
 	}
@@ -83,6 +87,10 @@ impl BrickRoadProgressState {
 	#[allow(dead_code)]
 	pub fn set_default(&mut self) {
 		*self			= Self::default();
+	}
+
+	pub fn hasnt_started(&self) -> bool {
+		self.row_id == 0 && self.column_id == 0
 	}
 }
 
@@ -121,7 +129,7 @@ impl Default for Herringbone2Config {
 			hsize 		: Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0),
 			hseam		: 0.01,
 			
-			width		: 4.0,
+			width		: 1.0,
 			t_max		: 6.0,
 			t_min 		: 0.0,
 			iter_max	: 100,
