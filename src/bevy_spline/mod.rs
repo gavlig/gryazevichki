@@ -148,6 +148,16 @@ impl Spline {
 		self.calc_rotation_wpos(t, spline_p)
 	}
 
+	pub fn calc_init_rotation(&self) -> Quat {
+		let keys			= self.keys();
+		if keys.len() <= 0 {
+			return Quat::IDENTITY;
+		}
+
+		let t				= keys[0].t;
+		self.calc_rotation	(t)
+	}
+
 	pub fn calc_rotation_wpos(&self, t : f32, spline_p : Vec3) -> Quat {
 		let total_length 	= self.total_length();
 		let eps				= 0.00001;
@@ -159,7 +169,7 @@ impl Spline {
 		};
 		let next_spline_p	= match self.clamped_sample(next_t) {
 			Some(p)			=> p,
-			None			=> panic!("calc_rotation: spline.clamped_sample failed!"),
+			None			=> panic!("calc_rotation: spline.clamped_sample failed! t: {:.3} next_t: {:.3} total_length: {:.3}", t, next_t, total_length),
 		};
 
 		let spline_dir		= (if !reverse { next_spline_p - spline_p } else { spline_p - next_spline_p }).normalize();
