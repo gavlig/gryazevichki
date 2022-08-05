@@ -144,9 +144,9 @@ fn calc_tile_row_pos(
 }
 
 // pattern is built around points on spline as a center position and every odd number we have a side offset
-fn calc_spatial_offset_from_spline(spline_rotation : Quat, spline_offset_scalar : f32) -> Vec3 {
+fn calc_spatial_offset(rotation : Quat, offset_scalar : f32) -> Vec3 {
 	// let offset = 
-	(spline_rotation).mul_vec3(Vec3::X * spline_offset_scalar)
+	(rotation).mul_vec3(Vec3::X * offset_scalar)
 }
 
 fn fit_tile_on_spline(
@@ -162,11 +162,9 @@ fn fit_tile_on_spline(
 	let row_id		= state.row_id;
 	let state_t		= state.t;
 	let prev_p		= state.pos;
-
 	let t_without_spline = state_t + init_t_delta;
-	let mut t 		= t_without_spline;
-	let column_offset = Vec3::new(column_offset_scalar, 0.0, 0.0);
 
+	let mut t 		= t_without_spline;
 	let mut i 		= 0;
 	let mut corrections : Vec<f32> = Vec::new();
 
@@ -178,7 +176,8 @@ fn fit_tile_on_spline(
 		};
 
 		let spline_r = spline.calc_rotation_wpos(t, spline_p);
-		let spline_offset = calc_spatial_offset_from_spline(spline_r, spline_offset_scalar);
+		let spline_offset = calc_spatial_offset(spline_r, spline_offset_scalar);
+		let column_offset = calc_spatial_offset(spline_r, column_offset_scalar);
 
 		// if control.visual_debug {
 		// 	debug_lines.line_colored(spline_p + ver, spline_p + spline_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
@@ -228,8 +227,10 @@ fn end_conditions_met(
 ) -> bool {
 	let total_length	= spline.total_length();
 
-	if t < total_length { // || state.iter > 2 {
-		log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.iter: {:.3}", t, total_length, state.row_id));
+	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
+	let debug			= state.row_id < 2 || true;
+	if t < total_length && debug {
+		log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.row_id: {:.3}", t, total_length, state.row_id));
 		return false;
 	}
 
@@ -237,7 +238,9 @@ fn end_conditions_met(
 	
 	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3} column_offset_scalar: {:.3}", t, total_length, column_offset_scalar));
 
-	if column_offset_scalar * 2.0 < config.width {
+	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
+	let debug			= state.column_id < 1 || false;
+	if column_offset_scalar * 2.0 < config.width && debug {
 		// we only keep cached positions of previous row, everything else gets cleaned up
 		// if state.column_id > 0 {
 		// 	tiles_row_prev.resize_with(tiles_row_cur.len(), default);
@@ -399,9 +402,10 @@ pub fn brick_road_iter(
 
 	//
 	//
-	// debug/cheats
-	if state.row_id == 5 && state.column_id == 1 {
-		log(format!("CHEAT FULL STOP state.row_id: {} state.column_id: {}", state.row_id, state.column_id));
+	// cheat/debug: end on certain column/row id to avoid long logs etc
+	let debug			= false;
+	if state.row_id == 5 && state.column_id == 1 && debug {
+		log(format!("DEBUG FULL STOP state.row_id: {} state.column_id: {}", state.row_id, state.column_id));
 		state.finished = true;
 		return;
 	}
