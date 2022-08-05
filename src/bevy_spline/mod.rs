@@ -165,6 +165,21 @@ impl Spline {
 		self.calc_rotation	(t)
 	}
 
+	pub fn calc_position(&self, t : f32) -> Vec3 {
+		let keys			= self.keys();
+		if keys.len() <= 0 {
+			assert!		(false, "calc_init_position was called on an empty spline! (keys.len() <= 0)");
+			return 		Vec3::ZERO;
+		}
+
+		let spline_p		= match self.clamped_sample(t) {
+			Some(p)			=> p,
+			None			=> panic!("calc_position: spline.clamped_sample failed! t: {:.3}", t),
+		};
+		
+		spline_p
+	}
+
 	pub fn calc_rotation(&self, t : f32) -> Quat {
 		let spline_p		= match self.clamped_sample(t) {
 			Some(p)			=> p,

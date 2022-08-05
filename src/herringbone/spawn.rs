@@ -348,21 +348,22 @@ pub fn brick_road_iter(
 	let pattern_angle	= herringbone_angle(state.row_id);
 	let pattern_rotation = Quat::from_rotation_y(pattern_angle);
 
-	let (t, tile_p, tile_r, spline_p, spline_r) =
+	let (tile_p, tile_r) =
 	if state.row_id != 0 {
-		let spline_p 	= match spline.clamped_sample(t) {
-			Some(p)	=> p,
-			None	=> panic!("brick_road_iter spline.clamped_sample failed! t: {:.3} spline.keys: {:?}", t, spline.keys()),
-		};
-
+		let spline_p 	= spline.calc_position(t);
 		let spline_r	= spline.calc_rotation_wpos(t, spline_p);
-		let spline_offset = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
+		let pattern_offset = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
+
 		let ver			= 0.5; // VERTICALITY
 
-		let p			= Vec3::new(spline_p.x + spline_offset + column_offset, ver, next_pos.z);// + Vec3::X * (column_offset);// + (spline_p.x - next_pos.x));
+		let p = Vec3::new(
+			spline_p.x + pattern_offset + column_offset,// X
+			ver,										// Y
+			next_pos.z									// Z
+		);
 		let r			= spline_r * pattern_rotation;
 
-		(t, p, r, spline_p, spline_r)
+		(p, r)
 	} else {
 		let spline_p	= spline.calc_init_position();
 		let spline_r	= spline.calc_init_rotation();
@@ -370,7 +371,7 @@ pub fn brick_road_iter(
 		let p			= spline_p + Vec3::X * column_offset;
 		let r			= spline_r * pattern_rotation;
 		
-		(t, p, r, spline_p, spline_r)
+		(p, r)
 	};
 
 	log(format!("final tile_p [{:.3} {:.3} {:.3}] for t: {:.3}", tile_p.x, tile_p.y, tile_p.z, t));

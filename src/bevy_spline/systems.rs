@@ -133,7 +133,7 @@ pub fn on_control_point_moved(
 		let controlp_pos = control_point_tform.translation;
 		
 		spline.set_control_point_pos(id, controlp_pos);
-		println!("id: {} t: {} controlp_pos: {}", id, t, controlp_pos);
+//		println!("id: {} t: {} controlp_pos: {}", id, t, controlp_pos);
 
 		// we have to recalculate tangent positions because in engine they are children of control point
 		// but spline wants them in the same space as control points
@@ -151,7 +151,7 @@ pub fn on_control_point_moved(
 				tan1 = final_tform.translation;
 			}
 		}
-		println!("setting interpolation id: {} tan0: {} tan1: {}", id, tan0, tan1);
+//		println!("setting interpolation id: {} tan0: {} tan1: {}", id, tan0, tan1);
 		spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
 
 		*controlp = ControlPoint::POS(controlp_pos);
