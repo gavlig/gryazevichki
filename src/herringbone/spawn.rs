@@ -71,12 +71,15 @@ fn calc_column_offset(
 	column_id_in : usize,
 	config       : &Herringbone2Config,
 ) -> f32 {
-	let column_id 		= column_id_in as f32;
 	let hlenx			= config.hsize.x;
 	let hlenz			= config.hsize.z;
 	let seam			= config.hseam * 2.0;
 
 	let single_column_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
+
+	let column_count	= (config.width / single_column_offset).round();
+	let column_id 		= column_id_in as f32 - (column_count / 2.0);
+
 	let offset 			= column_id * single_column_offset;
 	offset
 }
@@ -115,8 +118,6 @@ fn calc_tile_row_pos(
 	config	: &Herringbone2Config,
 	log		: impl Fn(String)
 ) -> Vec3 {
-	let ver = Vec3::Y * 0.5; // VERTICALITY
-
 	if row_id == 0 {
 		return prev_p;
 	}
@@ -319,10 +320,10 @@ pub fn brick_road_iter(
 
 	log(format!("new brick_road_iter! spline.total_length: {:.3} column_offset(width): {:.3}", total_length, column_offset));
 
-	// tile position for current iteration on a straight line
-	let next_pos 		= calc_tile_row_pos(state.pos, state.row_id, config, log);
-
 	let prev_pos		= state.pos;
+	// tile position for current iteration on a straight line
+	let next_pos 		= calc_tile_row_pos(prev_pos, state.row_id, config, log);
+
 	let tile_pos_delta 	= next_pos - prev_pos;
 
 	// on a straight line tile position works as "t" (parameter for spline sampling). Later on t gets adjusted in fit_tile_on_spline to keep tiles evenly spaced on spline
@@ -349,38 +350,29 @@ pub fn brick_road_iter(
 	let pattern_rotation = Quat::from_rotation_y(pattern_angle);
 
 	let spline_p 		= spline.calc_position(t);
-	let spline_r		= spline.calc_rotation_wpos(t, spline_p);
-
-	let pattern_offset 	= if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
-
-	let tile_p = Vec3::new(
-		spline_p.x + pattern_offset + column_offset,// X
-		spline_p.y,									// Y
-		next_pos.z									// Z
-	);
-
-	let tile_r			= spline_r * pattern_rotation;
 
 	if state.row_id == 1 && state.column_id == 0 {
 		// println!("angle_between: {:.3}", spline_r.angle_between(Quat::IDENTITY).to_degrees());
 		// println!("spline_p.x: {:.3}", spline_p.x);
 	}
 
-	log(format!("final tile_p [{:.3} {:.3} {:.3}] for t: {:.3}", tile_p.x, tile_p.y, tile_p.z, t));
-
 	// 
 	//
 	// Final pose
 	let mut pose 		= Transform::identity();
-	pose.translation 	= tile_p;
-	pose.rotation		= tile_r;
+	pose.translation 	= next_pos;
+	pose.rotation		= pattern_rotation;
 
 	log(format!("final pose: [{:.3} {:.3} {:.3}] tile_pos_delta.x: {:.3}", pose.translation.x, pose.translation.y, pose.translation.z, tile_pos_delta.x));
 
 	// 
 	//
 	// Spawning
-	if !control.dry_run {
+
+	let x				= pose.translation.x ;
+	let hwidth			= config.width / 2.0;
+	let filtered_out = (spline_p.x - hwidth) > x || x > (spline_p.x + hwidth);
+	if !control.dry_run && !filtered_out {
 		spawn_tile		(pose, config, state, sargs);
 	}
 
@@ -399,7 +391,7 @@ pub fn brick_road_iter(
 	// Iteration ended
 	state.row_id		+= 1;
 	state.t		 		= t;
-	state.pos	 		= tile_p;
+	state.pos	 		= next_pos;
 
 	log(format!("----------------------------"));
 }

@@ -104,6 +104,9 @@
 49.17. fix physics placement, currently it's ignoring y?
 49.18. toggle hide gizmos
 49.19. (done!)move draggable to a separate plugin as well
+49.20. (done!)basic filtering cutting off tiles not on road
+49.21. attach road to spline control points
+49.22. draw extra rows when needed
 50. make utils for debug drawing
 51. make plugin with common stuff from game to avoid including game
 
