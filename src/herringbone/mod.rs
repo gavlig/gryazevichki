@@ -41,7 +41,7 @@ impl Default for HerringboneControl {
 			instant		: false,
 			debug		: 0,
 			visual_debug: true,
-			verbose		: true,
+			verbose		: false,
 			dry_run		: false,
 			looped		: false,
 			last_update	: 0.0,

@@ -4,9 +4,7 @@ use bevy_prototype_debug_lines :: { DebugLines };
 
 pub fn brick_road_system(
 	mut q_spline		: Query<(
-							Entity,
 							&Children,
-							&GlobalTransform,
 							&mut Spline,
 							&mut HerringboneControl,
 							&mut Herringbone2Config,
@@ -35,7 +33,7 @@ pub fn brick_road_system(
 		commands	: &mut commands,
 	};
 
-	for (root_e, children_e, transform, mut spline, mut control, mut config, mut tile_state) in q_spline.iter_mut() {
+	for (children_e, mut spline, mut control, mut config, mut tile_state) in q_spline.iter_mut() {
 		if control.clean_tiles {
 			for e in q_tiles.iter() {
 				if !children_e.contains(&e) {
@@ -63,8 +61,6 @@ pub fn brick_road_system(
 
 		let verbose = control.verbose;
 		let looped = control.looped;
-		let mut tiles_row_prev : Vec<TileRowIterState> = Vec::new();
-		let mut tiles_row_cur : Vec<TileRowIterState> = Vec::new();
 
 		if control.instant {
 			if verbose {
@@ -73,7 +69,7 @@ pub fn brick_road_system(
 
 			let mut tiles_cnt = 0;
 			while !tile_state.finished {
-				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &mut tiles_row_prev, &mut tiles_row_cur, &transform, &ass, &mut sargs, &control, &mut debug_lines);
+				spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &ass, &mut sargs, &control, &mut debug_lines);
 				tiles_cnt += 1;
 			}
 
@@ -85,7 +81,7 @@ pub fn brick_road_system(
 				control.instant = false;
 			}
 		} else {
-			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &mut tiles_row_prev, &mut tiles_row_cur, &transform, &ass, &mut sargs, &control, &mut debug_lines);
+			spawn::brick_road_iter(&mut tile_state, &mut config, &mut spline, &ass, &mut sargs, &control, &mut debug_lines);
 
 			if tile_state.finished {
 				if looped {
@@ -138,7 +134,7 @@ pub fn on_spline_control_point_moved(
 		return;
 	}
 
-	for (spline_e, controlp) in q_controlp.iter() {
+	for (spline_e, _controlp) in q_controlp.iter() {
 		let mut control = q_spline.get_mut(spline_e.0).unwrap();
 		control.respawn_all_tiles_instantly();
 	}

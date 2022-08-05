@@ -241,12 +241,6 @@ fn end_conditions_met(
 	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
 	let debug			= state.column_id < 1 || true;
 	if column_offset * 2.0 < config.width && debug {
-		// we only keep cached positions of previous row, everything else gets cleaned up
-		// if state.column_id > 0 {
-		// 	tiles_row_prev.resize_with(tiles_row_cur.len(), default);
-		// 	tiles_row_prev.copy_from_slice(tiles_row_cur.as_slice());
-		// 	tiles_row_cur.clear();
-		// }
 		state.pos		= Vec3::Y * 0.5 + Vec3::X * column_offset; // VERTICALITY
 
 		state.t			= 0.0;
@@ -303,9 +297,6 @@ pub fn brick_road_iter(
 	mut state			: &mut BrickRoadProgressState,
 		config			: &Herringbone2Config,
 		spline 			: &Spline,
-		tiles_row_prev	: &mut Vec<TileRowIterState>,
-		tiles_row_cur	: &mut Vec<TileRowIterState>,
-		transform		: &GlobalTransform,
 		_ass			: &Res<AssetServer>,
 		sargs			: &mut SpawnArguments,
 		control			: &HerringboneControl,
@@ -324,7 +315,6 @@ pub fn brick_road_iter(
 	log(format!("getting next tile pos on straight line (along +z with little +-x) prev pos: [{:.3} {:.3} {:.3}]", state.pos.x, state.pos.y, state.pos.z));
 
 	let column_offset	= calc_column_offset(state.column_id, config);
-//	let spline			= spline_in.clone_with_offset(row_offset);
 	let total_length 	= spline.total_length();
 
 	log(format!("new brick_road_iter! spline.total_length: {:.3} column_offset(width): {:.3}", total_length, column_offset));
@@ -369,25 +359,10 @@ pub fn brick_road_iter(
 		let spline_offset = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
 		let ver			= 0.5; // VERTICALITY
 
-//		let p			= spline_p + Vec3::X * (spline_offset + column_offset);
 		let p			= Vec3::new(spline_p.x + spline_offset + column_offset, ver, next_pos.z);// + Vec3::X * (column_offset);// + (spline_p.x - next_pos.x));
 		let r			= spline_r * pattern_rotation;
 
 		(t, p, r, spline_p, spline_r)
-// THIS SHOULD BE USEFUL FOR OTHER PATTERNS
-//		let tile_dist_target = tile_pos_delta.length();
-//		// in herringbone pattern every odd tile we have horizontal offset from center of row
-//		let spline_offset_scalar = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
-//		fit_tile_on_spline(
-//			init_t_delta,
-//			tile_dist_target,
-//			column_offset,
-//			spline_offset_scalar,
-//			pattern_rotation,
-//			state,
-//			spline,
-//			log
-//		) // FIXME: too many parameters, something is not right
 	} else {
 		let spline_p	= spline.calc_init_position();
 		let spline_r	= spline.calc_init_rotation();
@@ -432,13 +407,6 @@ pub fn brick_road_iter(
 	state.row_id		+= 1;
 	state.t		 		= t;
 	state.pos	 		= tile_p;
-
-//	let iter_state = TileRowIterState{ t: t, tile_p: state.pos, tile_r: tile_r, spline_p: spline_p, spline_r: spline_r };
-//	if state.column_id == 0 {
-//		tiles_row_prev.push(iter_state);
-//	} else {
-//		tiles_row_cur.push(iter_state);
-//	}
 
 	log(format!("----------------------------"));
 }
