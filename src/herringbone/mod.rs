@@ -60,8 +60,8 @@ impl HerringboneControl {
 
 #[derive(Component, Clone, Copy)]
 pub struct BrickRoadProgressState {
-	pub iter			: usize,
-	pub iter_row		: usize,
+	pub row_id			: usize,
+	pub column_id		: usize,
 	pub t				: f32,
 	pub pos				: Vec3,
 	pub finished		: bool,
@@ -70,8 +70,8 @@ pub struct BrickRoadProgressState {
 impl Default for BrickRoadProgressState {
 	fn default() -> Self {
 		Self {
-			iter		: 0,
-			iter_row	: 0,
+			row_id		: 0,
+			column_id	: 0,
 			t			: 0.0,
 			pos			: Vec3::Y * 0.5, // VERTICALITY
 			finished	: false,

@@ -139,13 +139,20 @@ impl Spline {
 		segment_length
 	}
 
-	pub fn calc_rotation(&self, t : f32) -> Quat {
+	pub fn calc_init_position(&self) -> Vec3 {
+		let keys			= self.keys();
+		if keys.len() <= 0 {
+			assert!		(false, "calc_init_position was called on an empty spline! (keys.len() <= 0)");
+			return 		Vec3::ZERO;
+		}
+
+		let t				= keys[0].t;
 		let spline_p		= match self.clamped_sample(t) {
 			Some(p)			=> p,
-			None			=> panic!("calc_rotation: primary spline.clamped_sample failed!"),
+			None			=> panic!("calc_init_position: spline.clamped_sample failed! t: {:.3}", t),
 		};
-
-		self.calc_rotation_wpos(t, spline_p)
+		
+		spline_p
 	}
 
 	pub fn calc_init_rotation(&self) -> Quat {
@@ -156,6 +163,15 @@ impl Spline {
 
 		let t				= keys[0].t;
 		self.calc_rotation	(t)
+	}
+
+	pub fn calc_rotation(&self, t : f32) -> Quat {
+		let spline_p		= match self.clamped_sample(t) {
+			Some(p)			=> p,
+			None			=> panic!("calc_rotation: spline.clamped_sample failed! t: {:.3}", t),
+		};
+
+		self.calc_rotation_wpos(t, spline_p)
 	}
 
 	pub fn calc_rotation_wpos(&self, t : f32, spline_p : Vec3) -> Quat {

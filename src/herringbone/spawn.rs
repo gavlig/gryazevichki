@@ -58,27 +58,36 @@ pub fn brick_road(
 
 	root_e
 }
-fn calc_row_offset(
-	iter_row_in : usize,
-	config	 	: &Herringbone2Config,
+
+fn herringbone_angle(row_id : usize) -> f32 {
+	if row_id % 2 == 0 {
+		-FRAC_PI_4
+	} else {
+		FRAC_PI_4
+	}
+}
+
+fn calc_column_offset(
+	column_id_in : usize,
+	config       : &Herringbone2Config,
 ) -> f32 {
-	let iter_row 		= iter_row_in as f32;
+	let column_id 		= column_id_in as f32;
 	let hlenx			= config.hsize.x;
 	let hlenz			= config.hsize.z;
 	let seam			= config.hseam * 2.0;
 
-	let single_offset 	= ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
-	let offset 			= iter_row * single_offset;
+	let single_column_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
+	let offset 			= column_id * single_column_offset;
 	offset
 }
 
-fn calc_row_offset_wrotation(
-	positive : bool,
-	iter_row : usize,
-	config	 : &Herringbone2Config,
-	rotation : Quat
+fn calc_column_offset_wrotation(
+	positive  : bool,
+	column_id : usize,
+	config    : &Herringbone2Config,
+	rotation  : Quat
 ) -> Vec3 {
-	let offset 			= calc_row_offset(iter_row, config);
+	let offset 			= calc_column_offset(column_id, config);
 
 	let mut offset_x 	= Vec3::new(offset, 0.0, 0.0);
 	if !positive 		{ offset_x.x = -offset_x.x; }
@@ -86,17 +95,29 @@ fn calc_row_offset_wrotation(
 	offset_x
 }
 
-// with given tile parameters and iteration number calculate tile position, pattern: herringbone2
-fn calc_tile_pos(
+// calculate tile position in a row, pattern: herringbone2
+// "in a row" means that we don't take into account row number and it should be accounted for elsewhere
+
+/*
+
+/
+\
+/
+\
+/
+
+*/
+
+// ^ that's what one row of tiles looks like
+fn calc_tile_row_pos(
 	prev_p	: Vec3,
-	iter 	: usize,
+	row_id 	: usize,
 	config	: &Herringbone2Config,
-	control : &HerringboneControl,
 	log		: impl Fn(String)
 ) -> Vec3 {
 	let ver = Vec3::Y * 0.5; // VERTICALITY
 
-	if iter == 0 {
+	if row_id == 0 {
 		return prev_p;
 	}
 
@@ -104,10 +125,10 @@ fn calc_tile_pos(
 	let hlenz			= config.hsize.z;
 	let seam			= config.hseam * 2.0;
 
-	let offset0_scalar = hlenz - hlenx;
-	let offset1_scalar = hlenx + seam + hlenz;
+	let offset0_scalar 	= hlenz - hlenx;
+	let offset1_scalar 	= hlenx + seam + hlenz;
 	let (rotation0, rotation1) = 
-	if iter % 2 == 0 {
+	if row_id % 2 == 0 {
 		(-FRAC_PI_4, FRAC_PI_4)
 	} else {
 		(FRAC_PI_4, -FRAC_PI_4)
@@ -116,42 +137,35 @@ fn calc_tile_pos(
 	let offset1 = Quat::from_rotation_y(rotation1).mul_vec3(Vec3::Z * offset1_scalar);
 	let herrpos = prev_p + offset0 + offset1;
 
-	if control.verbose {
-		log(format!("calc_tile_pos: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
-		log(format!("         prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
-	}
+	log(format!("calc_tile_pos: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("         prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
 
 	herrpos
 }
 
-// pattern is built around points on spline as a center position and every odd number we have an offset
-fn calc_spatial_offset_from_spline(iter : usize, spline_rotation : Quat, spline_offset_scalar : f32) -> Vec3 {
-	let angle =	if iter % 2 == 0 { -FRAC_PI_2 } else { FRAC_PI_2 };
-	let init_rot = Quat::from_rotation_y(angle);
-
+// pattern is built around points on spline as a center position and every odd number we have a side offset
+fn calc_spatial_offset_from_spline(spline_rotation : Quat, spline_offset_scalar : f32) -> Vec3 {
 	// let offset = 
-	(spline_rotation * init_rot).mul_vec3(Vec3::Z * spline_offset_scalar)
+	(spline_rotation).mul_vec3(Vec3::X * spline_offset_scalar)
 }
 
 fn fit_tile_on_spline(
-	state 			: &BrickRoadProgressState,
-	init_t_delta 	: f32,
-	tile_dist_target: f32,
-	row_offset_scalar : f32,
+	init_t_delta         : f32,
+	tile_dist_target   	 : f32,
+	column_offset_scalar : f32,
 	spline_offset_scalar : f32,
-	pattern_rotation : Quat,
-	spline 			: &Spline,
-	control			: &HerringboneControl,
-	log				: impl Fn(String)
+	pattern_rotation     : Quat,
+	state                : &BrickRoadProgressState,
+	spline               : &Spline,
+	log                  : impl Fn(String)
 ) -> (f32, Vec3, Quat, Vec3, Quat) {
-	let iter		= state.iter;
+	let row_id		= state.row_id;
 	let state_t		= state.t;
 	let prev_p		= state.pos;
 
-	let mut t 		= state_t + init_t_delta;
-	let row_offset	= Vec3::new(row_offset_scalar, 0.0, 0.0);
-
-	let ver 		= Vec3::Y * 1.0; // VERTICALITY
+	let t_without_spline = state_t + init_t_delta;
+	let mut t 		= t_without_spline;
+	let column_offset = Vec3::new(column_offset_scalar, 0.0, 0.0);
 
 	let mut i 		= 0;
 	let mut corrections : Vec<f32> = Vec::new();
@@ -164,13 +178,13 @@ fn fit_tile_on_spline(
 		};
 
 		let spline_r = spline.calc_rotation_wpos(t, spline_p);
-		let spline_offset = calc_spatial_offset_from_spline(iter, spline_r, spline_offset_scalar);
+		let spline_offset = calc_spatial_offset_from_spline(spline_r, spline_offset_scalar);
 
 		// if control.visual_debug {
 		// 	debug_lines.line_colored(spline_p + ver, spline_p + spline_offset + ver, 0.01, Color::rgb(0.8, 0.2, 0.8));
 		// }
 
-		let new_p = spline_p + spline_offset;
+		let new_p = spline_p + spline_offset + column_offset;
 		let new_r = pattern_rotation * spline_r;
 
 		let tile_dist_actual = (new_p - prev_p).length();
@@ -183,16 +197,16 @@ fn fit_tile_on_spline(
 		}
 		t = state_t + corrected_offset;
 
-		if control.verbose {
-			log(format!("[{}] tile_dist_target : {:.3} tile_dist_actual : {:.3} = new_p({:.3} {:.3} {:.3}) - prev_p({:.3} {:.3} {:.3}) (spline_p: ({:.3} {:.3} {:.3}) spline_offset_scalar: {:.3})", i, tile_dist_target, tile_dist_actual, new_p.x, new_p.y, new_p.z, prev_p.x, prev_p.y, prev_p.z, spline_p.x, spline_p.y, spline_p.z, spline_offset_scalar));
-			log(format!("[{}] t : {:.3} correction : tile_dist_target({:.3}) / tile_dist_actual({:.3}) = correction({:.3})", i, t, tile_dist_target, tile_dist_actual, correction));
-		}
+		log(format!("[{}] tile_dist_target : {:.3} tile_dist_actual : {:.3} = new_p({:.3} {:.3} {:.3}) - prev_p({:.3} {:.3} {:.3}) (spline_p: ({:.3} {:.3} {:.3}) spline_offset_scalar: {:.3})", i, tile_dist_target, tile_dist_actual, new_p.x, new_p.y, new_p.z, prev_p.x, prev_p.y, prev_p.z, spline_p.x, spline_p.y, spline_p.z, spline_offset_scalar));
+		log(format!("[{}] t : {:.3} correction : tile_dist_target({:.3}) / tile_dist_actual({:.3}) = correction({:.3})", i, t, tile_dist_target, tile_dist_actual, correction));
 
 		i += 1;
 
 		if (1.0 - correction).abs() <= 0.01  || i >= 5 {
-			let row_offset_rotated = spline_r.mul_vec3(row_offset);
-			let new_p = new_p + row_offset;//_rotated; // TODO: check what works better
+			// let column_offset_rotated = spline_r.mul_vec3(column_offset);
+			// let new_p = new_p + column_offset;//_rotated; // TODO: check what works better
+
+			log(format!("[{}] fit_tile_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
 
 			break (new_p, new_r, spline_p, spline_r);
 		}
@@ -209,71 +223,54 @@ fn end_conditions_met(
 		t            	: f32,
 		spline 			: &Spline,
 		config			: &Herringbone2Config,
-		control      	: &HerringboneControl,
 	mut state 			: &mut BrickRoadProgressState,
 		log				: impl Fn(String)
 ) -> bool {
 	let total_length	= spline.total_length();
 
 	if t < total_length { // || state.iter > 2 {
-		if control.verbose {
-			log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.iter: {:.3}", t, total_length, state.iter));
-		}
+		log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.iter: {:.3}", t, total_length, state.row_id));
 		return false;
 	}
 
-	let row_offset_scalar = calc_row_offset(state.iter_row + 1, config);
+	let column_offset_scalar = calc_column_offset(state.column_id + 1, config);
 	
-	if control.verbose {
-		log(format!("total_length limit reached! t: {:.3} total spline length: {:.3} row_offset_scalar: {:.3}", t, total_length, row_offset_scalar));
-	}
+	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3} column_offset_scalar: {:.3}", t, total_length, column_offset_scalar));
 
-	if row_offset_scalar * 2.0 < config.width {
-		let init_spline_r = spline.calc_init_rotation();
-		let row_offset 	= init_spline_r.mul_vec3(Vec3::new(row_offset_scalar, 0.0, 0.0));
-//		if !positive 	{ row_offset.x = -row_offset.x; }
-
-		state.pos = Vec3::Y * 0.5 + row_offset; // VERTICALITY
-
+	if column_offset_scalar * 2.0 < config.width {
 		// we only keep cached positions of previous row, everything else gets cleaned up
-		// if state.iter_row > 0 {
+		// if state.column_id > 0 {
 		// 	tiles_row_prev.resize_with(tiles_row_cur.len(), default);
 		// 	tiles_row_prev.copy_from_slice(tiles_row_cur.as_slice());
 		// 	tiles_row_cur.clear();
 		// }
 
-		state.t = 0.0;
-		state.iter = 0;
-		state.iter_row += 1;
+		state.t			= 0.0;
+		state.row_id 	= 0;
+		state.column_id += 1;
 
-		if control.verbose {
-			log(format!("width limit not reached({:.3}/{:.3}), inc iter_row({} -> {})", row_offset_scalar * 2.0, config.width, state.iter_row - 1, state.iter_row));
-		}
+		log(format!("width limit not reached({:.3}/{:.3}), inc column_id({} -> {})", column_offset_scalar * 2.0, config.width, state.column_id - 1, state.column_id));
 	} else {
 		state.set_default();
 		state.finished = true;
 
-		if control.verbose {
-			log(format!("width limit reached! finished!"));
-		}
+		log(format!("width limit reached! finished!"));
 	}
 	
-	if control.verbose {
-		log(format!("----------------------------"));
-	}
+	log(format!("----------------------------"));
 
 	return true;
 }
 
 fn spawn_tile(
 	pose	: Transform,
-	config	: &mut Herringbone2Config,
+	config	: &Herringbone2Config,
 	state	: &mut BrickRoadProgressState,
 	sargs	: &mut SpawnArguments
 ) {
     // spawn first brick with a strong reference to keep reference count > 0 and keep mesh/material from dying when out of scope
     let (mut me, mut ma) = (config.mesh.clone_weak(), config.material.clone_weak());
-    if state.iter == 0 {
+    if state.row_id == 0 {
 		(me, ma) = (config.mesh.clone(), config.material.clone());
 	}
     // this can be done without macro, but i need it for a reference
@@ -300,7 +297,7 @@ fn spawn_tile(
 
 pub fn brick_road_iter(
 	mut state			: &mut BrickRoadProgressState,
-	mut	config			: &mut Herringbone2Config,
+		config			: &Herringbone2Config,
 		spline 			: &Spline,
 		tiles_row_prev	: &mut Vec<TileRowIterState>,
 		tiles_row_cur	: &mut Vec<TileRowIterState>,
@@ -312,32 +309,30 @@ pub fn brick_road_iter(
 	mut debug_lines		: &mut ResMut<DebugLines>,
 ) {
 	// a little logging helper lambda
-	let ir 				= state.iter_row;
-	let il 				= state.iter;
+	let ir 				= state.column_id;
+	let il 				= state.row_id;
 	let log 			= |str_in : String| {
-	 	println!		("[{} {}] {}", ir, il, str_in);
+		if control.verbose {
+	 		println!	("[{} {}] {}", ir, il, str_in);
+		}
 	};
 
-	if control.verbose {
-		log(format!("getting next tile pos on straight line (along +z with little +-x) prev pos: [{:.3} {:.3} {:.3}]", state.pos.x, state.pos.y, state.pos.z));
-	}
+	log(format!("getting next tile pos on straight line (along +z with little +-x) prev pos: [{:.3} {:.3} {:.3}]", state.pos.x, state.pos.y, state.pos.z));
 
-	let row_offset		= calc_row_offset(state.iter_row, config);
+	let column_offset	= calc_column_offset(state.column_id, config);
 //	let spline			= spline_in.clone_with_offset(row_offset);
 	let total_length 	= spline.total_length();
 
-	if control.verbose {
-		log(format!("new brick_road_iter! t: {:.3} spline.total_length: {:.3} row_offset(width): {:.3}", state.t, total_length, row_offset));
-	}
+	log(format!("new brick_road_iter! spline.total_length: {:.3} column_offset(width): {:.3}", total_length, column_offset));
 
 	// tile position for current iteration on a straight line
-	let next_pos 		= calc_tile_pos(state.pos, state.iter, config, control, log);
+	let next_pos 		= calc_tile_row_pos(state.pos, state.row_id, config, log);
 
 	let prev_pos		= state.pos;
 	let tile_pos_delta 	= next_pos - prev_pos;
 
-	// on a straight line tile position works as t (parameter for spline sampling). Later on t gets adjusted in fit_tile_on_spline to keep tiles evenly spaced on spline
-	// z is used explicitely here because we don't want to deal with 2 dimensions in spline sampling and offset by x will be accounted for later
+	// on a straight line tile position works as "t" (parameter for spline sampling). Later on t gets adjusted in fit_tile_on_spline to keep tiles evenly spaced on spline
+	// z is used explicitely here because we don't want to deal with 2 dimensions in spline sampling and offset by x will be added later
 	let init_t_delta	= tile_pos_delta.z;
 	let t 				= state.t + init_t_delta;
 
@@ -345,57 +340,55 @@ pub fn brick_road_iter(
 	//
 	// Checking end conditions
 
-	if end_conditions_met(t, spline, config, control, state, log) {
+	if end_conditions_met(t, spline, config, state, log) {
 		return;
 	}
 
-	if control.verbose {
-		log(format!("[{}] t: {:.3} next_pos:[{:.3} {:.3} {:.3}] prev_pos: [{:.3} {:.3} {:.3}] tile_pos_delta: [{:.3} {:.3} {:.3}]", state.iter, t, next_pos.x, next_pos.y, next_pos.z, state.pos.x, state.pos.y, state.pos.z, tile_pos_delta.x, tile_pos_delta.y, tile_pos_delta.z));
-	}
+	log(format!("t: {:.3} next_pos:[{:.3} {:.3} {:.3}] prev_pos: [{:.3} {:.3} {:.3}] tile_pos_delta: [{:.3} {:.3} {:.3}]", t, next_pos.x, next_pos.y, next_pos.z, state.pos.x, state.pos.y, state.pos.z, tile_pos_delta.x, tile_pos_delta.y, tile_pos_delta.z));
 
 	//
 	//
 	// Putting tile on spline
 
 	// in herringbone pattern every next tile is rotated +-45 degrees from 0
-	let pattern_angle	= if state.iter % 2 == 0 { FRAC_PI_4 } else { -FRAC_PI_4 };
+	let pattern_angle	= herringbone_angle(state.row_id);
 	let pattern_rotation = Quat::from_rotation_y(pattern_angle);
 
 	let (t, tile_p, tile_r, spline_p, spline_r) =
-	if state.iter != 0 {
-		let row_offset	= calc_row_offset(state.iter_row, config);
+	if state.row_id != 0 {
 		let tile_dist_target = tile_pos_delta.length();
 		// in herringbone pattern every odd tile we have horizontal offset from center of row
-		let spline_offset_scalar = if state.iter % 2 != 0 { tile_pos_delta.x } else { 0.0 };
-		fit_tile_on_spline(state, init_t_delta, tile_dist_target, row_offset, spline_offset_scalar, pattern_rotation, spline, control, log)
+		let spline_offset_scalar = if state.row_id % 2 != 0 { tile_pos_delta.x } else { 0.0 };
+		fit_tile_on_spline(
+			init_t_delta,
+			tile_dist_target,
+			column_offset,
+			spline_offset_scalar,
+			pattern_rotation,
+			state,
+			spline,
+			log
+		) // FIXME: too many parameters, something is not right
 	} else {
-		let p 			= next_pos;
-		let r 			= spline.calc_init_rotation();
-		(t, p, r * pattern_rotation, p, Quat::IDENTITY)
+		let spline_p	= spline.calc_init_position();
+		let spline_r	= spline.calc_init_rotation();
+
+		let p			= spline_p + spline_r.mul_vec3(Vec3::X * column_offset);
+		let r			= spline_r * pattern_rotation;
+		
+		(t, p, r, spline_p, spline_r)
 	};
 
-	if control.verbose {
-		log(format!("final tile_p [{:.3} {:.3} {:.3}] for t : {:.3}", tile_p.x, tile_p.y, tile_p.z, t));
-	}
-
-	//
-	//
-	// debug/cheats
-	if state.iter == 2 && state.iter_row == 3 {
-		state.finished = true;
-		return;
-	}
+	log(format!("final tile_p [{:.3} {:.3} {:.3}] for t: {:.3}", tile_p.x, tile_p.y, tile_p.z, t));
 
 	// 
 	//
-	// Tile offset/rotation
+	// Final pose
 	let mut pose 		= Transform::identity();
 	pose.translation 	= tile_p;
 	pose.rotation		= tile_r;
 
-	if control.verbose {
-		log(format!("final pose: [{:.3} {:.3} {:.3}] tile_pos_delta.x: {:.3}", pose.translation.x, pose.translation.y, pose.translation.z, tile_pos_delta.x));
-	}
+	log(format!("final pose: [{:.3} {:.3} {:.3}] tile_pos_delta.x: {:.3}", pose.translation.x, pose.translation.y, pose.translation.z, tile_pos_delta.x));
 
 	// 
 	//
@@ -406,21 +399,28 @@ pub fn brick_road_iter(
 
 	//
 	//
+	// debug/cheats
+	if state.row_id == 5 && state.column_id == 1 {
+		log(format!("CHEAT FULL STOP state.row_id: {} state.column_id: {}", state.row_id, state.column_id));
+		state.finished = true;
+		return;
+	}
+
+	//
+	//
 	// Iteration ended
-	state.iter	+= 1;
-	state.t		 = t;
-	state.pos	 = pose.translation;
+	state.row_id		+= 1;
+	state.t		 		= t;
+	state.pos	 		= pose.translation;
 
 	let iter_state = TileRowIterState{ t: t, tile_p: state.pos, tile_r: tile_r, spline_p: spline_p, spline_r: spline_r };
-	if state.iter_row == 0 {
+	if state.column_id == 0 {
 		tiles_row_prev.push(iter_state);
 	} else {
 		tiles_row_cur.push(iter_state);
 	}
 
-	if control.verbose {
-		log(format!("----------------------------"));
-	}
+	log(format!("----------------------------"));
 }
 
 // fn visual_debug()
