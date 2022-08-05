@@ -99,12 +99,12 @@ pub struct TileRowIterState {
 pub struct Herringbone2Config {
 	pub body_type 		: RigidBody,
 	pub hsize 			: Vec3,
-	pub seam			: f32,
+	pub hseam			: f32,
 	
 	pub width			: f32,
-	pub limit_z			: f32,
-	pub limit_mz		: f32,
-	pub limit_iter		: u32,
+	pub t_max			: f32,
+	pub t_min			: f32,
+	pub iter_max		: u32,
 	pub init_tangent_offset : f32,
 
 	pub root_entity		: Entity,
@@ -119,12 +119,12 @@ impl Default for Herringbone2Config {
 		Self {
 			body_type 	: RigidBody::Fixed,
 			hsize 		: Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0),
-			seam		: 0.01,
+			hseam		: 0.01,
 			
 			width		: 4.0,
-			limit_z		: 6.0,
-			limit_mz 	: 0.0,
-			limit_iter	: 100,
+			t_max		: 6.0,
+			t_min 		: 0.0,
+			iter_max	: 100,
 			init_tangent_offset : 1.0,
 
 			root_entity	: Entity::from_raw(0),
@@ -145,12 +145,12 @@ impl Herringbone2Config {
 		Self {
 			body_type 	: self.body_type,
 			hsize 		: self.hsize,
-			seam		: self.seam,
+			hseam		: self.hseam,
 			
 			width		: self.width,
-			limit_z		: self.limit_z,
-			limit_mz 	: self.limit_mz,
-			limit_iter	: self.limit_iter,
+			t_max		: self.t_max,
+			t_min 		: self.t_min,
+			iter_max	: self.iter_max,
 			init_tangent_offset : self.init_tangent_offset,
 
 			root_entity	: self.root_entity,
