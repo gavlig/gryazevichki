@@ -305,8 +305,9 @@ fn spawn_tile(
     let (me, mut ma) = (config.mesh.clone_weak(), config.material.clone_weak());
 
 	if filtered_out {
-		ma = config.material_dbg.clone_weak();
+		// ma = config.material_dbg.clone_weak();
 		log(format!("tile was filtered out!"));
+		return;
 	}
 
     // this can be done without macro now, but i need it for a reference
@@ -401,10 +402,10 @@ pub fn brick_road_iter(
 
 	let x				= pose.translation.x;
 	let spx				= spline_p.x;
-	let hwidth			= calc_total_width(state, config) / 2.0;
-	let filtered_out 	= (spx - hwidth) > x || x > (spx + hwidth);
+	let hwidth			= config.width / 2.0;
+	let in_range 		= (spx - hwidth) <= x && x <= (spx + hwidth);
 	if !control.dry_run {
-		spawn_tile		(pose, filtered_out, state, config, sargs, log);
+		spawn_tile		(pose, !in_range, state, config, sargs, log);
 	}
 
 	//
