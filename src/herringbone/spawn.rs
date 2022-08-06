@@ -51,6 +51,7 @@ pub fn brick_road(
 	});
 
 	sargs.commands.entity(root_e)
+		.insert			(RoadWidth::W(config.width))
 		.insert			(config)
 		.insert			(HerringboneControl::default())
 		.insert			(BrickRoadProgressState::default())

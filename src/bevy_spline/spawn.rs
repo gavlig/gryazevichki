@@ -190,7 +190,6 @@ pub fn new(
 	sargs.commands.entity(root_e)
 		.insert			(spline)
 		.insert			(SplineControl::default())
-		.insert			(RoadWidth::W(1.0))
 		.add_child		(key0_e)
 		.add_child		(key1_e)
 		;
