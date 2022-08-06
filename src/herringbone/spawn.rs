@@ -68,6 +68,14 @@ fn herringbone_angle(row_id : usize) -> f32 {
 	}
 }
 
+fn calc_total_width(
+	state	: &BrickRoadProgressState,
+	config	: &Herringbone2Config
+) -> f32
+{
+	config.width - state.min_spline_offset + state.max_spline_offset
+}
+
 pub fn calc_column_offset(
 	column_id_in : usize,
 	state	: &BrickRoadProgressState,
@@ -79,7 +87,7 @@ pub fn calc_column_offset(
 
 	let single_column_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
 
-	let total_width		= config.width + state.min_spline_offset.abs() + state.max_spline_offset;
+	let total_width		= calc_total_width(state, config);
 
 	let column_count	= (total_width / single_column_offset).round();
 	let column_id 		= column_id_in as f32 - (column_count / 2.0);
@@ -225,20 +233,21 @@ fn end_conditions_met(
 		return false;
 	}
 
+	let total_width		= calc_total_width(state, config);
 	let column_offset 	= calc_column_offset(state.column_id + 1, state, config);
 	
 	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3} column_offset: {:.3}", t, total_length, column_offset));
 
 	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
 	let debug			= state.column_id < 1 || true;
-	if column_offset * 2.0 < config.width && debug {
+	if column_offset * 2.0 < total_width && debug {
 		state.pos		= Vec3::Y * 0.5 + Vec3::X * column_offset; // VERTICALITY
 
 		state.t			= 0.0;
 		state.row_id 	= 0;
 		state.column_id	+= 1;
 
-		log(format!("width limit not reached({:.3}/{:.3}), inc column_id({} -> {})", column_offset * 2.0, config.width, state.column_id - 1, state.column_id));
+		log(format!("width limit not reached({:.3}/{:.3}), inc column_id({} -> {})", column_offset * 2.0, total_width, state.column_id - 1, state.column_id));
 	} else {
 		state.set_default();
 		state.finished = true;
@@ -356,7 +365,7 @@ pub fn brick_road_iter(
 	// Spawning
 
 	let x				= pose.translation.x ;
-	let hwidth			= config.width / 2.0;
+	let hwidth			= calc_total_width(state, config) / 2.0;
 	let filtered_out = (spline_p.x - hwidth) > x || x > (spline_p.x + hwidth);
 	if !control.dry_run && !filtered_out {
 		spawn_tile		(pose, config, state, sargs);
