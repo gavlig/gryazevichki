@@ -50,6 +50,13 @@ pub fn brick_road(
 		..default()
 	});
 
+	config.material_dbg	=
+	sargs.materials.add(
+	StandardMaterial { 
+		base_color : Color::PINK,
+		..default()
+	});
+
 	sargs.commands.entity(root_e)
 		.insert			(RoadWidth::W(config.width))
 		.insert			(config)
@@ -262,16 +269,19 @@ fn end_conditions_met(
 
 fn spawn_tile(
 	pose	: Transform,
-	config	: &Herringbone2Config,
+	filtered_out : bool,
 	state	: &mut BrickRoadProgressState,
+	config	: &Herringbone2Config,
 	sargs	: &mut SpawnArguments
 ) {
     // spawn first brick with a strong reference to keep reference count > 0 and keep mesh/material from dying when out of scope
-    let (mut me, mut ma) = (config.mesh.clone_weak(), config.material.clone_weak());
-    if state.row_id == 0 {
-		(me, ma) = (config.mesh.clone(), config.material.clone());
+    let (me, mut ma) = (config.mesh.clone_weak(), config.material.clone_weak());
+
+	if filtered_out {
+		ma = config.material_dbg.clone_weak();
 	}
-    // this can be done without macro, but i need it for a reference
+
+    // this can be done without macro now, but i need it for a reference
 	macro_rules! insert_tile_components {
 		($a:expr) => {
 			$a	
@@ -364,11 +374,11 @@ pub fn brick_road_iter(
 	//
 	// Spawning
 
-	let x				= pose.translation.x ;
+	let x				= pose.translation.x;
 	let hwidth			= calc_total_width(state, config) / 2.0;
 	let filtered_out = (spline_p.x - hwidth) > x || x > (spline_p.x + hwidth);
-	if !control.dry_run && !filtered_out {
-		spawn_tile		(pose, config, state, sargs);
+	if !control.dry_run {
+		spawn_tile		(pose, filtered_out, state, config, sargs);
 	}
 
 	//

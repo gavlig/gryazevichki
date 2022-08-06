@@ -122,6 +122,7 @@ pub struct Herringbone2Config {
 	// cant copy
 	pub mesh			: Handle<Mesh>,
 	pub material		: Handle<StandardMaterial>,
+	pub material_dbg	: Handle<StandardMaterial>,
 }
 
 impl Default for Herringbone2Config {
@@ -141,6 +142,7 @@ impl Default for Herringbone2Config {
 
 			mesh		: Handle::<Mesh>::default(),
 			material	: Handle::<StandardMaterial>::default(),
+			material_dbg: Handle::<StandardMaterial>::default(),
 		}
 	}
 }
@@ -167,6 +169,7 @@ impl Herringbone2Config {
 
 			mesh		: self.mesh.clone_weak(),
 			material	: self.material.clone_weak(),
+			material_dbg: self.material_dbg.clone_weak(),
 		}
 	}
 }
