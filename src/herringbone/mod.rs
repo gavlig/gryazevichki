@@ -112,10 +112,7 @@ pub struct Herringbone2Config {
 	pub hseam			: f32,
 	
 	pub width			: f32,
-	pub t_max			: f32,
-	pub t_min			: f32,
-	pub iter_max		: u32,
-	pub init_tangent_offset : f32,
+	pub length			: f32,
 
 	pub root_entity		: Entity,
 
@@ -132,11 +129,8 @@ impl Default for Herringbone2Config {
 			hsize 		: Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0),
 			hseam		: 0.01,
 			
-			width		: 4.0,
-			t_max		: 6.0,
-			t_min 		: 0.0,
-			iter_max	: 100,
-			init_tangent_offset : 1.0,
+			width		: 2.0,
+			length		: 6.0,
 
 			root_entity	: Entity::from_raw(0),
 
@@ -160,10 +154,7 @@ impl Herringbone2Config {
 			hseam		: self.hseam,
 			
 			width		: self.width,
-			t_max		: self.t_max,
-			t_min 		: self.t_min,
-			iter_max	: self.iter_max,
-			init_tangent_offset : self.init_tangent_offset,
+			length		: self.length,
 
 			root_entity	: self.root_entity,
 

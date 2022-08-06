@@ -24,7 +24,7 @@ pub fn brick_road(
 
 	let root_e = bevy_spline::spawn::new(
 		transform,
-		config.t_max,
+		config.length,
 		120.0,
 		Color::rgb(0.2, 0.2, 0.2),
 		polylines,
