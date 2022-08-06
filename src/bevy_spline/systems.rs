@@ -163,13 +163,13 @@ pub fn road_draw(
 	mut debug_lines		: ResMut<DebugLines>,
 	mut polylines		: ResMut<Assets<Polyline>>,
 		q_polyline		: Query<&Handle<Polyline>>,
-	mut q_spline		: Query<(&Children, &GlobalTransform, &mut Spline, Option<&RoadWidth>), Changed<Spline>>,
+	mut q_spline		: Query<(&Children, &mut Spline, Option<&RoadWidth>), Changed<Spline>>,
 ) {
 	if q_spline.is_empty() {
 		return;
 	}
 
-	for (children_e, transform, spline, road_width_in) in q_spline.iter_mut() {
+	for (children_e, spline, road_width_in) in q_spline.iter_mut() {
 		let mut line_id = 0;
 
 		let (vertices, normals) = generate_spline_vertices(spline.as_ref(), 40);
@@ -181,7 +181,7 @@ pub fn road_draw(
 			};
 
 			let line	= polylines.get_mut(handle).unwrap();
-			line.vertices = generate_border_vertices(&vertices, &normals, road_width_in, line_id, transform, &mut debug_lines);
+			line.vertices = generate_border_vertices(&vertices, &normals, road_width_in, line_id, &mut debug_lines);
 
 			line_id += 1;
 		}
@@ -273,7 +273,6 @@ pub fn generate_border_vertices(
 	normals			: &Vec<Quat>,
 	road_width_in	: Option<&RoadWidth>,
 	line_id			: i32,
-	transform		: &GlobalTransform,
 	mut debug_lines	: &mut ResMut<DebugLines>,
 ) -> Vec<Vec3>
 {
@@ -282,7 +281,7 @@ pub fn generate_border_vertices(
 	let mut border_vertices : Vec<Vec3> = [].into();
 	border_vertices.reserve(total_vertices);
 
-	let road_width 		= match road_width_in 	{ Some(rw) => *rw, None => RoadWidth::W(1.0) };
+	let road_width 		= match road_width_in 	{ Some(rw) => *rw, None => RoadWidth::W(3.0) };
 	let road_width 		= match road_width 		{ RoadWidth::W(w) => w };
 
 	for i in 0 .. total_vertices {
