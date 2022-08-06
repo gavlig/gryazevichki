@@ -131,7 +131,7 @@ impl Default for Herringbone2Config {
 			hsize 		: Vec3::new(0.2 / 2.0, 0.05 / 2.0, 0.4 / 2.0),
 			hseam		: 0.01,
 			
-			width		: 1.0,
+			width		: 4.0,
 			t_max		: 6.0,
 			t_min 		: 0.0,
 			iter_max	: 100,

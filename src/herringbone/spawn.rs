@@ -68,7 +68,7 @@ fn herringbone_angle(row_id : usize) -> f32 {
 	}
 }
 
-fn calc_column_offset(
+pub fn calc_column_offset(
 	column_id_in : usize,
 	state	: &BrickRoadProgressState,
 	config	: &Herringbone2Config,

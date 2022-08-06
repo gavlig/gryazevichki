@@ -34,6 +34,15 @@ pub fn brick_road_system(
 	};
 
 	for (children_e, mut spline, mut control, mut config, mut progress_state) in q_spline.iter_mut() {
+		// a little logging helper lambda
+		let verbose = control.verbose;
+		let looped 	= control.looped;
+		let log = |str_in : String| {
+			if verbose {
+				println!	("{}", str_in);
+			}
+		};
+
 		if control.clean_tiles {
 			for e in q_tiles.iter() {
 				if !children_e.contains(&e) {
@@ -59,9 +68,6 @@ pub fn brick_road_system(
 
 		control.last_update = cur_time;
 
-		let verbose = control.verbose;
-		let looped = control.looped;
-
 		// do a dry run first to calculate max/min_spline_offset
 		if progress_state.hasnt_started() {
 			let mut dry_run_control = control.clone();
@@ -75,15 +81,15 @@ pub fn brick_road_system(
 			progress_state.max_spline_offset = progress_state_clone.max_spline_offset;
 			progress_state.min_spline_offset = progress_state_clone.min_spline_offset;
 
-			if verbose {
-				println!("Herringbone2 road initialized! max_spline_offset: {:.3} min_spline_offset: {:.3}", progress_state.max_spline_offset, progress_state.min_spline_offset);
-			}
+			let column_id		= 0;
+			let column_offset	= spawn::calc_column_offset(column_id, &progress_state, &config);
+			progress_state.pos	= Vec3::Y * 0.5 + Vec3::X * column_offset; // VERTICALITY
+
+			log(format!("Herringbone2 road initialized! max_spline_offset: {:.3} min_spline_offset: {:.3}", progress_state.max_spline_offset, progress_state.min_spline_offset));
 		}
 
 		if control.instant {
-			if verbose {
-				println!("\ninstant Herringbone2 road spawn started!");
-			}
+			log(format!("\ninstant Herringbone2 road spawn started!"));
 
 			let mut tiles_cnt = 0;
 			while !progress_state.finished {
@@ -91,9 +97,7 @@ pub fn brick_road_system(
 				tiles_cnt += 1;
 			}
 
-			if verbose {
-				println!("total tiles: {}", tiles_cnt);
-			}
+			log(format!("total tiles: {}", tiles_cnt));
 
 			if !looped { 
 				control.instant = false;

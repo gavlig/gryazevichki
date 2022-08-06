@@ -73,6 +73,7 @@
 49.3.4. (done!)multiple handles
 49.3.5. (done!)rotate tiles along spline normal
 49.3.6. verticality
+49.3.6.1. put spline controls above tiles
 49.3.7. (done!)move tangents with control points
 49.3.8. (done!)extend road with control points
 49.3.9. (done!)make tangent a child of control point to avoid extra calculations
@@ -107,7 +108,7 @@
 49.20. (done!)basic filtering cutting off tiles not on road
 49.21. attach road to spline control points
 49.22. draw extra rows when needed
-49.23. bug: with certain width tiles overlap in the middle of the road
+49.23. (fixed!)bug: with certain width tiles overlap in the middle of the road
 49.24. (done!)connect RoadWidth component and config.width
 50. make utils for debug drawing
 51. make plugin with common stuff from game to avoid including game
