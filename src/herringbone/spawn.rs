@@ -78,26 +78,50 @@ fn herringbone_angle(row_id : usize) -> f32 {
 fn calc_total_width(
 	state	: &BrickRoadProgressState,
 	config	: &Herringbone2Config
-) -> f32
-{
+) -> f32 {
 	config.width - state.min_spline_offset + state.max_spline_offset
 }
 
-pub fn calc_column_offset(
-	column_id_in : usize,
-	state	: &BrickRoadProgressState,
+fn calc_single_column_offset(
 	config	: &Herringbone2Config,
 ) -> f32 {
-	let hlenx			= config.hsize.x;
-	let hlenz			= config.hsize.z;
-	let seam			= config.hseam * 2.0;
+	let hlenx	= config.hsize.x;
+	let hlenz	= config.hsize.z;
+	let seam	= config.hseam * 2.0;
 
 	let single_column_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
 
-	let total_width		= calc_total_width(state, config);
+	single_column_offset
+}
 
-	let column_count	= (total_width / single_column_offset).round();
-	let column_id 		= column_id_in as f32 - (column_count / 2.0);
+fn calc_column_count(
+	state	: &BrickRoadProgressState,
+	config	: &Herringbone2Config,
+) -> usize {
+	let single_column_offset = calc_single_column_offset(config);
+	let total_width	= calc_total_width(state, config);
+
+	calc_column_count_ext(single_column_offset, total_width)
+}
+
+fn calc_column_count_ext(
+	single_column_offset : f32,
+	total_width : f32
+) -> usize {
+	let column_count	= (total_width / single_column_offset).round() + 1.0;
+
+	column_count.round() as usize
+}
+
+pub fn calc_init_column_offset(
+	state	: &BrickRoadProgressState,
+	config	: &Herringbone2Config,
+) -> f32 {
+	let single_column_offset = calc_single_column_offset(config);
+
+	let hwidth			= config.width / 2.0;
+	let min_offset		= state.min_spline_offset - hwidth;
+	let column_id		= (min_offset / single_column_offset).round();
 
 	let offset 			= column_id * single_column_offset;
 	offset
@@ -239,27 +263,29 @@ fn end_conditions_met(
 		// log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.row_id: {:.3}", t, total_length, state.row_id));
 		return false;
 	}
-
-	let total_width		= calc_total_width(state, config);
-	let column_offset 	= calc_column_offset(state.column_id + 1, state, config);
-	
-	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3} column_offset: {:.3}", t, total_length, column_offset));
+	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3}", t, total_length));
 
 	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
 	let debug			= state.column_id < 1 || true;
-	if column_offset * 2.0 < total_width && debug {
-		state.pos		= Vec3::Y * 0.5 + Vec3::X * column_offset; // VERTICALITY
 
+	let column_count = calc_column_count(state, config);
+	if state.column_id < column_count && debug {
 		state.t			= 0.0;
 		state.row_id 	= 0;
 		state.column_id	+= 1;
 
-		log(format!("width limit not reached({:.3}/{:.3}), inc column_id({} -> {})", column_offset * 2.0, total_width, state.column_id - 1, state.column_id));
+		// let column_offset = calc_column_offset(state.column_id, state, config);
+
+		let column_offset = (state.column_id as f32 * calc_single_column_offset(config)) + calc_init_column_offset(state, config);
+
+		state.pos		= Vec3::Y * 0.5 + Vec3::X * column_offset; // VERTICALITY
+
+		log(format!("width limit not reached(max column_id: {}), inc column_id({} -> {})", column_count - 1, state.column_id - 1, state.column_id));
 	} else {
 		state.set_default();
 		state.finished = true;
 
-		log(format!("width limit reached! finished!"));
+		log(format!("width limit reached! finished! last column_id: {} column_count: {}", state.column_id, column_count));
 	}
 	
 	log(format!("----------------------------"));
@@ -272,13 +298,15 @@ fn spawn_tile(
 	filtered_out : bool,
 	state	: &mut BrickRoadProgressState,
 	config	: &Herringbone2Config,
-	sargs	: &mut SpawnArguments
+	sargs	: &mut SpawnArguments,
+	log		: impl Fn(String)
 ) {
     // spawn first brick with a strong reference to keep reference count > 0 and keep mesh/material from dying when out of scope
     let (me, mut ma) = (config.mesh.clone_weak(), config.material.clone_weak());
 
 	if filtered_out {
 		ma = config.material_dbg.clone_weak();
+		log(format!("tile was filtered out!"));
 	}
 
     // this can be done without macro now, but i need it for a reference
@@ -322,12 +350,9 @@ pub fn brick_road_iter(
 		}
 	};
 
-	log(format!("getting next tile pos on straight line (along +z with little +-x) prev pos: [{:.3} {:.3} {:.3}]", state.pos.x, state.pos.y, state.pos.z));
-
-	let column_offset	= calc_column_offset(state.column_id, state, config);
 	let total_length 	= spline.total_length();
 
-	log(format!("new brick_road_iter! spline.total_length: {:.3} column_offset(width): {:.3}", total_length, column_offset));
+	log(format!("new brick_road_iter! spline.total_length: {:.3} column_id: {} row_id: {}", total_length, state.column_id, state.row_id));
 
 	let prev_pos		= state.pos;
 	// tile position for current iteration on a straight line
@@ -375,10 +400,11 @@ pub fn brick_road_iter(
 	// Spawning
 
 	let x				= pose.translation.x;
+	let spx				= spline_p.x;
 	let hwidth			= calc_total_width(state, config) / 2.0;
-	let filtered_out = (spline_p.x - hwidth) > x || x > (spline_p.x + hwidth);
+	let filtered_out 	= (spx - hwidth) > x || x > (spx + hwidth);
 	if !control.dry_run {
-		spawn_tile		(pose, filtered_out, state, config, sargs);
+		spawn_tile		(pose, filtered_out, state, config, sargs, log);
 	}
 
 	//

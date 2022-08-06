@@ -81,8 +81,7 @@ pub fn brick_road_system(
 			progress_state.max_spline_offset = progress_state_clone.max_spline_offset;
 			progress_state.min_spline_offset = progress_state_clone.min_spline_offset;
 
-			let column_id		= 0;
-			let column_offset	= spawn::calc_column_offset(column_id, &progress_state, &config);
+			let column_offset	= spawn::calc_init_column_offset(&progress_state, &config);
 			progress_state.pos	= Vec3::Y * 0.5 + Vec3::X * column_offset; // VERTICALITY
 
 			log(format!("Herringbone2 road initialized! max_spline_offset: {:.3} min_spline_offset: {:.3}", progress_state.max_spline_offset, progress_state.min_spline_offset));
