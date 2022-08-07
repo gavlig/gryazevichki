@@ -33,7 +33,7 @@ impl Default for Spline {
 			clamp_x : None,
 			clamp_y : None,
 			clamp_z : None,
-			parameter_type : ParameterType::Timeline,
+			parameter_type : ParameterType::SplineLength,
 		}
 	}
 }
