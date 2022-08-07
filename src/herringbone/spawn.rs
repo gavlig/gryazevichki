@@ -2,7 +2,6 @@ use bevy				:: prelude :: { * };
 use bevy_rapier3d		:: prelude :: { * };
 use bevy_mod_picking	:: { * };
 use bevy_polyline		:: { prelude :: * };
-use bevy_prototype_debug_lines :: { DebugLines };
 use bevy_mod_gizmos		:: { * };
 
 use bevy::render::mesh::shape as render_shape;
@@ -253,6 +252,7 @@ fn find_t_on_spline(
 	init_t_delta	: f32,
 	target_pos		: Vec3,
 	spline			: &Spline,
+	config			: &Herringbone2Config,
 	log				: impl Fn(String)
 ) -> f32 {
 	let t_without_spline = state_t + init_t_delta;
@@ -272,7 +272,12 @@ fn find_t_on_spline(
 		log(format!("[{}] spline_pos: [{:.3} {:.3} {:.3}] target_pos: [{:.3} {:.3} {:.3}]", i, spline_p.x, spline_p.y, spline_p.z, target_pos.x, target_pos.y, target_pos.z));
 
 		if spline_p.abs_diff_eq(target_pos, 0.001) {
-			log(format!("[{}] find_t_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
+			log(format!("[{}] find_t_on_spline finished(spline_p == target_pos)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
+			break;
+		}
+
+		if (target_pos - spline_p).length() > config.width * 2.0 {
+			log(format!("[{}] find_t_on_spline finished(tile too far from spline)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
 			break;
 		}
 
@@ -316,15 +321,20 @@ fn find_t_on_spline(
 fn end_conditions_met(
 		t            	: f32,
 		spline 			: &Spline,
+		new_pos			: Vec3,
 		config			: &Herringbone2Config,
 	mut state 			: &mut BrickRoadProgressState,
 		log				: impl Fn(String)
 ) -> bool {
 	let total_length	= spline.total_length();
+	
+	let spline_p		= spline.calc_position(t);
+	let distance_to_spline = (new_pos - spline_p).length();
+	let too_far_from_spline = false;//distance_to_spline > config.width * 2.0;
 
 	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
 	let debug			= state.row_id < 2 || true;
-	if t < total_length && debug {
+	if t < total_length && !too_far_from_spline && debug {
 		// very verbose
 		// log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.row_id: {:.3}", t, total_length, state.row_id));
 		return false;
@@ -443,7 +453,7 @@ pub fn brick_road_iter(
 
 	log(format!("init t without spline fitting: {:.3}", t));
 
-	let t = find_t_on_spline(state.t, init_t_delta, next_pos, spline, log);
+	let t = find_t_on_spline(state.t, init_t_delta, next_pos, spline, config, log);
 
 	log(format!("t after spline fitting: {:.3}", t));
 
@@ -451,7 +461,7 @@ pub fn brick_road_iter(
 	//
 	// Checking end conditions
 
-	if end_conditions_met(t, spline, config, state, log) {
+	if end_conditions_met(t, spline, next_pos, config, state, log) {
 		return;
 	}
 
