@@ -79,56 +79,8 @@ fn calc_total_width(
 	state	: &BrickRoadProgressState,
 	config	: &Herringbone2Config
 ) -> f32 {
-	config.width - state.min_spline_offset + state.max_spline_offset
+	config.width
 }
-
-fn calc_single_column_offset(
-	config	: &Herringbone2Config,
-) -> f32 {
-	let hlenx	= config.hsize.x;
-	let hlenz	= config.hsize.z;
-	let seam	= config.hseam * 2.0;
-
-	let single_column_offset = ((hlenz + seam).powf(2.0) + (hlenx + seam + hlenx).powf(2.0)).sqrt();
-
-	single_column_offset
-}
-
-fn calc_column_count(
-	state	: &BrickRoadProgressState,
-	config	: &Herringbone2Config,
-) -> usize {
-	let single_column_offset = calc_single_column_offset(config);
-	let total_width	= calc_total_width(state, config);
-
-	calc_column_count_ext(single_column_offset, total_width)
-}
-
-fn calc_column_count_ext(
-	single_column_offset : f32,
-	total_width : f32
-) -> usize {
-	let column_count	= (total_width / single_column_offset).round() + 1.0;
-
-	column_count.round() as usize
-}
-
-pub fn calc_init_column_offset(
-	state	: &BrickRoadProgressState,
-	config	: &Herringbone2Config,
-) -> f32 {
-	let single_column_offset = calc_single_column_offset(config);
-
-	let hwidth			= config.width / 2.0;
-	let min_offset		= state.min_spline_offset - hwidth;
-	let column_id		= (min_offset / single_column_offset).round();
-
-	let offset 			= column_id * single_column_offset;
-	offset
-}
-
-// calculate tile position in a row, pattern: herringbone2
-// "in a row" means that we don't take into account row number and it should be accounted for elsewhere
 
 /*
 
@@ -141,13 +93,13 @@ pub fn calc_init_column_offset(
 */
 
 // ^ that's what one row of tiles looks like
-fn calc_tile_row_pos(
+fn calc_next_tile_row_zplus(
 	prev_p	: Vec3,
-	row_id 	: usize,
+	iter 	: usize,
 	config	: &Herringbone2Config,
 	log		: impl Fn(String)
 ) -> Vec3 {
-	if row_id == 0 {
+	if iter == 0 {
 		return prev_p;
 	}
 
@@ -155,20 +107,116 @@ fn calc_tile_row_pos(
 	let hlenz			= config.hsize.z;
 	let seam			= config.hseam * 2.0;
 
-	let offset0_scalar 	= hlenz - hlenx;
-	let offset1_scalar 	= hlenx + seam + hlenz;
-	let (rotation0, rotation1) = 
-	if row_id % 2 == 0 {
+	let offset0_length 	= hlenz - hlenx;
+	let offset1_length 	= hlenx + seam + hlenz;
+	let (offset0_rotation, offset1_rotation) = 
+	if iter % 2 == 0 {
 		(-FRAC_PI_4, FRAC_PI_4)
 	} else {
 		(FRAC_PI_4, -FRAC_PI_4)
 	};
-	let offset0 = Quat::from_rotation_y(rotation0).mul_vec3(Vec3::Z * offset0_scalar);
-	let offset1 = Quat::from_rotation_y(rotation1).mul_vec3(Vec3::Z * offset1_scalar);
+	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * offset0_length);
+	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * offset1_length);
 	let herrpos = prev_p + offset0 + offset1;
 
-	log(format!("calc_tile_pos: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
-	log(format!("         prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
+	log(format!("calc_next_tile_row_zplus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("                    prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
+
+	herrpos
+}
+
+fn calc_next_tile_row_zminus(
+	prev_p	: Vec3,
+	iter 	: usize,
+	config	: &Herringbone2Config,
+	log		: impl Fn(String)
+) -> Vec3 {
+	if iter == 0 {
+		return prev_p;
+	}
+
+	let hlenx			= config.hsize.x;
+	let hlenz			= config.hsize.z;
+	let seam			= config.hseam * 2.0;
+
+	let offset0_length 	= hlenz + seam + hlenx;
+	let offset1_length 	= hlenz - hlenx;
+	let (offset0_rotation, offset1_rotation) = 
+	if iter % 2 == 0 {
+		(-FRAC_PI_4, FRAC_PI_4)
+	} else {
+		(FRAC_PI_4, -FRAC_PI_4)
+	};
+	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * -offset0_length);
+	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * -offset1_length);
+	let herrpos = prev_p + offset0 + offset1;
+
+	log(format!("calc_next_tile_row_zminus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("                     prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
+
+	herrpos
+}
+
+fn calc_next_tile_row_xplus(
+	prev_p	: Vec3,
+	iter 	: usize,
+	config	: &Herringbone2Config,
+	log		: impl Fn(String)
+) -> Vec3 {
+	if iter == 0 {
+		return prev_p;
+	}
+
+	let hlenx			= config.hsize.x;
+	let hlenz			= config.hsize.z;
+	let seam			= config.hseam * 2.0;
+
+	let offset0_length 	= hlenx + seam + hlenx;
+	let offset1_length 	= hlenz;
+	let (offset0_rotation, offset1_rotation) = 
+	if iter % 2 == 0 {
+		(FRAC_PI_4, -FRAC_PI_4)
+	} else {
+		(-FRAC_PI_4, FRAC_PI_4)
+	};
+	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * offset0_length);
+	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * -offset1_length);
+	let herrpos = prev_p + offset0 + offset1;
+
+	log(format!("calc_next_tile_row_xplus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("                    prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
+
+	herrpos
+}
+
+fn calc_next_tile_row_xminus	(
+	prev_p	: Vec3,
+	iter 	: usize,
+	config	: &Herringbone2Config,
+	log		: impl Fn(String)
+) -> Vec3 {
+	if iter == 0 {
+		return prev_p;
+	}
+
+	let hlenx			= config.hsize.x;
+	let hlenz			= config.hsize.z;
+	let seam			= config.hseam * 2.0;
+
+	let offset0_length 	= hlenx + seam + hlenx;
+	let offset1_length 	= hlenz;
+	let (offset0_rotation, offset1_rotation) = 
+	if iter % 2 == 0 {
+		(FRAC_PI_4, -FRAC_PI_4)
+	} else {
+		(-FRAC_PI_4, FRAC_PI_4)
+	};
+	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * -offset0_length);
+	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * offset1_length);
+	let herrpos = prev_p + offset0 + offset1;
+
+	log(format!("calc_next_tile_row_xminus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("                     prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
 
 	herrpos
 }
@@ -326,23 +374,15 @@ fn end_conditions_met(
 	mut state 			: &mut BrickRoadProgressState,
 		log				: impl Fn(String)
 ) -> bool {
+	
+
+
 	let total_length	= spline.total_length();
 	
 	let spline_p		= spline.calc_position(t);
 	let distance_to_spline = (new_pos - spline_p).length();
 	let too_far_from_spline = false;//distance_to_spline > config.width * 2.0;
 
-	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
-	let debug			= state.row_id < 2 || true;
-	if t < total_length && !too_far_from_spline && debug {
-		// very verbose
-		// log(format!("end condition (t >= total_length) not met! t: {:.3} total_length: {:.3} state.row_id: {:.3}", t, total_length, state.row_id));
-		return false;
-	}
-	log(format!("total_length limit reached! t: {:.3} total spline length: {:.3}", t, total_length));
-
-	// cheat/debug: make rows shorter to avoid having long log. Add/Remove "|| true" to turn off/on.
-	let debug			= state.column_id < 1 || true;
 
 	let column_count = calc_column_count(state, config);
 	if state.column_id < column_count && debug {
@@ -428,21 +468,25 @@ pub fn brick_road_iter(
 		sargs			: &mut SpawnArguments,
 ) {
 	// a little logging helper lambda
-	let ir 				= state.column_id;
-	let il 				= state.row_id;
+	let iter 			= state.iter;
 	let log 			= |str_in : String| {
 		if control.verbose {
-	 		println!	("[{} {}] {}", ir, il, str_in);
+	 		println!	("[{}] {}", iter, str_in);
 		}
 	};
 
 	let total_length 	= spline.total_length();
 
-	log(format!("new brick_road_iter! spline.total_length: {:.3} column_id: {} row_id: {}", total_length, state.column_id, state.row_id));
+	log(format!("new brick_road_iter! spline.total_length: {:.3} column_id: {} row_id: {}", total_length, state.iter));
 
 	let prev_pos		= state.pos;
-	// tile position for current iteration on a straight line
-	let next_pos 		= calc_tile_row_pos(prev_pos, state.row_id, config, log);
+	
+	let next_pos = match state.dir {
+	Direction2D::Up => calc_next_tile_row_zplus(prev_pos, iter, config, log),
+	Direction2D::Right => calc_next_tile_row_xminus(prev_pos, iter, config, log),
+	Direction2D::Down => calc_next_tile_row_zminus(prev_pos, iter, config, log),
+	Direction2D::Left => calc_next_tile_row_xplus(prev_pos, iter, config, log),
+	};
 
 	let tile_pos_delta 	= next_pos - prev_pos;
 

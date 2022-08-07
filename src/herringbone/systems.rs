@@ -63,25 +63,16 @@ pub fn brick_road_system(
 			continue;
 		}
 
+		if spline.keys().len() < 2 {
+			continue;
+		}
+
 		control.last_update = cur_time;
 
-		// do a dry run first to calculate max/min_spline_offset
 		if progress_state.hasnt_started() {
-			let mut dry_run_control = control.clone();
-			let mut progress_state_clone = progress_state.clone();
-			dry_run_control.dry_run = true;
+			progress_state.pos = spline.keys().first().unwrap().value;
 
-			while progress_state_clone.column_id == 0 {
-				spawn::brick_road_iter(spline, &mut progress_state_clone, &config, &ass, &control, &mut sargs);
-			}
-
-			progress_state.max_spline_offset = progress_state_clone.max_spline_offset;
-			progress_state.min_spline_offset = progress_state_clone.min_spline_offset;
-
-			let column_offset	= spawn::calc_init_column_offset(&progress_state, &config);
-			progress_state.pos	= Vec3::Y * 0.5 + Vec3::X * column_offset; // VERTICALITY
-
-			log(format!("Herringbone2 road initialized! max_spline_offset: {:.3} min_spline_offset: {:.3}", progress_state.max_spline_offset, progress_state.min_spline_offset));
+			log(format!("Herringbone2 road initialized! init pos: [{:.3} {:.3} {:.3}]", progress_state.pos.x, progress_state.pos.y, progress_state.pos.z));
 		}
 
 		if control.instant {

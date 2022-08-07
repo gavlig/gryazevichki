@@ -62,24 +62,20 @@ impl HerringboneControl {
 
 #[derive(Component, Clone, Copy)]
 pub struct BrickRoadProgressState {
-	pub row_id			: usize,
-	pub column_id		: usize,
+	pub dir				: Direction2D,
+	pub iter			: usize,
 	pub t				: f32,
 	pub pos				: Vec3,
-	pub max_spline_offset : f32,
-	pub min_spline_offset : f32,
 	pub finished		: bool,
 }
 
 impl Default for BrickRoadProgressState {
 	fn default() -> Self {
 		Self {
-			row_id		: 0,
-			column_id	: 0,
+			dir			: Direction2D::Up,
+			iter		: 0,
 			t			: 0.0,
 			pos			: Vec3::Y * 0.5, // VERTICALITY
-			max_spline_offset : 0.0,
-			min_spline_offset : 0.0,
 			finished	: false,
 		}
 	}
@@ -92,7 +88,7 @@ impl BrickRoadProgressState {
 	}
 
 	pub fn hasnt_started(&self) -> bool {
-		self.row_id == 0 && self.column_id == 0
+		self.iter == 0
 	}
 }
 
@@ -173,6 +169,14 @@ pub struct Herringbone2TileFilterInfo {
 	pub right_border : Vec3,
 	pub x : f32,
 	pub t : f32,
+}
+
+#[derive(Clone, Copy)]
+pub enum Direction2D {
+	Up,
+	Right,
+	Down,
+	Left
 }
 
 pub struct HerringbonePlugin;

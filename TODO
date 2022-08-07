@@ -117,6 +117,8 @@
 49.29. add new points as precise as dragging control points
 49.30. (fixed!)bug: road doesnt grow with spline anymore
 49.31. bug: too many filtered out tiles get generated when moving points around
+49.32. follow spline along instead of filling out space
+49.32.1. finish end_conditions
 50. make utils for debug drawing
 51. make plugin with common stuff from game to avoid including game
 
