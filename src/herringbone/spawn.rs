@@ -295,41 +295,48 @@ fn end_conditions_met(
 
 fn spawn_tile(
 	pose	: Transform,
-	filtered_out : bool,
+	filter_info : Option<Herringbone2TileFilterInfo>,
 	state	: &mut BrickRoadProgressState,
 	config	: &Herringbone2Config,
 	sargs	: &mut SpawnArguments,
 	log		: impl Fn(String)
 ) {
-    // spawn first brick with a strong reference to keep reference count > 0 and keep mesh/material from dying when out of scope
     let (me, mut ma) = (config.mesh.clone_weak(), config.material.clone_weak());
 
-	if filtered_out {
-		// ma = config.material_dbg.clone_weak();
-		log(format!("tile was filtered out!"));
-		return;
+	match filter_info {
+		Some(ref fi) => {
+			let left = (fi.left_border).x;
+			let right =  (fi.right_border).x;
+			let in_range = left <= fi.x && fi.x <= right;
+			if !in_range {
+				ma = config.material_dbg.clone_weak();
+				log(format!("tile was filtered out!"));
+				// return;
+			}
+		},
+		_ => (),
 	}
 
-    // this can be done without macro now, but i need it for a reference
-	macro_rules! insert_tile_components {
-		($a:expr) => {
-			$a	
+    let tile_to_spawn = PbrBundle{ mesh: me, material: ma, ..default() };
+	let mut tile_entity_id	= Entity::from_raw(0);
+    sargs.commands.entity(config.root_entity).with_children(|road_root| {
+		tile_entity_id = road_root.spawn_bundle(tile_to_spawn)
 			.insert			(config.body_type)
 			.insert			(pose)
 			.insert			(GlobalTransform::default())
 			.insert			(Collider::cuboid(config.hsize.x, config.hsize.y, config.hsize.z))
 			.insert_bundle	(PickableBundle::default())
-//			.insert			(Draggable::default())
+	//			.insert			(Draggable::default())
 			.insert			(Herringbone2)
 			.insert			(Tile)
 			.insert			(state.clone())
-		}
-	}
-
-    let bundle = PbrBundle{ mesh: me, material: ma, ..default() };
-    sargs.commands.entity(config.root_entity).with_children(|parent| {
-		insert_tile_components!(parent.spawn_bundle(bundle));
+			.id				()
+			;
 	});
+
+	if filter_info.is_some() {
+		sargs.commands.entity(tile_entity_id).insert(filter_info.unwrap());
+	}
 }
 
 pub fn brick_road_iter(
@@ -385,6 +392,7 @@ pub fn brick_road_iter(
 	let pattern_rotation = Quat::from_rotation_y(pattern_angle);
 
 	let spline_p 		= spline.calc_position(t);
+	let spline_r		= spline.calc_rotation_wpos(t, spline_p);
 
 	state.max_spline_offset = spline_p.x.max(state.max_spline_offset);
 	state.min_spline_offset = spline_p.x.min(state.min_spline_offset);
@@ -401,11 +409,17 @@ pub fn brick_road_iter(
 	// Spawning
 
 	let x				= pose.translation.x;
-	let spx				= spline_p.x;
 	let hwidth			= config.width / 2.0;
-	let in_range 		= (spx - hwidth) <= x && x <= (spx + hwidth);
+	let hwidth_rotated	= spline_r.mul_vec3(Vec3::X * hwidth);
+	let filter_info	= Herringbone2TileFilterInfo {
+		x                      : pose.translation.x,
+		left_border            : spline_p - hwidth_rotated,
+		right_border           : spline_p + hwidth_rotated,
+		road_halfwidth_rotated : hwidth_rotated,
+		spline_p               : spline_p
+	};
 	if !control.dry_run {
-		spawn_tile		(pose, !in_range, state, config, sargs, log);
+		spawn_tile		(pose, Some(filter_info), state, config, sargs, log);
 	}
 
 	//

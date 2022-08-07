@@ -10,6 +10,7 @@ use crate			:: game :: *;
 use crate			:: vehicle;
 use crate			:: vehicle :: { WHEEL_SIDES, FRONT_LEFT, REAR_LEFT };
 use crate			:: herringbone;
+use crate			:: herringbone :: Herringbone2TileFilterInfo;
 use super			:: { writeback };
 use super			:: { draw };
 
@@ -271,7 +272,7 @@ pub fn vehicle_params_ui_system(
 pub fn coords_on_hover_ui_system(
 	mut windows			: ResMut<Windows>,
 	mut ui_context		: ResMut<EguiContext>,
-		q_hover_tile	: Query<(&Hover, &herringbone::BrickRoadProgressState, &Transform)>,
+		q_hover_tile	: Query<(&Hover, &herringbone::BrickRoadProgressState, Option<&Herringbone2TileFilterInfo>, &Transform)>,
 		q_hover			: Query<(&Hover, &Transform, &GlobalTransform), Without<Tile>>,
 ) {
 	if q_hover.is_empty() && q_hover_tile.is_empty() {
@@ -280,15 +281,38 @@ pub fn coords_on_hover_ui_system(
 
 	let window = windows.get_primary_mut().unwrap();
 
-	for (hover, state, tform) in q_hover_tile.iter() {
+	for (hover, state, filter_info, tform) in q_hover_tile.iter() {
 		if !hover.hovered() {
 			continue;
 		}
-	
+
 		// crashes randomly when we drag something outside window
 		if !window.physical_cursor_position().is_none() {
 			egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
-				ui.label(format!("#[{} {}] t: {:.3} lx: {:.3} lz: {:.3}", state.column_id, state.row_id, state.t, tform.translation.x, tform.translation.z));
+				ui.label(format!("#[{} {}] t: {:.3} x: {:.3} z: {:.3}", state.column_id, state.row_id, state.t, tform.translation.x, tform.translation.z));
+
+				match filter_info {
+					Some(ref fi) => {
+						ui.label(
+							egui::RichText::new(format!(
+								"\n\
+								Filter Info:\n\
+								spline_p               : [{:>6.3} {:>6.3} {:>6.3}]\n\
+								road_halfwidth_rotated : [{:>6.3} {:>6.3} {:>6.3}]\n\
+								left_border            : [{:>6.3} {:>6.3} {:>6.3}]\n\
+								x                      : [{:.3}]\n\
+								right_border           : [{:>6.3} {:>6.3} {:>6.3}]\n\
+								",
+								fi.spline_p.x, fi.spline_p.y, fi.spline_p.z,
+								fi.road_halfwidth_rotated.x, fi.road_halfwidth_rotated.y, fi.road_halfwidth_rotated.z,
+								fi.left_border.x, fi.left_border.y, fi.left_border.z,
+								fi.right_border.x, fi.right_border.y, fi.right_border.z,
+								fi.x
+							))
+						.text_style(egui::TextStyle::Monospace));	
+					},
+				_ => (),
+				}
 			});
 		}
 	}

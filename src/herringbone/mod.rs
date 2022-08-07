@@ -165,6 +165,15 @@ impl Herringbone2Config {
 	}
 }
 
+#[derive(Component)]
+pub struct Herringbone2TileFilterInfo {
+	pub spline_p : Vec3,
+	pub road_halfwidth_rotated : Vec3,
+	pub left_border : Vec3,
+	pub right_border : Vec3,
+	pub x : f32
+}
+
 pub struct HerringbonePlugin;
 
 // This plugin is responsible to control the game audio

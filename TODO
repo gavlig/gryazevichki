@@ -113,7 +113,9 @@
 49.25. (done!)better filter out tiles outside road
 49.26. (done!)make spline length as t optional
 49.27. bug: road gets corrupted when adding many points
-49.28. add new points as precise as dragging control points
+49.28. bug: road gets corrupted when moving control point
+49.29. add new points as precise as dragging control points
+49.30. bug: road doesnt grow with spline anymore
 50. make utils for debug drawing
 51. make plugin with common stuff from game to avoid including game
 
