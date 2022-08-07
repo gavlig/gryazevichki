@@ -9,6 +9,7 @@ use super           :: { * };
 
 // Convert engine Transform of an entity to spline tangent Vec3. Spline tangents are in the same space as control points.
 // Spline tangent handles(as in bevy entities with transforms) are children of control point entities so we have to juggle between spline space and tangent space
+// TODO: it's too big and scary
 pub fn on_tangent_moved(
 		time			: Res<Time>,
 		key				: Res<Input<KeyCode>>,
@@ -74,7 +75,7 @@ pub fn on_tangent_moved(
 
 		spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
 
-		spline_control.recalc_length = true;
+		spline_control.recalc_t = true;
 
 		for child_e_ref in control_point_children_e.iter() {
 			let child_e = *child_e_ref;
@@ -155,7 +156,7 @@ pub fn on_control_point_moved(
 		spline.set_interpolation(t, Interpolation::StrokeBezier(tan0, tan1));
 
 		*controlp = ControlPoint::POS(controlp_pos);
-		spline_control.recalc_length = true;
+		spline_control.recalc_t = true;
 	}
 }
 
@@ -341,18 +342,18 @@ pub fn road_system(
 			control.new_point = false;
 		}
 
-		while control.recalc_length {
+		while control.recalc_t {
 			let keys = spline.keys();
 			let keys_cnt = keys.len();
-			let mut total_length = 0.0;
+			let mut total_t = 0.0;
 			for key_id in 1 .. keys_cnt {
-				let new_t = spline.calculate_segment_length(key_id);
-				spline.set_control_point_t(key_id, new_t + total_length);
-				screen_print!("[{}]recalc_length {:.3}\n", key_id, new_t + total_length);
-				total_length += new_t;
+				let new_t = spline.calculate_segment_t(key_id);
+				spline.set_control_point_t(key_id, total_t + new_t);
+				screen_print!("[{}]recalc_t {:.3}\n", key_id, new_t + total_t);
+				total_t += new_t;
 			}
 
-			control.recalc_length = false;
+			control.recalc_t = false;
 		}
 	}
 }

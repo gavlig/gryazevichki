@@ -11,6 +11,11 @@ pub type Raw 			= splines::Spline<f32, Vec3>;
 pub type Interpolation 	= splines::Interpolation<f32, Vec3>;
 pub type Key 			= splines::Key<f32, Vec3>;
 
+pub enum ParameterType {
+	SplineLength,
+	Timeline
+}
+
 // wrapper for SplineRaw to have it as a Bevy Component
 #[derive(Component)]
 pub struct Spline {
@@ -18,6 +23,7 @@ pub struct Spline {
 	pub clamp_x : Option<f32>,
 	pub clamp_y : Option<f32>,
 	pub clamp_z : Option<f32>,
+	pub parameter_type : ParameterType
 }
 
 impl Default for Spline {
@@ -27,6 +33,7 @@ impl Default for Spline {
 			clamp_x : None,
 			clamp_y : None,
 			clamp_z : None,
+			parameter_type : ParameterType::Timeline,
 		}
 	}
 }
@@ -73,15 +80,12 @@ impl Spline {
 		keys.last().unwrap().t
 	}
 
-	pub fn calculate_t_for_pos(&self, pos : Vec3) -> f32 {
-		let keys = self.keys();
-		let total_keys = keys.len();
-		if total_keys < 2 {
-			return pos.length();
-		}
-
+	// distance between two points in space is used as t parameter
+	fn calculate_t_for_pos_spline_length(&self, pos : Vec3) -> f32 {
 		let mut key_id = 1;
 		let mut total_length = 0.0;
+		let keys = self.keys();
+		let total_keys = keys.len();
 
 		let new_t =
 		loop {
@@ -93,40 +97,90 @@ impl Spline {
 			let segment_len_sq = pos0.distance_squared(pos1);
 			let pos_in_segment_sq = pos0.distance_squared(pos);
 			let epsilon = 0.05;
-			println!("[{}] key0 t: {:.3} v: [{:.3} {:.3} {:.3}] key1 t: {:.3} v: [{:.3} {:.3} {:.3}]", key_id, key0.t, key0.value.x, key0.value.y, key0.value.z, key1.t, key1.value.x, key1.value.y, key1.value.z);
-			println!("pos_in_segment_sq: {} segment_len_sq: {}", pos_in_segment_sq, segment_len_sq);
 			if pos_in_segment_sq <= epsilon {
-				println!("key0.t");
 				break key0.t;
 			}
 
 			if (pos_in_segment_sq - segment_len_sq).abs() <= epsilon {
-				println!("key1.t");
 				break key1.t;
 			}
 
 			let new_pos_delta = pos - pos0;
 
 			if pos_in_segment_sq < segment_len_sq {
-				println!("mid {}", total_length + new_pos_delta.length());
 				break total_length + new_pos_delta.length();
 			}
 
 			key_id += 1;
 			if key_id == total_keys {
-				println!("i + 1 == total_keys so output is {}", total_length + new_pos_delta.length());
 				break total_length + new_pos_delta.length();
 			}
 
-			total_length += keys[key_id].t;//self.calculate_segment_length(key_id);
-			println!("total_length: {}", total_length);
+			total_length += keys[key_id].t;
 		};
 
 		new_t
 	}
 
-	// calculate length of segment [key_id - 1, key_id]
-	pub fn calculate_segment_length(&self, key_id : usize) -> f32 {
+	// z coordinate is used as a 't' parameter
+	fn calculate_t_for_pos_timeline(&self, pos : Vec3) -> f32 {
+		let mut key_id = 1;
+		let mut total_length = 0.0;
+		let keys = self.keys();
+		let total_keys = keys.len();
+
+		let new_t =
+		loop {
+			let key0 = keys[key_id - 1];
+			let key1 = keys[key_id];
+			let pos0 = key0.value;
+			let pos1 = key1.value;
+
+			let segment_len = (pos0.z - pos1.z).abs();
+			let pos_in_segment = (pos0.z - pos.z).abs();
+			let epsilon = 0.05;
+			if pos_in_segment <= epsilon {
+				break key0.t;
+			}
+
+			if (pos_in_segment - segment_len).abs() <= epsilon {
+				break key1.t;
+			}
+
+			let new_pos_delta = pos - pos0;
+
+			if pos_in_segment < segment_len {
+				break total_length + new_pos_delta.z.abs();
+			}
+
+			key_id += 1;
+			if key_id == total_keys {
+				break total_length + new_pos_delta.z.abs();
+			}
+
+			total_length += keys[key_id].t;
+		};
+
+		new_t
+	}
+
+	pub fn calculate_t_for_pos(&self, pos : Vec3) -> f32 {
+		let keys = self.keys();
+		let total_keys = keys.len();
+		if total_keys < 2 {
+			return pos.length();
+		}
+
+		let new_t = match self.parameter_type {
+			ParameterType::SplineLength => self.calculate_t_for_pos_spline_length(pos),
+			ParameterType::Timeline		=> self.calculate_t_for_pos_timeline(pos)
+		};
+
+		new_t
+	}
+
+	// calculate t of segment [key_id - 1, key_id]
+	pub fn calculate_segment_t(&self, key_id : usize) -> f32 {
 		if key_id < 1 {
 			return 0.0;
 		}
@@ -138,21 +192,31 @@ impl Spline {
 		let t0 = key0.t;
 		let t1 = key1.t;
 		let t_range = t1 - t0;
-		let t_delta = t_range / 10.0; // 10 samples per meter
 
-		let mut segment_length = 0.0;
-		let mut prev_p = key0.value;
-		let mut t = t0 + t_delta;
-		// println!("calculate_segment_length t0 {:.3} t1 {:.3} t_delta {:.3}", t0, t1, t_delta);
-		while t < (t1 + 0.00001) {
-			let new_p = self.clamped_sample(t).unwrap();
-			segment_length += (new_p - prev_p).length();
-			prev_p = new_p;
-			// println!("[t: {:.3}] tn: {} segment_length {:.3} new_p [{:.3} {:.3} {:.3}]", t, t + t_delta, segment_length, new_p.x, new_p.y, new_p.z);
-			t += t_delta;
+		let segment_t = match self.parameter_type {
+		ParameterType::SplineLength => {
+			let t_delta = t_range / 10.0; // 10 samples per meter
+
+			let mut segment_length = 0.0;
+			let mut prev_p = key0.value;
+			let mut t = t0 + t_delta;
+			// println!("calculate_segment_length t0 {:.3} t1 {:.3} t_delta {:.3}", t0, t1, t_delta);
+			while t < (t1 + 0.00001) {
+				let new_p = self.clamped_sample(t).unwrap();
+				segment_length += (new_p - prev_p).length();
+				prev_p = new_p;
+				// println!("[t: {:.3}] tn: {} segment_length {:.3} new_p [{:.3} {:.3} {:.3}]", t, t + t_delta, segment_length, new_p.x, new_p.y, new_p.z);
+				t += t_delta;
+			}
+
+			segment_length
+		},
+		ParameterType::Timeline => {
+			t_range
 		}
+		};
 
-		segment_length
+		segment_t
 	}
 
 	pub fn calc_init_position(&self) -> Vec3 {
@@ -367,7 +431,7 @@ pub enum RoadWidth {
 
 #[derive(Component, Default)]
 pub struct SplineControl {
-	pub recalc_length : bool,
+	pub recalc_t : bool,
 	pub new_point : bool,
 	pub reset : bool,
 }

@@ -98,9 +98,9 @@
 49.10. (done!)refactor IO thing and setup
 49.11. (done!)move to own file
 49.12. (done!)instancing
-49.13. (almost)make sure draggable doesnt twitch when we start dragging
+49.13. make sure draggable doesnt twitch when we start dragging
 49.14. (done!)auto rotate control points when spawning new ones for spline
-49.15. fill the gaps between tiles when road is rotated too much
+49.15. ()fill the gaps between tiles when road is rotated too much
 49.16. (done!)properly calculate spline length when using it to set limits instead of using z coordinate
 49.17. fix physics placement, currently it's ignoring y?
 49.18. toggle hide gizmos
@@ -111,7 +111,9 @@
 49.23. (fixed!)bug: with certain width tiles overlap in the middle of the road
 49.24. (done!)connect RoadWidth component and config.width
 49.25. (done!)better filter out tiles outside road
-49.26. make spline length as t optional
+49.26. (done!)make spline length as t optional
+49.27. bug: road gets corrupted when adding many points
+49.28. add new points as precise as dragging control points
 50. make utils for debug drawing
 51. make plugin with common stuff from game to avoid including game
 
