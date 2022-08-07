@@ -412,11 +412,12 @@ pub fn brick_road_iter(
 	let hwidth			= config.width / 2.0;
 	let hwidth_rotated	= spline_r.mul_vec3(Vec3::X * hwidth);
 	let filter_info	= Herringbone2TileFilterInfo {
-		x                      : pose.translation.x,
-		left_border            : spline_p - hwidth_rotated,
-		right_border           : spline_p + hwidth_rotated,
-		road_halfwidth_rotated : hwidth_rotated,
-		spline_p               : spline_p
+		x						: pose.translation.x,
+		t						: t,
+		left_border				: spline_p - hwidth_rotated,
+		right_border			: spline_p + hwidth_rotated,
+		road_halfwidth_rotated	: hwidth_rotated,
+		spline_p				: spline_p
 	};
 	if !control.dry_run {
 		spawn_tile		(pose, Some(filter_info), state, config, sargs, log);

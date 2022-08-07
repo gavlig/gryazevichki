@@ -2,6 +2,7 @@ use bevy			:: prelude :: *;
 use bevy_rapier3d	:: prelude :: *;
 use bevy_egui		:: { egui, EguiContext };
 use bevy_mod_picking:: { * };
+use bevy_mod_gizmos	as bmg;
 
 use super           :: egui_ext	:: FileDialog;
 use super           :: egui_ext	:: toggle_switch;
@@ -13,6 +14,7 @@ use crate			:: herringbone;
 use crate			:: herringbone :: Herringbone2TileFilterInfo;
 use super			:: { writeback };
 use super			:: { draw };
+
 
 pub fn vehicle_params_ui_system(
 	// mut ui_context	: ResMut<EguiContext>,
@@ -272,8 +274,11 @@ pub fn vehicle_params_ui_system(
 pub fn coords_on_hover_ui_system(
 	mut windows			: ResMut<Windows>,
 	mut ui_context		: ResMut<EguiContext>,
-		q_hover_tile	: Query<(&Hover, &herringbone::BrickRoadProgressState, Option<&Herringbone2TileFilterInfo>, &Transform)>,
+		q_hover_tile	: Query<(&Hover, &herringbone::BrickRoadProgressState, Option<&Herringbone2TileFilterInfo>, &Transform, &Parent)>,
 		q_hover			: Query<(&Hover, &Transform, &GlobalTransform), Without<Tile>>,
+		q_transform		: Query<&Transform>,
+
+	mut commands		: Commands,
 ) {
 	if q_hover.is_empty() && q_hover_tile.is_empty() {
 		return;
@@ -281,10 +286,12 @@ pub fn coords_on_hover_ui_system(
 
 	let window = windows.get_primary_mut().unwrap();
 
-	for (hover, state, filter_info, tform) in q_hover_tile.iter() {
+	for (hover, state, filter_info, tform, root_e) in q_hover_tile.iter() {
 		if !hover.hovered() {
 			continue;
 		}
+
+		let root_tform = q_transform.get(**root_e).unwrap();
 
 		// crashes randomly when we drag something outside window
 		if !window.physical_cursor_position().is_none() {
@@ -301,15 +308,21 @@ pub fn coords_on_hover_ui_system(
 								road_halfwidth_rotated : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								left_border            : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								x                      : [{:.3}]\n\
+								t                      : [{:.3}]\n\
 								right_border           : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								",
 								fi.spline_p.x, fi.spline_p.y, fi.spline_p.z,
 								fi.road_halfwidth_rotated.x, fi.road_halfwidth_rotated.y, fi.road_halfwidth_rotated.z,
 								fi.left_border.x, fi.left_border.y, fi.left_border.z,
+								fi.x,
+								fi.t,
 								fi.right_border.x, fi.right_border.y, fi.right_border.z,
-								fi.x
 							))
-						.text_style(egui::TextStyle::Monospace));	
+						.text_style(egui::TextStyle::Monospace));
+
+						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.spline_p, 0.15, Color::ANTIQUE_WHITE));
+						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.left_border, 0.25, Color::LIME_GREEN));
+						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.right_border, 0.25, Color::LIME_GREEN));
 					},
 				_ => (),
 				}

@@ -10,6 +10,7 @@ use bevy_prototype_debug_lines	:: { * };
 use bevy_debug_text_overlay		:: { screen_print, OverlayPlugin };
 use bevy_console	:: { AddConsoleCommand, ConsoleCommand, ConsolePlugin };
 use bevy_infinite_grid :: { InfiniteGridPlugin };
+use bevy_mod_gizmos	:: { * };
 
 mod game;
 use game			:: { GamePlugin };
@@ -36,6 +37,7 @@ fn main() {
 		.add_plugin(OverlayPlugin { font_size: 12.0, fallback_color: Color::rgb(0.1, 0.1, 0.1), ..default() })
 
 		.add_plugin(InfiniteGridPlugin)
+		.add_plugin(GizmosPlugin)
 		// .add_plugin(ConsolePlugin)
 		// .insert_resource(ConsoleConfiguration {
         //     // override config here
