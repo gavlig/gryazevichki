@@ -1,14 +1,13 @@
 use super           	:: { * };
 use crate				:: { bevy_spline };
-use bevy_prototype_debug_lines :: { DebugLines };
 
 pub fn brick_road_system(
 	mut q_spline		: Query<(
 							&Children,
-							&mut Spline,
+							&Spline,
+							&mut BrickRoadProgressState,
+							&Herringbone2Config,
 							&mut HerringboneControl,
-							&mut Herringbone2Config,
-							&mut BrickRoadProgressState
 						)>,//, Changed<HerringboneControl>>,
 
 	mut despawn			: ResMut<DespawnResource>,
@@ -20,8 +19,6 @@ pub fn brick_road_system(
 	mut	meshes			: ResMut<Assets<Mesh>>,
 	mut	materials		: ResMut<Assets<StandardMaterial>>,
 	mut commands		: Commands,
-
-	mut debug_lines		: ResMut<DebugLines>,
 ) {
 	if q_spline.is_empty() {
 		return;
@@ -33,7 +30,7 @@ pub fn brick_road_system(
 		commands	: &mut commands,
 	};
 
-	for (children_e, mut spline, mut control, mut config, mut progress_state) in q_spline.iter_mut() {
+	for (children_e, spline, mut progress_state, config, mut control) in q_spline.iter_mut() {
 		// a little logging helper lambda
 		let verbose = control.verbose;
 		let looped 	= control.looped;
@@ -75,7 +72,7 @@ pub fn brick_road_system(
 			dry_run_control.dry_run = true;
 
 			while progress_state_clone.column_id == 0 {
-				spawn::brick_road_iter(&mut progress_state_clone, &mut config, &mut spline, &ass, &mut sargs, &dry_run_control, &mut debug_lines);
+				spawn::brick_road_iter(spline, &mut progress_state_clone, &config, &ass, &control, &mut sargs);
 			}
 
 			progress_state.max_spline_offset = progress_state_clone.max_spline_offset;
@@ -92,7 +89,7 @@ pub fn brick_road_system(
 
 			let mut tiles_cnt = 0;
 			while !progress_state.finished {
-				spawn::brick_road_iter(&mut progress_state, &mut config, &mut spline, &ass, &mut sargs, &control, &mut debug_lines);
+				spawn::brick_road_iter(spline, &mut progress_state, &config, &ass, &control, &mut sargs);
 				tiles_cnt += 1;
 			}
 
@@ -102,7 +99,7 @@ pub fn brick_road_system(
 				control.instant = false;
 			}
 		} else {
-			spawn::brick_road_iter(&mut progress_state, &mut config, &mut spline, &ass, &mut sargs, &control, &mut debug_lines);
+			spawn::brick_road_iter(spline, &mut progress_state, &config, &ass, &control, &mut sargs);
 
 			if progress_state.finished {
 				if looped {

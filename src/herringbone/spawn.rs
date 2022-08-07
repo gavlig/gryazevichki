@@ -3,6 +3,7 @@ use bevy_rapier3d		:: prelude :: { * };
 use bevy_mod_picking	:: { * };
 use bevy_polyline		:: { prelude :: * };
 use bevy_prototype_debug_lines :: { DebugLines };
+use bevy_mod_gizmos		:: { * };
 
 use bevy::render::mesh::shape as render_shape;
 use std::f32::consts	:: { * };
@@ -247,6 +248,71 @@ fn fit_tile_on_spline(
 	(t, new_p, new_r, spline_p, spline_r)
 }
 
+fn find_t_on_spline(
+	state_t			: f32,
+	init_t_delta	: f32,
+	target_pos		: Vec3,
+	spline			: &Spline,
+	log				: impl Fn(String)
+) -> f32 {
+	let t_without_spline = state_t + init_t_delta;
+
+	if t_without_spline >= spline.total_length() {
+		return t_without_spline;
+	}
+
+	let mut t 		= t_without_spline;
+	let mut i 		= 0;
+	let mut corrections : Vec<f32> = Vec::new();
+
+	log(format!("find_t_on_spline started! t_without_spline: {:.3} ", t_without_spline));
+
+	loop {
+		let spline_p = spline.calc_position(t);
+		log(format!("[{}] spline_pos: [{:.3} {:.3} {:.3}] target_pos: [{:.3} {:.3} {:.3}]", i, spline_p.x, spline_p.y, spline_p.z, target_pos.x, target_pos.y, target_pos.z));
+
+		if spline_p.abs_diff_eq(target_pos, 0.001) {
+			log(format!("[{}] find_t_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
+			break;
+		}
+
+		let spline_dir = spline.calc_dir_wpos(t, spline_p);
+		let spline_r = Quat::from_rotation_arc(Vec3::Z, spline_dir);
+
+		let spline2target_dir = (target_pos - spline_p).normalize();
+		let spline2target_r = Quat::from_rotation_arc(Vec3::Z, spline2target_dir);
+
+		let angle = spline_r.angle_between(spline2target_r).to_degrees();
+
+		log(format!("[{}] angle: {:.3}", i, angle));
+
+		let angle_diff = (90.0 - angle).abs();
+		if angle_diff < 0.001 || i >= 5 {
+			log(format!("[{}] find_t_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
+			break;
+		}
+
+		// let correction = target_pos.z / spline_p.z;
+		let correction = (90.0 / angle).clamp(0.5, 1.5);
+		corrections.push(correction);
+		let mut corrected_offset = init_t_delta;
+		for c in corrections.iter() {
+			corrected_offset *= c;
+		}
+		t = state_t + corrected_offset;
+
+		log(format!("[{}] t: {:.3} correction: 90.0 / angle({:.3}) = correction({:.3})", i, t, angle, correction));
+
+		i += 1;
+	};
+
+	if t.is_infinite() || t.is_nan() {
+		panic!("find_t_on_spline: t is invalid! t: {:.3}", t);
+	}
+
+	t
+}
+
 fn end_conditions_met(
 		t            	: f32,
 		spline 			: &Spline,
@@ -298,6 +364,7 @@ fn spawn_tile(
 	filter_info : Option<Herringbone2TileFilterInfo>,
 	state	: &mut BrickRoadProgressState,
 	config	: &Herringbone2Config,
+	control	: &HerringboneControl,
 	sargs	: &mut SpawnArguments,
 	log		: impl Fn(String)
 ) {
@@ -307,11 +374,14 @@ fn spawn_tile(
 		Some(ref fi) => {
 			let left = (fi.left_border).x;
 			let right =  (fi.right_border).x;
-			let in_range = left <= fi.x && fi.x <= right;
+			let in_range = (left <= fi.x) && (fi.x <= right);
 			if !in_range {
-				ma = config.material_dbg.clone_weak();
-				log(format!("tile was filtered out!"));
-				// return;
+				if control.visual_debug {
+					ma = config.material_dbg.clone_weak();
+					log(format!("tile was filtered out!"));
+				} else {
+					return;
+				}
 			}
 		},
 		_ => (),
@@ -340,14 +410,12 @@ fn spawn_tile(
 }
 
 pub fn brick_road_iter(
+		spline 			: &Spline,
 	mut state			: &mut BrickRoadProgressState,
 		config			: &Herringbone2Config,
-		spline 			: &Spline,
 		_ass			: &Res<AssetServer>,
-		sargs			: &mut SpawnArguments,
 		control			: &HerringboneControl,
-
-	mut debug_lines		: &mut ResMut<DebugLines>,
+		sargs			: &mut SpawnArguments,
 ) {
 	// a little logging helper lambda
 	let ir 				= state.column_id;
@@ -368,10 +436,16 @@ pub fn brick_road_iter(
 
 	let tile_pos_delta 	= next_pos - prev_pos;
 
-	// on a straight line tile position works as "t" (parameter for spline sampling). Later on t gets adjusted in fit_tile_on_spline to keep tiles evenly spaced on spline
+	// on a straight line tile position works as "t" (parameter for spline sampling). Later on t gets adjusted in find_t_on_spline to road limits for current tile
 	// z is used explicitely here because we don't want to deal with 2 dimensions in spline sampling and offset by x will be added later
 	let init_t_delta	= tile_pos_delta.z;
 	let t 				= state.t + init_t_delta;
+
+	log(format!("init t without spline fitting: {:.3}", t));
+
+	let t = find_t_on_spline(state.t, init_t_delta, next_pos, spline, log);
+
+	log(format!("t after spline fitting: {:.3}", t));
 
 	//
 	//
@@ -408,9 +482,7 @@ pub fn brick_road_iter(
 	//
 	// Spawning
 
-	let x				= pose.translation.x;
-	let hwidth			= config.width / 2.0;
-	let hwidth_rotated	= spline_r.mul_vec3(Vec3::X * hwidth);
+	let hwidth_rotated	= spline_r.mul_vec3(Vec3::X * (config.width / 2.0));
 	let filter_info	= Herringbone2TileFilterInfo {
 		x						: pose.translation.x,
 		t						: t,
@@ -420,7 +492,7 @@ pub fn brick_road_iter(
 		spline_p				: spline_p
 	};
 	if !control.dry_run {
-		spawn_tile		(pose, Some(filter_info), state, config, sargs, log);
+		spawn_tile		(pose, Some(filter_info), state, config, control, sargs, log);
 	}
 
 	//

@@ -15,7 +15,6 @@ use crate			:: herringbone :: Herringbone2TileFilterInfo;
 use super			:: { writeback };
 use super			:: { draw };
 
-
 pub fn vehicle_params_ui_system(
 	// mut ui_context	: ResMut<EguiContext>,
 	// mut	game		: ResMut<GameState>,
@@ -304,18 +303,18 @@ pub fn coords_on_hover_ui_system(
 							egui::RichText::new(format!(
 								"\n\
 								Filter Info:\n\
+								t                      : [{:.3}]\n\
 								spline_p               : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								road_halfwidth_rotated : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								left_border            : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								x                      : [{:.3}]\n\
-								t                      : [{:.3}]\n\
 								right_border           : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								",
+								fi.t,
 								fi.spline_p.x, fi.spline_p.y, fi.spline_p.z,
 								fi.road_halfwidth_rotated.x, fi.road_halfwidth_rotated.y, fi.road_halfwidth_rotated.z,
 								fi.left_border.x, fi.left_border.y, fi.left_border.z,
 								fi.x,
-								fi.t,
 								fi.right_border.x, fi.right_border.y, fi.right_border.z,
 							))
 						.text_style(egui::TextStyle::Monospace));

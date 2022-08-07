@@ -262,13 +262,12 @@ impl Spline {
 		spline_p
 	}
 
-	pub fn calc_rotation(&self, t : f32) -> Quat {
+	pub fn calc_dir(&self, t : f32) -> Vec3 {
 		let spline_p		= self.calc_position(t);
-
-		self.calc_rotation_wpos(t, spline_p)
+		self.calc_dir_wpos	(t, spline_p)
 	}
 
-	pub fn calc_rotation_wpos(&self, t : f32, spline_p : Vec3) -> Quat {
+	pub fn calc_dir_wpos(&self, t : f32, spline_p : Vec3) -> Vec3 {
 		let total_length 	= self.total_length();
 		let eps				= 0.00001;
 		let (next_t, reverse) = 
@@ -279,8 +278,18 @@ impl Spline {
 		};
 
 		let next_spline_p	= self.calc_position(next_t);
-
 		let spline_dir		= (if !reverse { next_spline_p - spline_p } else { spline_p - next_spline_p }).normalize();
+
+		spline_dir
+	}
+
+	pub fn calc_rotation(&self, t : f32) -> Quat {
+		let spline_p		= self.calc_position(t);
+		self.calc_rotation_wpos(t, spline_p)
+	}
+
+	pub fn calc_rotation_wpos(&self, t : f32, spline_p : Vec3) -> Quat {
+		let spline_dir = self.calc_dir_wpos(t, spline_p);
 		Quat::from_rotation_arc(Vec3::Z, spline_dir)
 	}
 
