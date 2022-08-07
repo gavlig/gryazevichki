@@ -212,7 +212,7 @@ impl Spline {
 			segment_length
 		},
 		ParameterType::Timeline => {
-			t_range
+			key1.value.z - key0.value.z
 		}
 		};
 
