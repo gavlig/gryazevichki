@@ -295,14 +295,16 @@ pub fn coords_on_hover_ui_system(
 		// crashes randomly when we drag something outside window
 		if !window.physical_cursor_position().is_none() {
 			egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
-				ui.label(format!("#[{}] t: {:.3} x: {:.3} z: {:.3}", state.iter, state.t, tform.translation.x, tform.translation.z));
+				ui.label(
+					egui::RichText::new(format!("#[{}] t: {:.3}\n                 local : [{:>6.3} {:>6.3} {:>6.3}]", state.iter, state.t, tform.translation.x, tform.translation.y, tform.translation.z))
+					.text_style(egui::TextStyle::Monospace)
+				);
 
 				match filter_info {
 					Some(ref fi) => {
 						ui.label(
 							egui::RichText::new(format!(
-								"\n\
-								Filter Info:\n\
+								"[FILTER INFO]:\n\
 								t                      : [{:.3}]\n\
 								spline_p               : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								road_halfwidth_rotated : [{:>6.3} {:>6.3} {:>6.3}]\n\
@@ -337,7 +339,16 @@ pub fn coords_on_hover_ui_system(
 		// crashes randomly when we drag something outside window
 		if !window.physical_cursor_position().is_none() {
 			egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("hover"), |ui| {
-				ui.label(format!("lx: {:.3} lz: {:.3} gx: {:.3} gz: {:.3}", tform.translation.x, tform.translation.z, gtform.translation.x, gtform.translation.z));
+				ui.label(egui::RichText::new(
+					format!("local [{:>6.3} {:>6.3} {:>6.3}]\nglobal [{:>6.3} {:>6.3} {:>6.3}]",
+					tform.translation.x,
+					tform.translation.y,
+					tform.translation.z,
+					gtform.translation.x,
+					gtform.translation.y,
+					gtform.translation.z)
+				).text_style(egui::TextStyle::Monospace)
+				);
 			});
 		}
 	}
