@@ -77,7 +77,7 @@ pub fn control_point(
 
 	sargs.commands.entity(parent_e).with_children(|parent| {
 		cp_id = parent.spawn_bundle(PbrBundle {
-			mesh		: sargs.meshes.add		(Mesh::from(render_shape::UVSphere{ radius: 0.2, ..default() })),
+			mesh		: sargs.meshes.add(Mesh::from(render_shape::UVSphere{ radius: 0.2, ..default() })),
 			material	: sargs.materials.add(
 			StandardMaterial {
 				base_color	: Color::rgb(0.76, 0.76, 0.66).into(),
@@ -161,7 +161,7 @@ pub fn new(
 	let key0			= Key::new(t0, key0_pos, Interpolation::StrokeBezier(tangent00, tangent01));
 	let key1			= Key::new(t1, key1_pos, Interpolation::StrokeBezier(tangent10, tangent11));
 
-	let mut spline			= Spline::from_vec(vec![key0, key1]);
+	let spline			= Spline::from_vec(vec![key0, key1]);
 
 	let key0_e 			= self::control_point(&key0, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
 	let key1_e 			= self::control_point(&key1, &spline, root_e, true, polylines, polyline_materials, &mut sargs);
