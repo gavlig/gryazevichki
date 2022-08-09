@@ -314,7 +314,7 @@ pub fn input_misc_system(
 			}
 		}
 
-		if key.pressed(KeyCode::LControl) && key.pressed(KeyCode::T) {
+		if key.pressed(KeyCode::LControl) && key.just_pressed(KeyCode::T) {
 			tile_ctl.spawn_tile = true;
 			screen_print!	("Tile Control Spawn Single Tile");
 		}
