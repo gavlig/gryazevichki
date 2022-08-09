@@ -191,17 +191,15 @@ pub enum Direction2D {
 impl Direction2D {
 	pub fn next_direction(&self) -> Self {
 		match self {
-			Direction2D::Up    => Direction2D::Right,
-			Direction2D::Right => Direction2D::Down,
-			Direction2D::Down  => Direction2D::Left,
+			Direction2D::Right => Direction2D::Up,
 			Direction2D::Left  => Direction2D::Up,
+			Direction2D::Up    => Direction2D::Left,
+			Direction2D::Down  => Direction2D::Down, // unused for now
 		}
 	}
 
-	pub fn set_next_direction(&mut self) -> bool {
-		let looped = *self == Direction2D::Left;
+	pub fn set_next_direction(&mut self) {
 		*self = self.next_direction();
-		looped
 	}
 
 	pub fn is_horizontal(&self) -> bool {
@@ -215,7 +213,6 @@ impl Direction2D {
 
 pub struct HerringbonePlugin;
 
-// This plugin is responsible to control the game audio
 impl Plugin for HerringbonePlugin {
     fn build(&self, app: &mut App) {
         app	.add_system	(brick_road_system)

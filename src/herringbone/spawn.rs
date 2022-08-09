@@ -160,13 +160,13 @@ fn calc_next_tile_pos_xplus(
 	let hlenz			= config.hsize.z;
 	let seam			= config.hseam * 2.0;
 
-	let offset0_length 	= hlenx + seam + hlenx;
-	let offset1_length 	= hlenz;
+	let offset0_length 	= hlenz + seam;
+	let offset1_length 	= hlenx + seam + hlenx;
 	let (offset0_rotation, offset1_rotation) = 
 	if pattern_iter % 2 == 0 {
-		(FRAC_PI_4, -FRAC_PI_4)
-	} else {
 		(-FRAC_PI_4, FRAC_PI_4)
+	} else {
+		(FRAC_PI_4, -FRAC_PI_4)
 	};
 	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * offset0_length);
 	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * -offset1_length);
@@ -189,15 +189,15 @@ fn calc_next_tile_pos_xminus(
 	let seam			= config.hseam * 2.0;
 
 	let offset0_length 	= hlenx + seam + hlenx;
-	let offset1_length 	= hlenz;
+	let offset1_length 	= hlenz + seam;
 	let (offset0_rotation, offset1_rotation) = 
 	if pattern_iter % 2 == 0 {
-		(FRAC_PI_4, -FRAC_PI_4)
-	} else {
 		(-FRAC_PI_4, FRAC_PI_4)
+	} else {
+		(FRAC_PI_4, -FRAC_PI_4)
 	};
-	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * -offset0_length);
-	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * offset1_length);
+	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * offset0_length);
+	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * -offset1_length);
 	let herrpos = prev_p + offset0 + offset1;
 
 	log(format!("calc_next_tile_row_xminus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
@@ -224,7 +224,7 @@ fn calc_next_tile_pos(
 	next_pos
 }
 
-fn calc_next_tile_pos_on_spline(
+fn calc_next_tile_pos_on_road(
 		next_pos_out	: &mut Vec3,
 		state_out		: &mut BrickRoadProgressState,
 		spline 			: &Spline,
@@ -256,6 +256,12 @@ fn calc_next_tile_pos_on_spline(
 			next_pos_found = true;
 			log(format!("found next pos direction! {:?} distance_to_spline: {:.3}", state.dir, distance_to_spline));
 		} else {
+			if Direction2D::Up == state.dir {
+				state.pos = next_pos;
+				state.t = next_pos.z;
+				log(format!("couldn't go up but switched to next row anyway! new t: {:.3}", state.t));
+			}
+
 			state.set_next_direction();
 			log(format!("too far! switching direction to {:?} pattern {} (spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3})", state.dir, state.pattern_iter, spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
 		}
@@ -267,6 +273,13 @@ fn calc_next_tile_pos_on_spline(
 		log(format!("end condition met! last iter: {} last pos: [{:.3} {:.3} {:.3}]", state.iter, state.pos.x, state.pos.y, state.pos.z));
 		log(format!("----------------------------"));
 	} else {
+		// we went up one iteration, let's fill another row of tiles on the road! (switching from up to left)
+		if init_dir == Direction2D::Up {
+			state_out.set_next_direction();
+			state_out.t = next_pos.z;
+			log(format!("new t: {:.3} We went up one iteration, let's fill another row of tiles on the road! (switching from up to left)", state_out.t));
+		}
+
 		*state_out		= state;
 		*next_pos_out	= next_pos;
 	}
@@ -316,7 +329,7 @@ fn find_t_on_spline(
 		let spline2target_dir = (target_pos - spline_p).normalize();
 		let spline2target_r = Quat::from_rotation_arc(Vec3::Z, spline2target_dir);
 
-		// TODO: if prev angle was better keept it?
+		// if prev angle was better keep it?
 		let angle = spline_r.angle_between(spline2target_r).to_degrees();
 
 		log(format!("[{}] angle: {:.3}", i, angle));
@@ -328,7 +341,7 @@ fn find_t_on_spline(
 		}
 
 		// let correction = target_pos.z / spline_p.z;
-		let correction = (90.0 / angle).clamp(0.5, 1.5);
+		let correction = (90.0 / angle).clamp(0.3, 1.7);
 		corrections.push(correction);
 		let mut corrected_offset = init_t_delta;
 		for c in corrections.iter() {
@@ -423,7 +436,8 @@ pub fn brick_road_iter(
 	log(format!("new brick_road_iter! t: {:.3}", state.t));
 
 	let mut next_pos	= Vec3::ZERO;
-	if !calc_next_tile_pos_on_spline(&mut next_pos, state, spline, config, log) {
+	if !calc_next_tile_pos_on_road(&mut next_pos, state, spline, config, log) {
+		state.finished = true;
 		return;
 	}
 	let prev_pos		= state.pos;
@@ -442,9 +456,6 @@ pub fn brick_road_iter(
 	let pattern_angle	= herringbone_angle(state.pattern_iter);
 	let pattern_rotation = Quat::from_rotation_y(pattern_angle);
 
-	let spline_p 		= spline.calc_position(t);
-	let spline_r		= spline.calc_rotation_wpos(t, spline_p);
-
 	// 
 	//
 	// Final pose
@@ -455,6 +466,9 @@ pub fn brick_road_iter(
 	// 
 	//
 	// Spawning
+
+	let spline_p 		= spline.calc_position(t);
+	let spline_r		= spline.calc_rotation_wpos(t, spline_p);
 
 	let hwidth_rotated	= spline_r.mul_vec3(Vec3::X * (config.width / 2.0));
 	let filter_info	= Herringbone2TileFilterInfo {
@@ -473,7 +487,7 @@ pub fn brick_road_iter(
 	//
 	// cheat/debug: end on certain column/row id to avoid long logs etc
 	let debug			= true;
-	if state.iter == 11 && debug {
+	if state.iter == 12 && debug {
 		log(format!("DEBUG FULL STOP"));
 		state.finished = true;
 		return;
