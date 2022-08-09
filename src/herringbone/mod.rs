@@ -64,6 +64,7 @@ impl HerringboneControl {
 pub struct BrickRoadProgressState {
 	pub dir				: Direction2D,
 	pub iter			: usize,
+	pub pattern_iter	: usize,
 	pub t				: f32,
 	pub pos				: Vec3,
 	pub finished		: bool,
@@ -74,6 +75,7 @@ impl Default for BrickRoadProgressState {
 		Self {
 			dir			: Direction2D::Up,
 			iter		: 0,
+			pattern_iter: 0,
 			t			: 0.0,
 			pos			: Vec3::Y * 0.5, // VERTICALITY
 			finished	: false,
@@ -89,6 +91,13 @@ impl BrickRoadProgressState {
 
 	pub fn hasnt_started(&self) -> bool {
 		self.iter == 0
+	}
+
+	pub fn set_next_direction(&mut self) {
+		self.dir.set_next_direction();
+		// if self.dir == Direction2D::Up || self.dir == Direction2D::Down {
+		// 	self.pattern_iter = if self.pattern_iter == 0 { 1 } else { 0 };
+		// }
 	}
 }
 
@@ -171,12 +180,37 @@ pub struct Herringbone2TileFilterInfo {
 	pub t : f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction2D {
 	Up,
 	Right,
 	Down,
 	Left
+}
+
+impl Direction2D {
+	pub fn next_direction(&self) -> Self {
+		match self {
+			Direction2D::Up    => Direction2D::Right,
+			Direction2D::Right => Direction2D::Down,
+			Direction2D::Down  => Direction2D::Left,
+			Direction2D::Left  => Direction2D::Up,
+		}
+	}
+
+	pub fn set_next_direction(&mut self) -> bool {
+		let looped = *self == Direction2D::Left;
+		*self = self.next_direction();
+		looped
+	}
+
+	pub fn is_horizontal(&self) -> bool {
+		*self == Direction2D::Left || *self == Direction2D::Right
+	}
+
+	pub fn is_vertical(&self) -> bool {
+		!self.is_horizontal()
+	}
 }
 
 pub struct HerringbonePlugin;

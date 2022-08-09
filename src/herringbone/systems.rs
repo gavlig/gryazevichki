@@ -70,7 +70,12 @@ pub fn brick_road_system(
 		control.last_update = cur_time;
 
 		if progress_state.hasnt_started() {
-			progress_state.pos = spline.keys().first().unwrap().value;
+			let first_key = spline.keys().first().unwrap().value;
+			let spline_r = spline.calc_init_rotation();
+			let hwidth_rotated = spline_r.mul_vec3(Vec3::X * (-config.width / 2.0));
+
+			progress_state.pos = first_key - hwidth_rotated;
+			progress_state.dir = Direction2D::Right;
 
 			log(format!("Herringbone2 road initialized! init pos: [{:.3} {:.3} {:.3}]", progress_state.pos.x, progress_state.pos.y, progress_state.pos.z));
 		}

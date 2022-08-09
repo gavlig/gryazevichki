@@ -295,7 +295,7 @@ pub fn coords_on_hover_ui_system(
 		// crashes randomly when we drag something outside window
 		if !window.physical_cursor_position().is_none() {
 			egui::show_tooltip_at_pointer(ui_context.ctx_mut(), egui::Id::new("herr"), |ui| {
-				ui.label(format!("#[{} {}] t: {:.3} x: {:.3} z: {:.3}", state.column_id, state.row_id, state.t, tform.translation.x, tform.translation.z));
+				ui.label(format!("#[{}] t: {:.3} x: {:.3} z: {:.3}", state.iter, state.t, tform.translation.x, tform.translation.z));
 
 				match filter_info {
 					Some(ref fi) => {
@@ -319,9 +319,9 @@ pub fn coords_on_hover_ui_system(
 							))
 						.text_style(egui::TextStyle::Monospace));
 
-						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.spline_p, 0.15, Color::ANTIQUE_WHITE));
-						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.left_border, 0.25, Color::LIME_GREEN));
-						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.right_border, 0.25, Color::LIME_GREEN));
+						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.spline_p, 0.05, Color::ANTIQUE_WHITE));
+						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.left_border, 0.07, Color::LIME_GREEN));
+						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.right_border, 0.07, Color::LIME_GREEN));
 					},
 				_ => (),
 				}
