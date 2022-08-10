@@ -240,10 +240,11 @@ fn calc_next_tile_pos_on_road(
 	let mut next_pos_found = false;
 	let mut t			= state.t;
 	let mut dir_cnt		= 0;
+	let mut went_up_once = false;
 	let init_dir		= state.dir;
 	let init_pattern_iter = state.pattern_iter;
 
-	while !next_pos_found && dir_cnt < 4 {
+	while !next_pos_found && dir_cnt < 6 {
 		if state.dir.is_vertical() && init_dir.is_horizontal() {
 			state.pattern_iter = if init_pattern_iter == 0 { 1 } else { 0 };
 			log(format!("[{}] [hor -> ver]: next pattern_iter: {} init_dir: {:?} dir: {:?}", dir_cnt, state.pattern_iter, init_dir, state.dir));
@@ -256,21 +257,29 @@ fn calc_next_tile_pos_on_road(
 		let spline_p	= spline.calc_position(t);
 
 		let distance_to_spline = (next_pos - spline_p).length();
-		log(format!("[{}] spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3}", dir_cnt, spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
+		log(format!("[{}] t: {:.3} spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3}", dir_cnt, t,  spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
 
 		let too_far_from_spline = distance_to_spline > calc_max_distance_to_spline(config);
 		if too_far_from_spline {
-			if Direction2D::Up == state.dir {
-				state.pos = next_pos;
-				state.t = t;
-				log(format!("[{}] couldn't go up but switched to next row since previous row ended. new t: {:.3}", dir_cnt, state.t));
+			log(format!("[{}] new pos is too far from border!", dir_cnt));
+
+			if state.dir == Direction2D::Up {
+				went_up_once = true;
+				state.set_next_direction(init_dir);
 			}
 
-			state.set_next_direction(init_dir);
-			log(format!("[{}] new pos is too far from border! switching direction to {:?}", dir_cnt, state.dir));
+			if went_up_once {
+				state.pos = next_pos;
+				state.t = t;
+				log(format!("[{}] went up once so keeping offset! new t: {:.3}", dir_cnt, state.t));
+			} else {
+				state.set_next_direction(init_dir);
+			}
+
+			log(format!("[{}] switching direction to {:?}", dir_cnt, state.dir));
 		} else {
 			next_pos_found = true;
-			log(format!("[{}] all good! dir {:?} distance_to_spline: {:.3}", dir_cnt, state.dir, distance_to_spline));
+			log(format!("[{}] all good! dir {:?}", dir_cnt, state.dir));
 		} 
 
 		dir_cnt 		+= 1;
@@ -318,46 +327,45 @@ fn find_t_on_spline(
 	let mut i 		= 0;
 	let eps			= 0.001; // precision is 1mm
 
-	log(format!("find_t_on_spline started! t_without_spline: {:.3} ", t_prev));
+	log(format!("  find_t_on_spline started! t_without_spline: {:.3} t_best: {:.3} distance_to_spline_best: {:.3}", t_prev, t_best, distance_to_spline_best));
 
 	loop {
 		let spline_p = spline.calc_position(t);
-		log(format!("[{}] t: {:.3} spline_pos: [{:.3} {:.3} {:.3}] target_pos: [{:.3} {:.3} {:.3}]", i, t, spline_p.x, spline_p.y, spline_p.z, tile_pos.x, tile_pos.y, tile_pos.z));
+		log(format!("  [{}] t: {:.3} spline_pos: [{:.3} {:.3} {:.3}] target_pos: [{:.3} {:.3} {:.3}]", i, t, spline_p.x, spline_p.y, spline_p.z, tile_pos.x, tile_pos.y, tile_pos.z));
 
 		if spline_p.abs_diff_eq(tile_pos, eps) {
-			log(format!("find_t_on_spline finished(spline_p == target_pos)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", t, t_prev, t / t_prev));
+			log(format!("  find_t_on_spline finished(spline_p == target_pos)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", t, t_prev, t / t_prev));
 			break;
 		}
 
 		let delta_pos = tile_pos - spline_p;
 		let distance_to_spline = delta_pos.length();
 
-		log(format!("[{}] distance_to_spline: {:.3}", i, distance_to_spline));
+		log(format!("  [{}] distance_to_spline: {:.3}", i, distance_to_spline));
 
 		let distance_diff = distance_to_spline - distance_to_spline_prev;
-		if distance_diff.abs() < eps || i >= 4 {
-			log(format!("find_t_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", t, t_prev, t / t_prev));
-			break;
-		}
-		distance_to_spline_prev = distance_to_spline;
-
-		if i != 0 || distance_diff < 0.0 {
-			step *= 0.5;
-		}
-
 		if distance_diff > 0.0 {
 			step = -step;
+			if i != 0 {
+				step *= 0.5;
+			}
 		}
 
 		if distance_to_spline < distance_to_spline_best {
 			t_best = t;
 			distance_to_spline_best = distance_to_spline;
-			log(format!("new t_best! {:.3} distance_to_spline_best: {:.3}", t_best, distance_to_spline_best));
+			log(format!("  new t_best! {:.3} distance_to_spline_best: {:.3}", t_best, distance_to_spline_best));
 		}
+
+		if distance_diff.abs() < eps || i >= 4 {
+			log(format!("  find_t_on_spline finished! t_best: {:.3} t_without_spline: {:.3} ratio: {:.3}", t_best, t_prev, t / t_prev));
+			break;
+		}
+		distance_to_spline_prev = distance_to_spline;
 
 		t += step;
 
-		log(format!("[{}] step: {:.3}", i, step));
+		log(format!("  [{}] step: {:.3}", i, step));
 
 		i += 1;
 	};
