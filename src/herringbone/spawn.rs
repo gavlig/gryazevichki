@@ -289,27 +289,26 @@ fn calc_next_tile_pos_on_road(
 }
 
 fn find_t_on_spline(
-	target_pos		: Vec3,
-	state 			: &BrickRoadProgressState,
+	tile_pos		: Vec3,
+	prev_pos		: Vec3,
+	t_prev			: f32,
 	spline			: &Spline,
-	config			: &Herringbone2Config,
 	log				: impl Fn(String)
 ) -> f32 {
-	let t_prev		= state.t;
-
 	if t_prev <= 0.0 || t_prev >= spline.total_length() {
+		log(format!("find_t_on_spline early out! t_prev: {:.3} spline.total_length: {:.3}", t_prev, spline.total_length()));
 		return		t_prev;
 	}
 
-	let init_t_delta = (target_pos - state.pos).length();
+	let init_t_delta = (tile_pos - prev_pos).length();
 	let spline_p_prev = spline.calc_position(t_prev);
 
 	let mut step	= init_t_delta;
 	let mut t 		= t_prev + step;
 
 	let mut t_best	= t_prev;
-	let mut distance_to_spline_best = (state.pos - spline_p_prev).length();
-	let mut distance_to_spline_prev = (target_pos - spline_p_prev).length();
+	let mut distance_to_spline_best = (prev_pos - spline_p_prev).length();
+	let mut distance_to_spline_prev = (tile_pos - spline_p_prev).length();
 	let mut i 		= 0;
 	let eps			= 0.001; // precision is 1mm
 
@@ -317,21 +316,21 @@ fn find_t_on_spline(
 
 	loop {
 		let spline_p = spline.calc_position(t);
-		log(format!("[{}] t: {:.3} spline_pos: [{:.3} {:.3} {:.3}] target_pos: [{:.3} {:.3} {:.3}]", i, t, spline_p.x, spline_p.y, spline_p.z, target_pos.x, target_pos.y, target_pos.z));
+		log(format!("[{}] t: {:.3} spline_pos: [{:.3} {:.3} {:.3}] target_pos: [{:.3} {:.3} {:.3}]", i, t, spline_p.x, spline_p.y, spline_p.z, tile_pos.x, tile_pos.y, tile_pos.z));
 
-		if spline_p.abs_diff_eq(target_pos, eps) {
-			log(format!("[{}] find_t_on_spline finished(spline_p == target_pos)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_prev, t / t_prev));
+		if spline_p.abs_diff_eq(tile_pos, eps) {
+			log(format!("find_t_on_spline finished(spline_p == target_pos)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", t, t_prev, t / t_prev));
 			break;
 		}
 
-		let delta_pos = target_pos - spline_p;
+		let delta_pos = tile_pos - spline_p;
 		let distance_to_spline = delta_pos.length();
 
 		log(format!("[{}] distance_to_spline: {:.3}", i, distance_to_spline));
 
 		let distance_diff = distance_to_spline - distance_to_spline_prev;
 		if distance_diff.abs() < eps || i >= 4 {
-			log(format!("[{}] find_t_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_prev, t / t_prev));
+			log(format!("find_t_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", t, t_prev, t / t_prev));
 			break;
 		}
 		distance_to_spline_prev = distance_to_spline;
@@ -449,9 +448,9 @@ pub fn brick_road_iter(
 
 	//
 	//
-	// Putting tile on spline
+	// Find closes point on spline to figure out borders
 
-	let t = find_t_on_spline(next_pos, state, spline, config, log);
+	let t = find_t_on_spline(next_pos, state.pos, state.t, spline, log);
 
 	log(format!("t after spline fitting: {:.3}", t));
 	log(format!("t: {:.3} next_pos:[{:.3} {:.3} {:.3}] prev_pos: [{:.3} {:.3} {:.3}] tile_pos_delta: [{:.3} {:.3} {:.3}]", t, next_pos.x, next_pos.y, next_pos.z, state.pos.x, state.pos.y, state.pos.z, tile_pos_delta.x, tile_pos_delta.y, tile_pos_delta.z));
