@@ -89,6 +89,7 @@ pub fn on_tangent_moved(
 				});
 			}
 
+			// update gizmo
 			if let Ok(handle) = q_polyline.get(child_e) {
 				let control_point_tform_inv = Transform::from_matrix(control_point_tform.clone().compute_matrix().inverse());
 
@@ -100,8 +101,12 @@ pub fn on_tangent_moved(
 				line.vertices[1] = Vec3::ZERO;
 			}
 		}
+
+		let r = Quat::from_rotation_arc(Vec3::Z, tan_tform.translation.normalize());
+		screen_print!("tangent angle: {:.3}", r.angle_between(Quat::IDENTITY).to_degrees());
 	}
 
+	// if sync_tangents == true we mirror position of current tanget to the opposite one
 	for opp in opposite_tangents {
 		if let Ok(mut tform) = q_tangent_set.p1().get_mut(opp.entity) {
 			let control_point_tform_inv = Transform::from_matrix(opp.control_point_tform.compute_matrix().inverse());
