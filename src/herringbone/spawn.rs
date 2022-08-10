@@ -234,6 +234,7 @@ fn calc_next_tile_pos_on_road(
 	let mut state		= state_out.clone();
 	let mut next_pos	= Vec3::ZERO;
 	let mut next_pos_found = false;
+	let mut t			= state.t;
 	let mut dir_cnt		= 0;
 	let init_dir		= state.dir;
 	let init_pattern_iter = state.pattern_iter;
@@ -241,31 +242,32 @@ fn calc_next_tile_pos_on_road(
 	while !next_pos_found && dir_cnt < 4 {
 		if state.dir.is_vertical() && init_dir.is_horizontal() {
 			state.pattern_iter = if init_pattern_iter == 0 { 1 } else { 0 };
-			log(format!("[{}] switching pattern_iter to {}! init_dir: {:?} new_dir: {:?}", dir_cnt, state.pattern_iter, init_dir, state.dir));
+			log(format!("[{}] [hor -> ver]: next pattern_iter: {} init_dir: {:?} dir: {:?}", dir_cnt, state.pattern_iter, init_dir, state.dir));
 		}
 		next_pos		= calc_next_tile_pos(&mut state, config, &log);
 
 		log(format!("[{}] checking dir {:?}, next pos: [{:.3} {:.3} {:.3}] prev pos: [{:.3} {:.3} {:.3}] pattern_iter: {:?}", dir_cnt, state.dir, next_pos.x, next_pos.y, next_pos.z, state.pos.x, state.pos.y, state.pos.z, state.pattern_iter));
 
-		// just probe with next_pos.z as t parameter to find closest spline point
-		let spline_p	= spline.calc_position(next_pos.z);
+		t				= find_t_on_spline(next_pos, state.pos, state.t, spline, &log);
+		let spline_p	= spline.calc_position(t);
+
 		let distance_to_spline = (next_pos - spline_p).length();
 		log(format!("[{}] spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3}", dir_cnt, spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
 
 		let too_far_from_spline = distance_to_spline > (config.width / 2.0);
-		if !too_far_from_spline {
-			next_pos_found = true;
-			log(format!("[{}] all good! dir {:?} distance_to_spline: {:.3}", dir_cnt, state.dir, distance_to_spline));
-		} else {
+		if too_far_from_spline {
 			if Direction2D::Up == state.dir {
 				state.pos = next_pos;
-				state.t = next_pos.z;
+				state.t = t;
 				log(format!("[{}] couldn't go up but switched to next row since previous row ended. new t: {:.3}", dir_cnt, state.t));
 			}
 
 			state.set_next_direction();
 			log(format!("[{}] new pos is too far from border! switching direction to {:?}", dir_cnt, state.dir));
-		}
+		} else {
+			next_pos_found = true;
+			log(format!("[{}] all good! dir {:?} distance_to_spline: {:.3}", dir_cnt, state.dir, distance_to_spline));
+		} 
 
 		dir_cnt 		+= 1;
 	}
@@ -277,8 +279,8 @@ fn calc_next_tile_pos_on_road(
 		// we went up one iteration, let's fill another row of tiles on the road! (switching from up to left)
 		if state.dir == Direction2D::Up {
 			state.set_next_direction();
-			state.t		= next_pos.z;
-			log(format!("new t: {:.3} We went up one iteration, let's fill another row of tiles on the road! (switching from up to left)", state_out.t));
+			state.t		= t;
+			log(format!("new t: {:.3} We went up one iteration, let's fill another row of tiles on the road! (switching from up to left)", state.t));
 		}
 
 		*state_out		= state;
@@ -499,7 +501,7 @@ pub fn brick_road_iter(
 	//
 	//
 	// cheat/debug: end on certain column/row id to avoid long logs etc
-	let debug			= true;
+	let debug			= false;
 	if state.iter == 12 && debug {
 		log(format!("DEBUG FULL STOP"));
 		state.finished = true;
