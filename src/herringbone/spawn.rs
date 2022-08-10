@@ -309,8 +309,8 @@ fn find_t_on_spline(
 	let mut t 		= t_prev + step;
 
 	let mut t_best	= t_prev;
-	let mut distance_to_spline_best = (prev_pos - spline_p_prev).length();
-	let mut distance_to_spline_prev = (tile_pos - spline_p_prev).length();
+	let mut distance_to_spline_best = (tile_pos - spline_p_prev).length();
+	let mut distance_to_spline_prev = distance_to_spline_best.clone();
 	let mut i 		= 0;
 	let eps			= 0.001; // precision is 1mm
 
