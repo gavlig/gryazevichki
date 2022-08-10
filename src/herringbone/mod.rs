@@ -216,6 +216,7 @@ pub struct HerringbonePlugin;
 impl Plugin for HerringbonePlugin {
     fn build(&self, app: &mut App) {
         app	.add_system	(brick_road_system)
+			.add_system	(brick_road_system_debug)
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_tangent_moved)
 			.add_system_to_stage(CoreStage::PostUpdate, on_spline_control_point_moved)
             ;

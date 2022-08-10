@@ -116,7 +116,7 @@ fn calc_next_tile_pos_zplus(
 	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * offset1_length);
 	let herrpos = prev_p + offset0 + offset1;
 
-	log(format!("calc_next_tile_row_zplus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("calc_next_tile_pos_zplus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
 	log(format!("                    prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
 
 	herrpos
@@ -144,7 +144,7 @@ fn calc_next_tile_pos_zminus(
 	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * -offset1_length);
 	let herrpos = prev_p + offset0 + offset1;
 
-	log(format!("calc_next_tile_row_zminus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("calc_next_tile_pos_zminus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
 	log(format!("                     prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
 
 	herrpos
@@ -172,7 +172,7 @@ fn calc_next_tile_pos_xplus(
 	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * -offset1_length);
 	let herrpos = prev_p + offset0 + offset1;
 
-	log(format!("calc_next_tile_row_xplus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("calc_next_tile_pos_xplus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
 	log(format!("                    prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
 
 	herrpos
@@ -200,7 +200,7 @@ fn calc_next_tile_pos_xminus(
 	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * -offset1_length);
 	let herrpos = prev_p + offset0 + offset1;
 
-	log(format!("calc_next_tile_row_xminus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
+	log(format!("calc_next_tile_pos_xminus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
 	log(format!("                     prev: [{:.3} {:.3} {:.3}]", prev_p.x, prev_p.y, prev_p.z));
 
 	herrpos

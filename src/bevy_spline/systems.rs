@@ -9,16 +9,27 @@ use super           :: { * };
 
 // Convert engine Transform of an entity to spline tangent Vec3. Spline tangents are in the same space as control points.
 // Spline tangent handles(as in bevy entities with transforms) are children of control point entities so we have to juggle between spline space and tangent space
-// TODO: it's too big and scary
+// FIXME: it's too big and scary
 pub fn on_tangent_moved(
 		time			: Res<Time>,
 		key				: Res<Input<KeyCode>>,
 	mut	polylines		: ResMut<Assets<Polyline>>,
 		q_polyline		: Query<&Handle<Polyline>>,
 	mut	q_control_point	: Query<(&Parent, &Children, &Transform), With<ControlPoint>>,
+	// there are always 2 tangents: p0 is the one that is being dragged and p1 its opposite doppelganger
+	// p1 can mirror p0 against their shared parent - ControlPoint
 	mut q_tangent_set	: ParamSet<(
-						  Query<(&Parent, Entity, &Transform, &Tangent), (Changed<Transform>, Without<ControlPoint>)>,
-						  Query<&mut Transform, (With<Tangent>, (Without<DraggableActive>, Without<ControlPoint>))>
+						// p0
+						Query<
+						(&Parent, Entity, &Transform, &Tangent),
+						(Changed<Transform>, Without<ControlPoint>)
+						>,
+						// p1
+						Query<
+						&mut Transform,
+						(With<Tangent>,
+						(Without<DraggableActive>, Without<ControlPoint>)
+						)>
 	)>,
 	mut q_spline		: Query<(&mut Spline, &mut SplineControl)>
 ) {
@@ -103,10 +114,12 @@ pub fn on_tangent_moved(
 		}
 
 		let r = Quat::from_rotation_arc(Vec3::Z, tan_tform.translation.normalize());
-		screen_print!("tangent angle: {:.3}", r.angle_between(Quat::IDENTITY).to_degrees());
+		let angle = r.angle_between(Quat::IDENTITY).to_degrees();
+		let length = tan_tform.translation.length();
+		screen_print!("tangent angle: {:.3} length: {:.3}", angle, length);
 	}
 
-	// if sync_tangents == true we mirror position of current tanget to the opposite one
+	// if sync_tangents == true we mirror position of changed tangent its opposite counterpart
 	for opp in opposite_tangents {
 		if let Ok(mut tform) = q_tangent_set.p1().get_mut(opp.entity) {
 			let control_point_tform_inv = Transform::from_matrix(opp.control_point_tform.compute_matrix().inverse());
@@ -210,7 +223,7 @@ pub fn generate_spline_vertices(
     let total_length 	= spline.total_length();
     let delta 			= total_length / (total_verts as f32);
 	
-    screen_print!("keys: {} total_length: {} verts: {} delta: {}", keys.len(), total_length, total_verts, delta);
+    screen_print!("keys: {} total_length: {:.3} verts: {} delta: {:.3}", keys.len(), total_length, total_verts, delta);
 
 	let mut vertices : Vec<Vec3> = [].into();
 	vertices.reserve(total_verts + 1);

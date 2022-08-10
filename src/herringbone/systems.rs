@@ -1,5 +1,6 @@
-use super           	:: { * };
-use crate				:: { bevy_spline };
+use super           :: { * };
+
+use bevy_mod_gizmos	as bmg;
 
 pub fn brick_road_system(
 	mut q_spline		: Query<(
@@ -110,6 +111,33 @@ pub fn brick_road_system(
 			control.clean_tiles	= true;
 		} else {
 			control.spawn_tile	= false;
+		}
+	}
+}
+
+pub fn brick_road_system_debug(
+	mut q_spline		: Query<(
+							&Transform,
+							&Spline,
+							&Herringbone2Config,
+						)>,
+) {
+	if q_spline.is_empty() {
+		return;
+	}
+
+	for (transform, spline, config) in q_spline.iter_mut() {
+		if spline.keys().len() < 2 {
+			continue;
+		}
+
+		{
+			let first_key = spline.keys().first().unwrap().value;
+			let spline_r = spline.calc_init_rotation();
+			let hwidth_rotated = spline_r.mul_vec3(Vec3::X * (-config.width / 2.0));
+
+			let init_pos = transform.translation + (first_key - hwidth_rotated);
+			bmg::draw_gizmo(bmg::Gizmo::sphere(init_pos, 0.09, Color::YELLOW_GREEN));
 		}
 	}
 }

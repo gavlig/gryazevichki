@@ -305,7 +305,7 @@ pub fn coords_on_hover_ui_system(
 						ui.label(
 							egui::RichText::new(format!(
 								"[FILTER INFO]:\n\
-								t                      : [{:.3}]\n\
+								t                      : [{:>6.3}]\n\
 								spline_p               : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								road_halfwidth_rotated : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								left_border            : [{:>6.3} {:>6.3} {:>6.3}]\n\
@@ -321,9 +321,11 @@ pub fn coords_on_hover_ui_system(
 							))
 						.text_style(egui::TextStyle::Monospace));
 
-						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.spline_p, 0.05, Color::ANTIQUE_WHITE));
-						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.left_border, 0.07, Color::LIME_GREEN));
-						bmg::draw_gizmo(bmg::Gizmo::sphere(root_tform.translation + fi.right_border, 0.07, Color::LIME_GREEN));
+						let pre = root_tform.translation + (Vec3::Y * 0.5);
+
+						bmg::draw_gizmo(bmg::Gizmo::sphere(pre + fi.spline_p, 0.05, Color::ANTIQUE_WHITE));
+						bmg::draw_gizmo(bmg::Gizmo::sphere(pre + fi.left_border, 0.07, Color::BISQUE));
+						bmg::draw_gizmo(bmg::Gizmo::sphere(pre + fi.right_border, 0.07, Color::BISQUE));
 					},
 				_ => (),
 				}

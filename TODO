@@ -121,9 +121,9 @@
 49.32.1. (done!)finish end_conditions
 49.32.2. (done!)straight line works again
 49.32.3. moving tangents works again
-49.32.2. support starting from right border in left direction if init control point is rotated
-49.32.3. t = 0 tiles dont need special treatment
-49.32.4. everything disappears on certain angle
+49.32.4. support starting from right border in left direction if init control point is rotated
+49.32.5. t = 0 tiles dont need special treatment
+49.32.6. everything disappears on certain angle(69) length(3)
 50. make utils for debug drawing
 51. make plugin with common stuff from game to avoid including game
 
