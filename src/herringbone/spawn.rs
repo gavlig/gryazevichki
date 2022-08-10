@@ -294,71 +294,73 @@ fn find_t_on_spline(
 	config			: &Herringbone2Config,
 	log				: impl Fn(String)
 ) -> f32 {
-	let t_without_spline = state.t;
+	let t_prev		= state.t;
 
-	if t_without_spline <= 0.0 || t_without_spline >= spline.total_length() {
-		return t_without_spline;
+	if t_prev <= 0.0 || t_prev >= spline.total_length() {
+		return		t_prev;
 	}
 
 	let init_t_delta = (target_pos - state.pos).length();
+	let spline_p_prev = spline.calc_position(t_prev);
 
-	let mut t 		= t_without_spline;
+	let mut step	= init_t_delta;
+	let mut t 		= t_prev + step;
+
+	let mut t_best	= t_prev;
+	let mut distance_to_spline_best = (state.pos - spline_p_prev).length();
+	let mut distance_to_spline_prev = (target_pos - spline_p_prev).length();
 	let mut i 		= 0;
-	let mut corrections : Vec<f32> = Vec::new();
 	let eps			= 0.001; // precision is 1mm
 
-	log(format!("find_t_on_spline started! t_without_spline: {:.3} ", t_without_spline));
+	log(format!("find_t_on_spline started! t_without_spline: {:.3} ", t_prev));
 
 	loop {
 		let spline_p = spline.calc_position(t);
-		log(format!("[{}] spline_pos: [{:.3} {:.3} {:.3}] target_pos: [{:.3} {:.3} {:.3}]", i, spline_p.x, spline_p.y, spline_p.z, target_pos.x, target_pos.y, target_pos.z));
+		log(format!("[{}] t: {:.3} spline_pos: [{:.3} {:.3} {:.3}] target_pos: [{:.3} {:.3} {:.3}]", i, t, spline_p.x, spline_p.y, spline_p.z, target_pos.x, target_pos.y, target_pos.z));
 
 		if spline_p.abs_diff_eq(target_pos, eps) {
-			log(format!("[{}] find_t_on_spline finished(spline_p == target_pos)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
+			log(format!("[{}] find_t_on_spline finished(spline_p == target_pos)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_prev, t / t_prev));
 			break;
 		}
 
-		if (target_pos - spline_p).length() > config.width * 2.0 {
-			log(format!("[{}] find_t_on_spline finished(tile too far from spline)! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
+		let delta_pos = target_pos - spline_p;
+		let distance_to_spline = delta_pos.length();
+
+		log(format!("[{}] distance_to_spline: {:.3}", i, distance_to_spline));
+
+		let distance_diff = distance_to_spline - distance_to_spline_prev;
+		if distance_diff.abs() < eps || i >= 4 {
+			log(format!("[{}] find_t_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_prev, t / t_prev));
 			break;
 		}
+		distance_to_spline_prev = distance_to_spline;
 
-		let spline_dir = spline.calc_dir_wpos(t, spline_p);
-		let spline_r = Quat::from_rotation_arc(Vec3::Z, spline_dir);
-
-		let spline2target_dir = (target_pos - spline_p).normalize();
-		let spline2target_r = Quat::from_rotation_arc(Vec3::Z, spline2target_dir);
-
-		// if prev angle was better keep it?
-		let angle = spline_r.angle_between(spline2target_r).to_degrees();
-
-		log(format!("[{}] angle: {:.3}", i, angle));
-
-		let angle_diff = (90.0 - angle).abs();
-		if angle_diff < eps || i >= 5 {
-			log(format!("[{}] find_t_on_spline finished! t: {:.3} t_without_spline: {:.3} ratio: {:.3}", i, t, t_without_spline, t / t_without_spline));
-			break;
+		if i != 0 || distance_diff < 0.0 {
+			step *= 0.5;
 		}
 
-		// let correction = target_pos.z / spline_p.z;
-		let correction = (90.0 / angle).clamp(0.3, 1.7);
-		corrections.push(correction);
-		let mut corrected_offset = init_t_delta;
-		for c in corrections.iter() {
-			corrected_offset *= c;
+		if distance_diff > 0.0 {
+			step = -step;
 		}
-		t = state.t + corrected_offset;
 
-		log(format!("[{}] t: {:.3} correction: 90.0 / angle({:.3}) = correction({:.3})", i, t, angle, correction));
+		if distance_to_spline < distance_to_spline_best {
+			t_best = t;
+			distance_to_spline_best = distance_to_spline;
+			log(format!("new t_best! {:.3} distance_to_spline_best: {:.3}", t_best, distance_to_spline_best));
+		}
+
+		t += step;
+
+		log(format!("[{}] step: {:.3}", i, step));
 
 		i += 1;
 	};
 
-	if t.is_infinite() || t.is_nan() {
-		panic!("find_t_on_spline: t is invalid! t: {:.3}", t);
+	if t_best.is_infinite() || t_best.is_nan() {
+		panic!("find_t_on_spline: t_best is invalid! t_best: {:.3}", t_best);
 	}
 
-	t
+	t_best
 }
 
 fn spawn_tile(
