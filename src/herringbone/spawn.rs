@@ -295,10 +295,10 @@ fn find_t_on_spline(
 	spline			: &Spline,
 	log				: impl Fn(String)
 ) -> f32 {
-	if t_prev <= 0.0 || t_prev >= spline.total_length() {
-		log(format!("find_t_on_spline early out! t_prev: {:.3} spline.total_length: {:.3}", t_prev, spline.total_length()));
-		return		t_prev;
-	}
+	// if t_prev <= 0.0 || t_prev >= spline.total_length() {
+	// 	log(format!("find_t_on_spline early out! t_prev: {:.3} spline.total_length: {:.3}", t_prev, spline.total_length()));
+	// 	return		t_prev;
+	// }
 
 	let init_t_delta = (tile_pos - prev_pos).length();
 	let spline_p_prev = spline.calc_position(t_prev);
