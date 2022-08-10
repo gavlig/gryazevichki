@@ -82,6 +82,10 @@ fn calc_total_width(
 	config.width
 }
 
+fn calc_max_distance_to_spline(config: &Herringbone2Config) -> f32 {
+	(config.width / 2.0) + config.hsize.x
+}
+
 /*
 
 /
@@ -254,7 +258,7 @@ fn calc_next_tile_pos_on_road(
 		let distance_to_spline = (next_pos - spline_p).length();
 		log(format!("[{}] spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3}", dir_cnt, spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
 
-		let too_far_from_spline = distance_to_spline > (config.width / 2.0);
+		let too_far_from_spline = distance_to_spline > calc_max_distance_to_spline(config);
 		if too_far_from_spline {
 			if Direction2D::Up == state.dir {
 				state.pos = next_pos;
@@ -475,7 +479,7 @@ pub fn brick_road_iter(
 	let spline_p 		= spline.calc_position(t);
 	let spline_r		= spline.calc_rotation_wpos(t, spline_p);
 
-	let hwidth_rotated	= spline_r.mul_vec3(Vec3::X * (config.width / 2.0));
+	let hwidth_rotated	= spline_r.mul_vec3(Vec3::X * calc_max_distance_to_spline(config));
 
 	let tile2spline		= tile_pose.translation - spline_p;
 	let tile_pos_rotated =
