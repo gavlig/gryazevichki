@@ -245,25 +245,26 @@ fn calc_next_tile_pos_on_road(
 		}
 		next_pos		= calc_next_tile_pos(&mut state, config, &log);
 
-		log(format!("[{}] looking for available directions. dir: {:?}, next pos: [{:.3} {:.3} {:.3}] prev pos: [{:.3} {:.3} {:.3}] pattern_iter: {:?}", dir_cnt, state.dir, next_pos.x, next_pos.y, next_pos.z, state.pos.x, state.pos.y, state.pos.z, state.pattern_iter));
+		log(format!("[{}] checking dir {:?}, next pos: [{:.3} {:.3} {:.3}] prev pos: [{:.3} {:.3} {:.3}] pattern_iter: {:?}", dir_cnt, state.dir, next_pos.x, next_pos.y, next_pos.z, state.pos.x, state.pos.y, state.pos.z, state.pattern_iter));
 
 		// just probe with next_pos.z as t parameter to find closest spline point
 		let spline_p	= spline.calc_position(next_pos.z);
 		let distance_to_spline = (next_pos - spline_p).length();
+		log(format!("[{}] spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3}", dir_cnt, spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
 
 		let too_far_from_spline = distance_to_spline > (config.width / 2.0);
 		if !too_far_from_spline {
 			next_pos_found = true;
-			log(format!("found next pos direction! {:?} distance_to_spline: {:.3}", state.dir, distance_to_spline));
+			log(format!("[{}] all good! dir {:?} distance_to_spline: {:.3}", dir_cnt, state.dir, distance_to_spline));
 		} else {
 			if Direction2D::Up == state.dir {
 				state.pos = next_pos;
 				state.t = next_pos.z;
-				log(format!("couldn't go up but switched to next row anyway! new t: {:.3}", state.t));
+				log(format!("[{}] couldn't go up but switched to next row since previous row ended. new t: {:.3}", dir_cnt, state.t));
 			}
 
 			state.set_next_direction();
-			log(format!("too far! switching direction to {:?} pattern {} (spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3})", state.dir, state.pattern_iter, spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
+			log(format!("[{}] new pos is too far from border! switching direction to {:?}", dir_cnt, state.dir));
 		}
 
 		dir_cnt 		+= 1;
