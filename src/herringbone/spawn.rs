@@ -275,9 +275,9 @@ fn calc_next_tile_pos_on_road(
 		log(format!("----------------------------"));
 	} else {
 		// we went up one iteration, let's fill another row of tiles on the road! (switching from up to left)
-		if init_dir == Direction2D::Up {
-			state_out.set_next_direction();
-			state_out.t = next_pos.z;
+		if state.dir == Direction2D::Up {
+			state.set_next_direction();
+			state.t		= next_pos.z;
 			log(format!("new t: {:.3} We went up one iteration, let's fill another row of tiles on the road! (switching from up to left)", state_out.t));
 		}
 
