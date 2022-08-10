@@ -176,7 +176,7 @@ pub struct Herringbone2TileFilterInfo {
 	pub road_halfwidth_rotated : Vec3,
 	pub left_border : Vec3,
 	pub right_border : Vec3,
-	pub x : f32,
+	pub pos : Vec3,
 	pub t : f32,
 }
 

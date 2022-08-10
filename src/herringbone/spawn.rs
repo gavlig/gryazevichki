@@ -377,9 +377,10 @@ fn spawn_tile(
 
 	match filter_info {
 		Some(ref fi) => {
-			let left = (fi.left_border).x;
-			let right =  (fi.right_border).x;
-			let in_range = (left <= fi.x) && (fi.x <= right);
+			let left = fi.left_border;
+			let right =  fi.right_border;
+			let in_range = ((left.x <= fi.pos.x) && (fi.pos.x <= right.x)) || ((right.x <= fi.pos.x) && (fi.pos.x <= left.x))
+						|| ((left.z <= fi.pos.z) && (fi.pos.z <= right.z)) || ((right.z <= fi.pos.z) && (fi.pos.z <= left.z));
 			if !in_range {
 				if control.visual_debug {
 					ma = config.material_dbg.clone_weak();
@@ -462,20 +463,30 @@ pub fn brick_road_iter(
 	// 
 	//
 	// Final pose
-	let mut pose 		= Transform::identity();
-	pose.translation 	= next_pos;
-	pose.rotation		= pattern_rotation;
+	let mut tile_pose 	= Transform::identity();
+	tile_pose.translation = next_pos;
+	tile_pose.rotation	= pattern_rotation;
 
 	// 
 	//
-	// Spawning
+	// Filtering + Spawning
 
 	let spline_p 		= spline.calc_position(t);
 	let spline_r		= spline.calc_rotation_wpos(t, spline_p);
 
 	let hwidth_rotated	= spline_r.mul_vec3(Vec3::X * (config.width / 2.0));
+
+	let tile2spline		= tile_pose.translation - spline_p;
+	let tile_pos_rotated =
+	if tile2spline.length() > 0.001 {
+		let tile_azimuth	= Quat::from_rotation_arc(Vec3::Z, tile2spline.normalize());
+		spline_p + (tile_azimuth).mul_vec3(Vec3::Z * tile2spline.length())
+	} else {
+		tile_pose.translation
+	};
+
 	let filter_info	= Herringbone2TileFilterInfo {
-		x						: pose.translation.x,
+		pos						: tile_pos_rotated,
 		t						: t,
 		left_border				: spline_p - hwidth_rotated,
 		right_border			: spline_p + hwidth_rotated,
@@ -483,7 +494,7 @@ pub fn brick_road_iter(
 		spline_p				: spline_p
 	};
 	if !control.dry_run {
-		spawn_tile		(pose, Some(filter_info), state, config, control, sargs, log);
+		spawn_tile		(tile_pose, Some(filter_info), state, config, control, sargs, log);
 	}
 
 	//

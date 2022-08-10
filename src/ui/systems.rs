@@ -309,14 +309,14 @@ pub fn coords_on_hover_ui_system(
 								spline_p               : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								road_halfwidth_rotated : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								left_border            : [{:>6.3} {:>6.3} {:>6.3}]\n\
-								x                      : [{:.3}]\n\
+								pos                    : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								right_border           : [{:>6.3} {:>6.3} {:>6.3}]\n\
 								",
 								fi.t,
 								fi.spline_p.x, fi.spline_p.y, fi.spline_p.z,
 								fi.road_halfwidth_rotated.x, fi.road_halfwidth_rotated.y, fi.road_halfwidth_rotated.z,
 								fi.left_border.x, fi.left_border.y, fi.left_border.z,
-								fi.x,
+								fi.pos.x, fi.pos.y, fi.pos.z,
 								fi.right_border.x, fi.right_border.y, fi.right_border.z,
 							))
 						.text_style(egui::TextStyle::Monospace));
@@ -326,6 +326,8 @@ pub fn coords_on_hover_ui_system(
 						bmg::draw_gizmo(bmg::Gizmo::sphere(pre + fi.spline_p, 0.05, Color::ANTIQUE_WHITE));
 						bmg::draw_gizmo(bmg::Gizmo::sphere(pre + fi.left_border, 0.07, Color::BISQUE));
 						bmg::draw_gizmo(bmg::Gizmo::sphere(pre + fi.right_border, 0.07, Color::BISQUE));
+
+						bmg::draw_gizmo(bmg::Gizmo::cubiod(root_tform.translation + fi.pos, Vec3::new(0.04, 0.3, 0.04), Color::LIME_GREEN));
 					},
 				_ => (),
 				}
