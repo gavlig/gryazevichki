@@ -93,8 +93,8 @@ impl BrickRoadProgressState {
 		self.iter == 0
 	}
 
-	pub fn set_next_direction(&mut self) {
-		self.dir.set_next_direction();
+	pub fn set_next_direction(&mut self, init_dir: Direction2D) {
+		self.dir.set_next_direction(init_dir);
 		// if self.dir == Direction2D::Up || self.dir == Direction2D::Down {
 		// 	self.pattern_iter = if self.pattern_iter == 0 { 1 } else { 0 };
 		// }
@@ -189,17 +189,17 @@ pub enum Direction2D {
 }
 
 impl Direction2D {
-	pub fn next_direction(&self) -> Self {
+	pub fn next_direction(&self, init_dir: Self) -> Self {
 		match self {
 			Direction2D::Right => Direction2D::Up,
 			Direction2D::Left  => Direction2D::Up,
-			Direction2D::Up    => Direction2D::Left,
+			Direction2D::Up    => { if init_dir != Direction2D::Left { Direction2D::Left } else { Direction2D::Right } },
 			Direction2D::Down  => Direction2D::Down, // unused for now
 		}
 	}
 
-	pub fn set_next_direction(&mut self) {
-		*self = self.next_direction();
+	pub fn set_next_direction(&mut self, init_dir: Self) {
+		*self = self.next_direction(init_dir)
 	}
 
 	pub fn is_horizontal(&self) -> bool {

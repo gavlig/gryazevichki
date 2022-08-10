@@ -160,16 +160,16 @@ fn calc_next_tile_pos_xplus(
 	let hlenz			= config.hsize.z;
 	let seam			= config.hseam * 2.0;
 
-	let offset0_length 	= hlenz + seam;
-	let offset1_length 	= hlenx + seam + hlenx;
+	let offset0_length 	= hlenx + seam + hlenx;
+	let offset1_length 	= hlenz + seam;
 	let (offset0_rotation, offset1_rotation) = 
 	if pattern_iter % 2 == 0 {
-		(-FRAC_PI_4, FRAC_PI_4)
-	} else {
 		(FRAC_PI_4, -FRAC_PI_4)
+	} else {
+		(-FRAC_PI_4, FRAC_PI_4)
 	};
-	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * offset0_length);
-	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * -offset1_length);
+	let offset0 = Quat::from_rotation_y(offset0_rotation).mul_vec3(Vec3::Z * -offset0_length);
+	let offset1 = Quat::from_rotation_y(offset1_rotation).mul_vec3(Vec3::Z * offset1_length);
 	let herrpos = prev_p + offset0 + offset1;
 
 	log(format!("calc_next_tile_pos_xplus: [{:.3} {:.3} {:.3}]", herrpos.x, herrpos.y, herrpos.z));
@@ -262,7 +262,7 @@ fn calc_next_tile_pos_on_road(
 				log(format!("[{}] couldn't go up but switched to next row since previous row ended. new t: {:.3}", dir_cnt, state.t));
 			}
 
-			state.set_next_direction();
+			state.set_next_direction(init_dir);
 			log(format!("[{}] new pos is too far from border! switching direction to {:?}", dir_cnt, state.dir));
 		} else {
 			next_pos_found = true;
@@ -278,7 +278,7 @@ fn calc_next_tile_pos_on_road(
 	} else {
 		// we went up one iteration, let's fill another row of tiles on the road! (switching from up to left)
 		if state.dir == Direction2D::Up {
-			state.set_next_direction();
+			state.set_next_direction(init_dir);
 			state.t		= t;
 			log(format!("new t: {:.3} We went up one iteration, let's fill another row of tiles on the road! (switching from up to left)", state.t));
 		}
