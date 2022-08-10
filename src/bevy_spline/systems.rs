@@ -15,7 +15,7 @@ pub fn on_tangent_moved(
 		key				: Res<Input<KeyCode>>,
 	mut	polylines		: ResMut<Assets<Polyline>>,
 		q_polyline		: Query<&Handle<Polyline>>,
-	mut	q_control_point	: Query<(&Parent, &Children, &Transform, &mut ControlPoint)>,
+	mut	q_control_point	: Query<(&Parent, &Children, &Transform), With<ControlPoint>>,
 	mut q_tangent_set	: ParamSet<(
 						  Query<(&Parent, Entity, &Transform, &Tangent), (Changed<Transform>, Without<ControlPoint>)>,
 						  Query<&mut Transform, (With<Tangent>, (Without<DraggableActive>, Without<ControlPoint>))>
@@ -40,7 +40,7 @@ pub fn on_tangent_moved(
 	let mut opposite_tangents : Vec<OppositeTangent> = Vec::new();
 
 	for (control_point_e, tan_e, tan_tform, tan) in q_tangent_set.p0().iter() {
-		let (spline_e, control_point_children_e, control_point_tform, mut control_point) = q_control_point.get_mut(control_point_e.0).unwrap();
+		let (spline_e, control_point_children_e, control_point_tform) = q_control_point.get_mut(control_point_e.0).unwrap();
 		let (mut spline, mut spline_control) = q_spline.get_mut(spline_e.0).unwrap();
 		let key = spline.get_key_from_pos(control_point_tform.translation).unwrap();
 		let t = key.t;
