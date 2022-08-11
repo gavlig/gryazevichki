@@ -188,6 +188,19 @@ pub enum Direction2D {
 }
 
 impl Direction2D {
+	pub fn flipped(&self) -> Self {
+		match self {
+			Direction2D::Right => Direction2D::Left,
+			Direction2D::Left  => Direction2D::Right,
+			Direction2D::Up    => Direction2D::Down,
+			Direction2D::Down  => Direction2D::Up,
+		}
+	}
+
+	pub fn flip(&mut self) {
+		*self = self.flipped()
+	}
+
 	pub fn next_direction(&self, init_dir: Self) -> Self {
 		match self {
 			Direction2D::Right => Direction2D::Up,

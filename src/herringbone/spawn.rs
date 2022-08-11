@@ -239,50 +239,64 @@ fn calc_next_tile_pos_on_road(
 	let mut next_pos	= Vec3::ZERO;
 	let mut next_pos_found = false;
 	let mut t			= state.t;
-	let mut dir_cnt		= 0;
-	let mut went_up_once = false;
+	let mut iter		= 0;
+	let mut fail_cnt	= 0;
+	let max_fails		= 10;
 	let init_dir		= state.dir;
 	let init_pattern_iter = state.pattern_iter;
 
-	while !next_pos_found && dir_cnt < 6 {
+	let mut last_good_pos = state.pos;
+	let mut last_good_t = t;
+
+	while !next_pos_found && iter < (max_fails * 4) {
 		if state.dir.is_vertical() && init_dir.is_horizontal() {
 			state.pattern_iter = if init_pattern_iter == 0 { 1 } else { 0 };
-			log(format!("[{}] [hor -> ver]: next pattern_iter: {} init_dir: {:?} dir: {:?}", dir_cnt, state.pattern_iter, init_dir, state.dir));
+			log(format!("[{}] [hor -> ver]: next pattern_iter: {} init_dir: {:?} dir: {:?}", iter, state.pattern_iter, init_dir, state.dir));
 		}
 		next_pos		= calc_next_tile_pos(&mut state, config, &log);
 
-		log(format!("[{}] checking dir {:?}, next pos: [{:.3} {:.3} {:.3}] prev pos: [{:.3} {:.3} {:.3}] pattern_iter: {:?}", dir_cnt, state.dir, next_pos.x, next_pos.y, next_pos.z, state.pos.x, state.pos.y, state.pos.z, state.pattern_iter));
+		log(format!("[{}] checking dir {:?}, next pos: [{:.3} {:.3} {:.3}] prev pos: [{:.3} {:.3} {:.3}] pattern_iter: {:?}", iter, state.dir, next_pos.x, next_pos.y, next_pos.z, state.pos.x, state.pos.y, state.pos.z, state.pattern_iter));
 
 		t				= find_t_on_spline(next_pos, state.pos, state.t, spline, &log);
 		let spline_p	= spline.calc_position(t);
 
 		let distance_to_spline = (next_pos - spline_p).length();
-		log(format!("[{}] t: {:.3} spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3}", dir_cnt, t,  spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
+		log(format!("[{}] t: {:.3} spline_p: [{:.3} {:.3} {:.3}] distance_to_spline: {:.3}", iter, t,  spline_p.x, spline_p.y, spline_p.z, distance_to_spline));
+
+		// if failed direction go up or rather switch row once without generic logic and do generic logic again
 
 		let too_far_from_spline = distance_to_spline > calc_max_distance_to_spline(config);
-		if too_far_from_spline {
-			log(format!("[{}] new pos is too far from border!", dir_cnt));
+		if too_far_from_spline && fail_cnt < max_fails {
+			log(format!("[{}] fail, but we keep going to make sure [{}/{}]", iter, fail_cnt, max_fails));
 
-			if state.dir == Direction2D::Up {
-				went_up_once = true;
-				state.set_next_direction(init_dir);
-			}
+			state.pos = next_pos;
+			state.t = t;
+			fail_cnt += 1;
+		} else if too_far_from_spline && fail_cnt >= max_fails {
+			log(format!("[{}] new pos is too far from border!", iter));
 
-			if went_up_once {
-				state.pos = next_pos;
-				state.t = t;
-				log(format!("[{}] went up once so keeping offset! new t: {:.3}", dir_cnt, state.t));
-			} else {
-				state.set_next_direction(init_dir);
-			}
+			state.pos = last_good_pos;
+			state.t = last_good_t;
 
-			log(format!("[{}] switching direction to {:?}", dir_cnt, state.dir));
+
+			fail_cnt = 0;
+			
+			state.dir = Direction2D::Up;
+			state.pattern_iter = if init_pattern_iter == 0 { 1 } else { 0 };
+			log(format!("[{}] [hor -> ver]: next pattern_iter: {} init_dir: {:?} dir: {:?}", iter, state.pattern_iter, init_dir, state.dir));
+			next_pos		= calc_next_tile_pos(&mut state, config, &log);
+			t				= find_t_on_spline(next_pos, state.pos, state.t, spline, &log);
+			state.pos = next_pos;
+			state.t = t;
+			state.dir = init_dir.flipped();
+
+			log(format!("[{}] new row! switching direction to {:?} also new (t: {:.3} pos: [{:.3} {:.3} {:.3}])", iter, state.dir, t, next_pos.x, next_pos.y, next_pos.z));
 		} else {
 			next_pos_found = true;
-			log(format!("[{}] all good! dir {:?}", dir_cnt, state.dir));
+			log(format!("[{}] all good! dir {:?}", iter, state.dir));
 		} 
 
-		dir_cnt 		+= 1;
+		iter 		+= 1;
 	}
 
 	if !next_pos_found {

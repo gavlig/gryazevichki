@@ -122,14 +122,16 @@
 49.32.2. (done!)straight line works again
 49.32.3. moving tangents works again
 49.32.3.1. close tangent moves left
-49.32.3.1.1. when spline get nonmanifold we stop too early
+49.32.3.1.1. (fixed!)when spline get nonmanifold we stop too early
+49.32.3.1.2. handle negative t
+49.32.3.1.3. finetune missing/extra tiles
 49.32.3.2. close tangent moves right
 49.32.3.3. far tangent moves right
 49.32.3.4. far tangent moves left
 49.32.4. (done!)support starting tiling from right border in left direction if tangent moved to right
-49.32.5. t = 0 tiles dont need special treatment
-49.32.5.1 handle negative t
-49.32.6. everything disappears on certain angle(69) length(3)
+49.32.5. (done!)t = 0 tiles dont need special treatment
+49.32.6. (fixed)everything disappears on certain angle(69) length(3)
+49.33. rotate inner pattern
 50. make utils for debug drawing
 51. make plugin with common stuff from game to avoid including game
 
