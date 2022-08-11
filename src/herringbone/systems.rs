@@ -1,5 +1,6 @@
 use super           :: { * };
 
+use bevy_debug_text_overlay::screen_print;
 use bevy_mod_gizmos	as bmg;
 
 pub fn brick_road_system(
@@ -72,11 +73,22 @@ pub fn brick_road_system(
 
 		if progress_state.hasnt_started() {
 			let first_key = spline.keys().first().unwrap().value;
-			let spline_r = spline.calc_init_rotation();
-			let hwidth_rotated = spline_r.mul_vec3(Vec3::X * (-config.width / 2.0));
+			let init_dir = spline.calc_init_dir();
+			let spline_r = spline.calc_rotation_wdir(init_dir);
 
-			progress_state.pos = first_key - hwidth_rotated;
+			let mut offset = config.width / 2.0;
 			progress_state.dir = Direction2D::Right;
+			let (axis, _angle) = spline_r.to_axis_angle();
+
+			if axis.y < 0. {
+				offset *= -1.;
+				progress_state.dir = Direction2D::Left;
+			}
+
+			let hwidth_rotated = spline_r.mul_vec3(Vec3::X * offset);
+			
+			progress_state.init_pos = first_key + hwidth_rotated;
+			progress_state.pos = progress_state.init_pos;
 
 			log(format!("Herringbone2 road initialized! init pos: [{:.3} {:.3} {:.3}]", progress_state.pos.x, progress_state.pos.y, progress_state.pos.z));
 		}
@@ -119,6 +131,7 @@ pub fn brick_road_system_debug(
 	mut q_spline		: Query<(
 							&Transform,
 							&Spline,
+							&BrickRoadProgressState,
 							&Herringbone2Config,
 						)>,
 ) {
@@ -126,17 +139,13 @@ pub fn brick_road_system_debug(
 		return;
 	}
 
-	for (transform, spline, config) in q_spline.iter_mut() {
+	for (transform, spline, progress_state, _config) in q_spline.iter_mut() {
 		if spline.keys().len() < 2 {
 			continue;
 		}
 
 		{
-			let first_key = spline.keys().first().unwrap().value;
-			let spline_r = spline.calc_init_rotation();
-			let hwidth_rotated = spline_r.mul_vec3(Vec3::X * (-config.width / 2.0));
-
-			let init_pos = transform.translation + (first_key - hwidth_rotated);
+			let init_pos = transform.translation + progress_state.init_pos;
 			bmg::draw_gizmo(bmg::Gizmo::sphere(init_pos, 0.09, Color::YELLOW_GREEN));
 		}
 	}

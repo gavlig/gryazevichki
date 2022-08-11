@@ -219,26 +219,29 @@ impl Spline {
 		segment_t
 	}
 
-	pub fn calc_init_position(&self) -> Vec3 {
+	pub fn init_t(&self) -> f32 {
 		let keys			= self.keys();
 		if keys.len() <= 0 {
-			assert!			(false, "calc_init_position was called on an empty spline! (keys.len() <= 0)");
-			return 			Vec3::ZERO;
+			assert!			(false, "init_t was called on an empty spline! (keys.len() <= 0)");
+			return 			0.0;
 		}
 
-		let t				= keys[0].t;
+		keys[0].t
+	}
+
+	pub fn calc_init_position(&self) -> Vec3 {
+		let t				= self.init_t();
 		self.calc_position	(t)
 	}
 
 	pub fn calc_init_rotation(&self) -> Quat {
-		let keys			= self.keys();
-		if keys.len() <= 0 {
-			assert!			(false, "calc_init_rotation was called on an empty spline! (keys.len() <= 0)");
-			return 			Quat::IDENTITY;
-		}
-
-		let t				= keys[0].t;
+		let t				= self.init_t();
 		self.calc_rotation	(t)
+	}
+
+	pub fn calc_init_dir(&self) -> Vec3 {
+		let t				= self.init_t();
+		self.calc_dir		(t)
 	}
 
 	pub fn calc_position(&self, t : f32) -> Vec3 {
@@ -291,6 +294,10 @@ impl Spline {
 	pub fn calc_rotation_wpos(&self, t : f32, spline_p : Vec3) -> Quat {
 		let spline_dir = self.calc_dir_wpos(t, spline_p);
 		Quat::from_rotation_arc(Vec3::Z, spline_dir)
+	}
+
+	pub fn calc_rotation_wdir(&self, dir : Vec3) -> Quat {
+		Quat::from_rotation_arc(Vec3::Z, dir)
 	}
 
 	pub fn get_key_id(&self, t_in : f32) -> Option<usize> {

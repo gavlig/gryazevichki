@@ -116,7 +116,7 @@ pub fn on_tangent_moved(
 		let r = Quat::from_rotation_arc(Vec3::Z, tan_tform.translation.normalize());
 		let angle = r.angle_between(Quat::IDENTITY).to_degrees();
 		let length = tan_tform.translation.length();
-		screen_print!("tangent angle: {:.3} length: {:.3}", angle, length);
+		screen_print!("tangent angle: {:.3} length: {:.3} x: {:.3}", angle, length, tan_tform.translation.x);
 	}
 
 	// if sync_tangents == true we mirror position of changed tangent its opposite counterpart

@@ -67,6 +67,7 @@ pub struct BrickRoadProgressState {
 	pub pattern_iter	: usize,
 	pub t				: f32,
 	pub pos				: Vec3,
+	pub init_pos		: Vec3,
 	pub finished		: bool,
 }
 
@@ -78,6 +79,7 @@ impl Default for BrickRoadProgressState {
 			pattern_iter: 0,
 			t			: 0.0,
 			pos			: Vec3::Y * 0.5, // VERTICALITY
+			init_pos	: Vec3::ZERO,
 			finished	: false,
 		}
 	}
@@ -95,9 +97,6 @@ impl BrickRoadProgressState {
 
 	pub fn set_next_direction(&mut self, init_dir: Direction2D) {
 		self.dir.set_next_direction(init_dir);
-		// if self.dir == Direction2D::Up || self.dir == Direction2D::Down {
-		// 	self.pattern_iter = if self.pattern_iter == 0 { 1 } else { 0 };
-		// }
 	}
 }
 

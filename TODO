@@ -126,7 +126,7 @@
 49.32.3.2. close tangent moves right
 49.32.3.3. far tangent moves right
 49.32.3.4. far tangent moves left
-49.32.4. support starting from right border in left direction if init control point is rotated
+49.32.4. (done!)support starting tiling from right border in left direction if tangent moved to right
 49.32.5. t = 0 tiles dont need special treatment
 49.32.5.1 handle negative t
 49.32.6. everything disappears on certain angle(69) length(3)
